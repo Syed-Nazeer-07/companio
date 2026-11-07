@@ -8,54 +8,48 @@ interface Props {
 export const HelpPage: React.FC<Props> = ({ onStartOnboarding }) => {
   const commandSections = [
     {
-      title: 'Web & Browser Automation',
+      title: 'Browser & YouTube',
       icon: Globe,
       examples: [
-        '"Open ChatGPT."',
-        '"Open Claude." / "Open Gemini."',
         '"Open YouTube."',
-        '"Search for CarryMinati\'s newest video and play it."',
-        '"Find a Python tutorial by Bro Code and open it."',
-        '"Open GitHub and go to my repositories."',
-        '"Search Google for the latest AI developments."',
-        '"Open five tabs about machine learning."',
-        '"Pause the current YouTube video."',
-        '"Go fullscreen."'
+        '"Open ChatGPT." / "Open Claude."',
+        '"Search Google for Python tutorials."',
+        '"Open the official Python documentation."',
+        '"Pause the current YouTube video." (if Companio opened it)'
       ]
     },
     {
-      title: 'Windows Desktop Applications',
+      title: 'Windows Desktop',
       icon: Terminal,
       examples: [
-        '"Open Calculator." / "Close Calculator."',
-        '"Open File Explorer." / "Open my Downloads folder."',
-        '"Open VS Code." / "Open my project folder."',
-        '"Open Notepad." / "Open Paint."',
-        '"Open Task Manager." / "Open Snipping Tool."',
-        '"Open Terminal." / "Open Windows Settings."',
-        '"Lock my computer."',
+        '"Open Calculator." / "Open Notepad."',
+        '"Open File Explorer."',
+        '"Open my Downloads folder."',
+        '"Open VS Code."',
+        '"Open Paint." / "Open Task Manager."',
         '"Take a screenshot."'
       ]
     },
     {
-      title: 'Audio & Spotify Controls',
+      title: 'Volume & Notes',
       icon: Volume2,
       examples: [
-        '"Increase the volume to 60%."',
+        '"Set volume to 60%."',
+        '"Volume up." / "Lower volume."',
         '"Mute the audio." / "Unmute the sound."',
-        '"Play Graffitia by Green Day on Spotify."',
-        '"Play my liked songs."',
-        '"Skip this song."',
-        '"Pause the music." / "Resume playback."'
+        '"Remember that my exam is Monday."',
+        '"Show my notes."',
+        '"Clear notes." (requires confirmation)'
       ]
     },
     {
-      title: 'Multi-Step Workflows',
+      title: 'Approval-first Workflows',
       icon: Sparkles,
       examples: [
-        '"Open Chrome, search for the latest Python release, and open the official documentation."',
-        '"Open Spotify, play my favorite playlist, and lower the system volume to 30%."',
-        '"Open VS Code and open my project folder."'
+        '"Open Notepad and set volume to 45%."',
+        '"Open YouTube and search Google for Python tutorials."',
+        'Up to three supported steps with explicit approval.',
+        'A local model can suggest other allowlisted steps when configured.'
       ]
     }
   ];
@@ -66,7 +60,8 @@ export const HelpPage: React.FC<Props> = ({ onStartOnboarding }) => {
         <div>
           <h2 className="text-2xl font-bold text-slate-900 mb-1">Help & Command Reference</h2>
           <p className="text-sm text-slate-600">
-            A guide to speaking or typing natural commands to control your Windows computer.
+            Supported commands for the Windows desktop app. Questions about apps won't launch them automatically.
+            Some actions depend on installed programs or active browser sessions.
           </p>
         </div>
 
@@ -77,6 +72,14 @@ export const HelpPage: React.FC<Props> = ({ onStartOnboarding }) => {
           <BookOpen className="w-3.5 h-3.5" />
           <span>Rerun Setup Wizard</span>
         </button>
+      </div>
+
+      <div className="rounded-xl border border-sky-200 bg-sky-50/60 px-4 py-3 text-xs leading-relaxed text-slate-700">
+        <strong className="text-slate-900">How commands work:</strong> Use clear action words such as
+        {' '}<code>open</code>, <code>set</code>, <code>search</code> or <code>save</code>.
+        Companio confirms multi-step plans before execution. Browser search results do not guarantee the
+        latest creator upload; global media play/pause is unavailable without verified playback state.
+        Voice recognition requires a working microphone and installed Windows speech support.
       </div>
 
       {/* Command Cheat Sheets */}
