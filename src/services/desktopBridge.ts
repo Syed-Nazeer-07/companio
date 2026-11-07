@@ -48,7 +48,7 @@ export const isNativeDesktop = (): boolean => {
 };
 
 export const desktopBridge = {
-  async setActivationShortcut(shortcut: string) {
+  async setActivationShortcut(shortcut: string): Promise<{ success: boolean; shortcut?: string; error?: string }> {
     const api = getDesktopAPI();
     return api ? api.setActivationShortcut(shortcut)
       : { success: false, error: 'Global shortcuts require the installed desktop app.' };
