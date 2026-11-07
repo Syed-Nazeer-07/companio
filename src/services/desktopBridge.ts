@@ -48,7 +48,7 @@ interface CompanioDesktopAPI {
     };
   }>;
   mutateHistoryStore?: (operation: {
-    kind: 'add-message' | 'add-log' | 'add-note' | 'clear-messages' | 'clear-logs' | 'clear-notes' | 'replace';
+    kind: 'add-message' | 'add-log' | 'add-note' | 'clear-messages' | 'clear-logs' | 'clear-notes' | 'replace' | 'seed';
     record?: unknown;
     backup?: unknown;
   }) => Promise<{success: boolean; error?: string}>;
@@ -303,7 +303,7 @@ export const desktopBridge = {
   },
 
   async mutateHistoryStore(operation: {
-    kind: 'add-message' | 'add-log' | 'add-note' | 'clear-messages' | 'clear-logs' | 'clear-notes' | 'replace';
+    kind: 'add-message' | 'add-log' | 'add-note' | 'clear-messages' | 'clear-logs' | 'clear-notes' | 'replace' | 'seed';
     record?: unknown;
     backup?: unknown;
   }): Promise<{ success: boolean; error?: string }> {
