@@ -704,6 +704,25 @@ app.whenReady().then(async () => {
         throw new Error('Offline planning incorrectly accepted a destructive request');
       }
       smokeReport({ stage: 'offline-planner-verified' });
+
+      // Verify the installed preload can actually load the validated on-disk
+      // history created by startup migration. Never change the user's history
+      // from this smoke probe.
+      const diskHistory = await win.webContents.executeJavaScript(
+        "window.companioDesktop.loadHistoryStore()"
+      );
+      if (!diskHistory?.success || !diskHistory.exists ||
+          !Array.isArray(diskHistory.backup?.conversations) ||
+          !Array.isArray(diskHistory.backup?.automationLogs)) {
+        throw new Error('Native history file was not created or available through packaged IPC');
+      }
+      const rejectedImport = await win.webContents.executeJavaScript(
+        "window.companioDesktop.validateHistoryImport(JSON.stringify({format:'companio-local-history',schemaVersion:1,exportedAt:new Date().toISOString(),conversations:[],automationLogs:[],notes:[],settings:{ai:{apiKey:'secret'}}}))"
+      );
+      if (rejectedImport?.success !== false) {
+        throw new Error('History import validator did not reject a settings/API-key injection');
+      }
+      smokeReport({ stage: 'native-history-verified' });
       clearTimeout(timer);
       smokeReport({ ok: true, rendered: details.rendered, bridge: details.bridge, inputVisible: awakened });
       console.log('COMPANIO_SMOKE_OK: React, Electron preload, hotkey UI and negative IPC verified');
