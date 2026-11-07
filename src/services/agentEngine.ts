@@ -22,6 +22,15 @@ export class AgentEngine {
     const steps: TaskStep[] = [];
     let intent = 'conversation';
 
+    // When a local model is selected, let it propose clearly requested
+    // multi-action workflows first. Unknown single-action requests get a
+    // second chance after the deterministic planner below.
+    const explicitAction = /^(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:open|launch|start|search|find|look\s+up|play|pause|mute|unmute|set|go\s+to|visit|show)\b/i.test(query.trim());
+    const multiAction = /\b(?:and\s+then|then|and\s+also|after\s+that|followed\s+by|and)\b/i.test(query);
+    if (aiConfig?.provider === 'local' && explicitAction && multiAction) {
+      return this.planSafeLocalActions(query, aiConfig, planId);
+    }
+
     // 1. Direct Web Apps (ChatGPT, Claude, Gemini, WhatsApp, Gmail, Reddit, Netflix, X)
     if (q.includes('chatgpt') || q.includes('chat gpt')) {
       intent = 'browser.chatgpt.open';
@@ -802,8 +811,12 @@ export class AgentEngine {
       });
     }
 
-    const conversationalReply = steps.length === 0 
-      ? await this.generateConversationalResponse(query, aiConfig) 
+    if (aiConfig?.provider === 'local' && explicitAction && steps.length === 0) {
+      return this.planSafeLocalActions(query, aiConfig, planId);
+    }
+
+    const conversationalReply = steps.length === 0
+      ? await this.generateConversationalResponse(query, aiConfig)
       : undefined;
 
     return {
@@ -815,6 +828,36 @@ export class AgentEngine {
       status: steps.length > 0 ? 'planning' : 'completed',
       createdAt: Date.now(),
       finalMessage: conversationalReply
+    };
+  }
+
+  // Untrusted model output is validated in the Electron main process before
+  // it reaches React. Every proposed plan still needs explicit user approval
+  // before the existing verified native executor can run any step.
+  private async planSafeLocalActions(query: string, aiConfig: AiConfig, planId: string): Promise<TaskPlan> {
+    const proposal = await desktopBridge.planLocalActions({
+      endpoint: aiConfig.localEndpoint,
+      model: aiConfig.model || 'llama3.2:1b',
+      query
+    });
+    if (!proposal.success || !proposal.steps?.length || proposal.requiresConfirmation !== true) {
+      throw new Error(proposal.error || 'No safe actions could be planned. Try a simpler request.');
+    }
+    return {
+      id: planId,
+      query,
+      intent: 'local_ai_actions',
+      steps: proposal.steps.map((step, index) => ({
+        id: 'step_' + (index + 1),
+        tool: step.tool,
+        params: step.params,
+        description: step.description,
+        verification: 'The native action result must be verified before continuing.',
+        status: 'pending' as const
+      })),
+      currentStepIndex: 0,
+      status: 'planning',
+      createdAt: Date.now()
     };
   }
 
