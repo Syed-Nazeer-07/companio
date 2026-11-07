@@ -46,16 +46,27 @@ export const AutomationPage: React.FC = () => {
       params = { action: 'play' };
     }
 
+    const missing = tool.parameters.filter((parameter) => parameter.required && !(parameter.name in params));
+    if (missing.length || tool.id.startsWith('utility.') ||
+        ['win.system.lock', 'win.recyclebin.empty', 'win.clipboard.clear'].includes(tool.id)) {
+      setTestResults((prev) => ({ ...prev, [tool.id]: {
+        loading: false, success: false, verified: false,
+        error: missing.length ? 'Test inputs required: ' + missing.map((x) => x.name).join(', ')
+          : 'This action requires a direct command or confirmation, not a one-click test.'
+      } }));
+      setTestingToolId(null);
+      return;
+    }
     try {
       const result = await desktopBridge.executeTool(tool.id, params);
       setTestResults((prev) => ({
         ...prev,
         [tool.id]: {
           loading: false,
-          success: result?.success !== false,
+          success: result?.success === true && result?.verified === true,
           message: result?.message || 'Operation executed',
           error: result?.error,
-          verified: result?.verified !== false
+          verified: result?.verified === true
         }
       }));
     } catch (err: any) {
@@ -78,7 +89,7 @@ export const AutomationPage: React.FC = () => {
       <div>
         <h2 className="text-2xl font-bold text-slate-900 mb-1.5">Automation & Real Computer Control</h2>
         <p className="text-sm text-slate-600">
-          Companio executes real native commands across Windows APIs, Edge browser automation, audio endpoints, and native applications. Every operation is verified before reporting completion.
+          Companio attempts supported Windows and browser actions, checks outcomes where possible, and flags failed or unverified operations.
         </p>
       </div>
 
