@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { dbService, AutomationLogRecord } from '../../services/dbService';
+import { desktopBridge, isNativeDesktop } from '../../services/desktopBridge';
 import { ChatMessage } from '../../types';
-import { Search, Trash2, Download, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { Search, Trash2, Download, Upload, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 
 export const HistoryPage: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -9,6 +10,8 @@ export const HistoryPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<'conversations' | 'automations'>('automations');
   const [filterQuery, setFilterQuery] = useState<string>('');
   const [exportStatus, setExportStatus] = useState<string>('');
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadData();
@@ -53,6 +56,59 @@ export const HistoryPage: React.FC = () => {
     }
   };
 
+  const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+    if (!file) return;
+    setImporting(true);
+    setExportStatus('');
+    try {
+      if (file.size > 2 * 1024 * 1024) {
+        setExportStatus('Import refused: history backup must be smaller than 2 MiB.');
+        return;
+      }
+      const validated = await desktopBridge.validateHistoryImport(await file.text());
+      if (!validated.success || !validated.backup || !validated.counts) {
+        setExportStatus(validated.error || 'The selected file is not a valid Companio history backup.');
+        return;
+      }
+      const counts = validated.counts;
+      const accepted = window.confirm(
+        'Restore this Companio history backup?\n\n' +
+        'Conversations: ' + counts.conversations +
+        '\nAutomation logs: ' + counts.automationLogs +
+        '\nNotes: ' + counts.notes +
+        '\n\nThis REPLACES your current conversations, logs and notes. ' +
+        'Settings and AI keys will not be changed. Export your current history first if needed.'
+      );
+      if (!accepted) {
+        setExportStatus('Restore cancelled. Existing history was not changed.');
+        return;
+      }
+      // Contents are sanitized in the trusted Electron main process.
+      const outcome = dbService.restoreHistory(validated.backup as {
+        conversations: ChatMessage[];
+        automationLogs: AutomationLogRecord[];
+        notes: string[];
+      });
+      if (!outcome.success) {
+        setExportStatus(outcome.error || 'History could not be restored.');
+        return;
+      }
+      loadData();
+      setExportStatus(
+        'History restored: ' + counts.conversations + ' conversations, ' +
+        counts.automationLogs + ' automation logs, ' + counts.notes +
+        ' notes. Settings were not changed.'
+      );
+    } catch (error) {
+      setExportStatus('Could not restore history: ' +
+        (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const filteredLogs = logs.filter(
     (l) =>
       l.tool.toLowerCase().includes(filterQuery.toLowerCase()) ||
@@ -70,11 +126,29 @@ export const HistoryPage: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold text-slate-900 mb-1">Execution History & Logs</h2>
           <p className="text-sm text-slate-600">
-            Search your conversations and command results, stored locally on this device.
+            Search your conversations and command results, stored locally on this device. Export a backup before clearing or restoring.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            aria-label="Select Companio history backup"
+            onChange={handleImportFile}
+          />
+          <button
+            type="button"
+            disabled={importing || !isNativeDesktop()}
+            title={isNativeDesktop() ? 'Restore a Companio JSON history backup' : 'History restore requires the installed desktop app'}
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-sky-50 text-sky-700 border border-sky-200 text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <span>{importing ? 'Validating...' : 'Restore History'}</span>
+          </button>
           <button
             type="button"
             onClick={handleExport}
