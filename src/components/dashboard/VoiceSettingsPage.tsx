@@ -1,0 +1,144 @@
+import React, { useState, useEffect } from 'react';
+import { AppSettings } from '../../types';
+import { speechService } from '../../services/speechService';
+import { Mic, Volume2, Play, VolumeX, Sparkles } from 'lucide-react';
+
+interface Props {
+  settings: AppSettings;
+  onUpdateSettings: (newSettings: Partial<AppSettings>) => void;
+}
+
+export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) => {
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [testingVoice, setTestingVoice] = useState<boolean>(false);
+
+  useEffect(() => {
+    const loadVoices = () => {
+      const v = speechService.getAvailableVoices();
+      setAvailableVoices(v);
+    };
+    loadVoices();
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }, []);
+
+  const handleTestVoice = () => {
+    setTestingVoice(true);
+    speechService.speak(
+      `Hello! I am ${settings.characterName}, your personal Windows 11 AI desktop companion. My voice is ready and sounding great!`,
+      {
+        voiceName: settings.voice.ttsVoice,
+        rate: settings.voice.ttsRate,
+        pitch: settings.voice.ttsPitch,
+        volume: settings.voice.ttsVolume,
+        muted: false,
+        onEnd: () => setTestingVoice(false)
+      }
+    );
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-200">
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900 mb-1.5">Voice & Speech Interaction</h2>
+        <p className="text-sm text-slate-600">
+          Configure speech recognition, push-to-talk, and text-to-speech companion voices.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Input: Microphone & Wake Word */}
+        <div className="acrylic-card rounded-2xl p-6 space-y-5 border border-slate-200 shadow-sm">
+          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+            <Mic className="w-4 h-4 text-sky-600" />
+            <span>Voice Input (Speech-to-Text)</span>
+          </h3>
+
+          {/* Wake Word Toggle */}
+          <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+            <div>
+              <p className="text-sm font-bold text-slate-800">Wake Phrase ("Hey Companio")</p>
+              <p className="text-xs text-slate-500">Allows hands-free voice activation when overlay is running</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={settings.voice.wakePhraseEnabled}
+              onChange={(e) => onUpdateSettings({
+                voice: { ...settings.voice, wakePhraseEnabled: e.target.checked }
+              })}
+              className="w-5 h-5 accent-sky-600 rounded cursor-pointer"
+            />
+          </div>
+
+          {/* Push to Talk Info */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Push-to-Talk Activation
+            </label>
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700">
+              Click the microphone button on the companion or press <span className="font-mono font-bold text-sky-700">Ctrl + Shift + Space</span> to talk!
+            </div>
+          </div>
+        </div>
+
+        {/* Output: Text-To-Speech Synthesis */}
+        <div className="acrylic-card rounded-2xl p-6 space-y-5 border border-slate-200 shadow-sm">
+          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+            <Volume2 className="w-4 h-4 text-sky-600" />
+            <span>Spoken Replies (Text-to-Speech)</span>
+          </h3>
+
+          {/* Mute Toggle */}
+          <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+            <div>
+              <p className="text-sm font-bold text-slate-800">Enable Audible Spoken Replies</p>
+              <p className="text-xs text-slate-500">Speaks replies aloud when completing tasks</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={!settings.voice.muted}
+              onChange={(e) => onUpdateSettings({
+                voice: { ...settings.voice, muted: !e.target.checked }
+              })}
+              className="w-5 h-5 accent-sky-600 rounded cursor-pointer"
+            />
+          </div>
+
+          {/* Voice Selector */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Select Voice
+            </label>
+            <select
+              value={settings.voice.ttsVoice}
+              onChange={(e) => onUpdateSettings({
+                voice: { ...settings.voice, ttsVoice: e.target.value }
+              })}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-xs font-semibold focus:outline-none focus:border-sky-500"
+            >
+              <option value="">Default Sweet Friendly Voice</option>
+              {availableVoices
+                .filter((v) => v.lang.startsWith('en'))
+                .map((v) => (
+                  <option key={v.name} value={v.name}>
+                    {v.name} ({v.lang})
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          {/* Test Voice Button */}
+          <button
+            onClick={handleTestVoice}
+            disabled={testingVoice}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 text-xs font-bold transition-all disabled:opacity-50"
+          >
+            <Play className={`w-3.5 h-3.5 fill-current ${testingVoice ? 'animate-spin' : ''}`} />
+            <span>{testingVoice ? 'Speaking...' : 'Test Voice Audio'}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
