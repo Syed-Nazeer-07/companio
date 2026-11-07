@@ -134,4 +134,58 @@ async function proposeActions(options = {}, chatImpl = localAi.chat) {
   }
 }
 
-module.exports = { TOOL_SPECS, MODEL_INSTRUCTIONS, validateProposal, proposeActions };
+
+// Offline compound commands use fixed grammar and the exact same native
+// allowlist/parameter validator. They need neither Ollama nor any API key.
+const ACTION_CONNECTOR = /\s+(?:and\s+then|and\s+also|after\s+that|then|and)\s+(?=(?:please\s+)?(?:open|launch|start|search|find|look\s+up|play|pause|mute|unmute|set|change|go\s+to|visit|delete|remove|clear|close|send|email|install|shutdown|restart|run|copy|move|type|write)\b)/i;
+
+function offlineClause(raw) {
+  const text = raw.trim().replace(/^please\s+/i, '').replace(/[.!]$/, '').trim();
+  let m;
+  if (/^(?:open|launch|start)\s+(?:(?:the|windows)\s+)?calculator$/i.test(text))
+    return { tool: 'win.calculator.launch', params: {} };
+  if (/^(?:open|launch|start)\s+(?:(?:the|windows)\s+)?notepad$/i.test(text))
+    return { tool: 'win.notepad.launch', params: {} };
+  if (/^(?:open|launch|start)\s+(?:the\s+)?spotify$/i.test(text))
+    return { tool: 'win.spotify.launch', params: {} };
+  if (/^(?:open|launch|start|go\s+to)\s+(?:the\s+)?youtube$/i.test(text))
+    return { tool: 'browser.youtube.open', params: {} };
+  if ((m = text.match(/^(?:open|launch)\s+(?:my\s+)?(downloads|documents|desktop|pictures|music|videos)(?:\s+folder)?$/i)))
+    return { tool: 'win.explorer.open', params: { folder: m[1][0].toUpperCase() + m[1].slice(1).toLowerCase() } };
+  if ((m = text.match(/^(?:set|change)\s+(?:(?:the|my)\s+)?(?:system\s+)?volume\s+(?:to\s+)?(\d{1,3})\s*%?$/i)))
+    return { tool: 'win.volume.set', params: { level: Number(m[1]) } };
+  if (/^mute\s+(?:the\s+)?(?:(?:system|my)\s+)?(?:audio|volume|sound)$/i.test(text))
+    return { tool: 'win.volume.mute', params: { mute: true } };
+  if (/^unmute\s+(?:the\s+)?(?:(?:system|my)\s+)?(?:audio|volume|sound)$/i.test(text))
+    return { tool: 'win.volume.mute', params: { mute: false } };
+  if ((m = text.match(/^search\s+(?:on\s+)?google\s+(?:for\s+)?(.+)$/i)))
+    return { tool: 'browser.search_google', params: { query: m[1].trim() } };
+  if ((m = text.match(/^search\s+wikipedia\s+(?:for\s+)?(.+)$/i)))
+    return { tool: 'browser.wikipedia.search', params: { query: m[1].trim() } };
+  if ((m = text.match(/^search\s+(?:google\s+)?maps\s+(?:for\s+)?(.+)$/i)))
+    return { tool: 'browser.maps.search', params: { query: m[1].trim() } };
+  return null;
+}
+
+function planOfflineSequence(options = {}) {
+  try {
+    if (!isPlainObject(options) || typeof options.query !== 'string' ||
+        options.query.length > 1200 || !options.query.trim()) {
+      throw new Error('Invalid offline action request.');
+    }
+    const parts = options.query.trim().split(ACTION_CONNECTOR);
+    if (parts.length === 1) return { success: false, recognized: false, steps: [] };
+    if (parts.length > 3) throw new Error('A workflow can have at most three actions.');
+    const steps = parts.map(part => {
+      const guessed = offlineClause(part);
+      if (!guessed) throw new Error('Part of this workflow is not supported by the built-in engine.');
+      const action = validatedAction(guessed);
+      return { ...action, description: descriptionFor(action) };
+    });
+    return { success: true, recognized: true, steps, requiresConfirmation: true };
+  } catch (error) {
+    return { success: false, recognized: true, steps: [], error: error.message || 'Could not plan the workflow.' };
+  }
+}
+
+module.exports = { TOOL_SPECS, MODEL_INSTRUCTIONS, validateProposal, proposeActions, planOfflineSequence };
