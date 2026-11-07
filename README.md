@@ -124,7 +124,7 @@ The SQLite WebAssembly runtime is now bundled with the desktop assets rather tha
 
 The app also includes an **in-app GGUF model downloader**. Downloaded files are **not activated** without a separate inference runtime. New downloads check expected byte counts and write a completion marker; models downloaded with older builds may need downloading again to be recognized. Cryptographic signature validation is not yet available.
 
-### 🧪 Local AI preview status (v1.1.0-rc.5)
+### 🧪 Local AI preview status (v1.1.0-rc.6)
 
 This preview adds a **single validated local AI path** for Ollama and LM Studio, local server/model selection, a test prompt, explicit connection failures, and conversation/error history. The app bundles SQLite's WebAssembly asset instead of fetching it from a CDN. The incomplete cloud-provider option is disabled rather than collecting new API keys.
 
@@ -239,7 +239,7 @@ Electron Builder writes the output under `release/`. Generated filenames depend 
 
 ### 5. GitHub Releases
 
-The repository includes [`release.yml`](.github/workflows/release.yml), which is configured to build Windows x64/ARM64 artifacts when a `v*` tag is pushed, then publish a GitHub Release. The existing [v1.0.0 release](https://github.com/Syed-Nazeer-07/companio/releases/tag/v1.0.0) was built **before Phase 1**. The **v1.1.0-rc.5** candidate produces separate unsigned x64 and ARM64 CI artifacts only after its Windows checks pass; these are not public signed releases. View [Actions](https://github.com/Syed-Nazeer-07/companio/actions/workflows/ci.yml), open the matching successful release-candidate workflow run, and download your architecture's artifact. Artifacts expire after 14 days. They contain installers, portable executables, and SHA-256 checksums. Tagged releases also require a matching package version and passing x64 desktop smoke test. Workflow presence does **not** guarantee that a particular release build has passed or that an installer has been published.
+The repository includes [`release.yml`](.github/workflows/release.yml), which is configured to build Windows x64/ARM64 artifacts when a `v*` tag is pushed, then publish a GitHub Release. The existing [v1.0.0 release](https://github.com/Syed-Nazeer-07/companio/releases/tag/v1.0.0) was built **before Phase 1**. The **v1.1.0-rc.6** candidate produces separate unsigned x64 and ARM64 CI artifacts only after its Windows checks pass; these are not public signed releases. View [Actions](https://github.com/Syed-Nazeer-07/companio/actions/workflows/ci.yml), open the matching successful release-candidate workflow run, and download your architecture's artifact. Artifacts expire after 14 days. They contain installers, portable executables, and SHA-256 checksums. Tagged releases also require a matching package version and passing x64 desktop smoke test. Workflow presence does **not** guarantee that a particular release build has passed or that an installer has been published.
 
 ## 📁 Project Structure
 
@@ -307,7 +307,7 @@ Automated Windows CI covers TypeScript compilation, native-input and permission 
 - **Tested:** security and shortcut unit suites, TypeScript build, and packaged Windows x64 app smoke checks. Windows x64 and ARM64 packages build successfully in CI.
 - **Not tested:** real user desktop sessions, sustained voice input, arbitrary app control, actual browser/media playback, or code signing. Avoid entering production cloud API keys.
 
-### ✨ v1.1.0-rc.5: approval-first desktop workflows
+### ✨ v1.1.0-rc.6: approval-first desktop workflows
 
 This candidate adds strict model-generated 1–3 action proposals, **offline multi-step phrases without an LLM**, trusted Electron validation, and confirmation with the exact command parameters before execution. A packaged smoke test verifies a benign plan and rejection of a destructive plan without triggering either action. Quick Controls no longer equate attempted actions with verified success, and the Control Center can restore a previously hidden overlay.
 
@@ -325,6 +325,12 @@ Both paths support **at most three actions**, require an explicit user confirmat
 **Not supported:** autonomous screen-reading agents, arbitrary shell commands, unrestricted filesystem access, sending messages, automatic interaction with unrelated apps, or assurance that every Windows/media action is independently verifiable. The model is not allowed to invent executable tools. Desktop commands still require real-machine acceptance testing.
 
 The Phase 3 baseline is protected by [`rollback/pre-phase3-2026-11-08`](https://github.com/Syed-Nazeer-07/companio/tree/rollback/pre-phase3-2026-11-08).
+
+### 🧪 v1.1.0-rc.6 — native verification preview
+
+This Windows preview addresses false-success reporting in volume/mute controls, process launches, File Explorer folders, clipboard clear, screenshot PNG creation, network/system checks, and browser navigation. It also runs the PowerShell command helper without displaying a separate foreground console. New regression tests cover unavailable system services, unsupported actions, and wrong website destinations.
+
+**Known constraints:** a running process does not prove a window gained focus; HTTP navigation verification does not prove the requested content was displayed or interacted with; and some operating-system URI handlers remain unverified. The current media control and active-window minimize limitations are described below. Windows ARM64 builds are CI-packaged but not hardware acceptance tested.
 
 ## 🛡️ Native outcome verification
 
