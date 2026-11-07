@@ -6,6 +6,10 @@ const { launchVerifiedApp } = require('./appLaunchController.cjs');
 const quotePowerShell = (value) => "'" + String(value).replace(/'/g, "''") + "'";
 
 class WinAppsController {
+  constructor(run = runPowerShell) {
+    this.runPowerShell = run;
+  }
+
   // Launch Windows Calculator
   async launchCalculator() {
     try {
@@ -14,7 +18,7 @@ Start-Process "calc.exe"
 Start-Sleep -Milliseconds 800
 Get-Process -Name "CalculatorApp","Calculator","calc" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id
 `;
-      const { stdout } = await runPowerShell(script);
+      const { stdout } = await this.runPowerShell(script);
       const isRunning = stdout.trim().length > 0;
       return {
         success: isRunning,
@@ -35,7 +39,7 @@ Start-Sleep -Milliseconds 600
 $rem = Get-Process -Name "CalculatorApp","Calculator","calc" -ErrorAction SilentlyContinue
 ($rem -eq $null).ToString()
 `;
-      const { stdout } = await runPowerShell(script);
+      const { stdout } = await this.runPowerShell(script);
       const isClosed = stdout.trim().toLowerCase() === 'true';
       return {
         success: isClosed,
@@ -62,7 +66,7 @@ $rem = Get-Process -Name "CalculatorApp","Calculator","calc" -ErrorAction Silent
       }
 
       const script = `Start-Process -FilePath 'explorer.exe' -ArgumentList ${quotePowerShell(resolvedPath)}`;
-      await runPowerShell(script);
+      await this.runPowerShell(script);
       return {
         success: true,
         message: `Opened File Explorer at ${resolvedPath}`,
@@ -92,7 +96,7 @@ $rem = Get-Process -Name "CalculatorApp","Calculator","calc" -ErrorAction Silent
         '}',
         "if ($found) { 'COMPANIO_CODE_RUNNING' } else { 'COMPANIO_CODE_NOT_FOUND' }"
       ].join('\n');
-      const { stdout } = await runPowerShell(script);
+      const { stdout } = await this.runPowerShell(script);
       const verified = stdout.trim() === 'COMPANIO_CODE_RUNNING';
       return {
         success: verified,
@@ -118,7 +122,7 @@ $rem = Get-Process -Name "CalculatorApp","Calculator","calc" -ErrorAction Silent
         '}',
         "if ($found) { 'COMPANIO_SPOTIFY_RUNNING' } else { 'COMPANIO_SPOTIFY_NOT_FOUND' }"
       ].join('\n');
-      const { stdout } = await runPowerShell(script);
+      const { stdout } = await this.runPowerShell(script);
       const verified = stdout.trim() === 'COMPANIO_SPOTIFY_RUNNING';
       return {
         success: verified,
@@ -158,7 +162,7 @@ $type = Add-Type -MemberDefinition $sig -Name "Win32MediaKey" -Namespace "Win32"
 $type::keybd_event(${vkCode}, 0, 0, [UIntPtr]::Zero)
 $type::keybd_event(${vkCode}, 0, 2, [UIntPtr]::Zero)
 `;
-      await runPowerShell(script);
+      await this.runPowerShell(script);
       return {
         success: true,
         message: `Media key sent: ${label}; playback state is not independently verified.`,
@@ -178,7 +182,7 @@ $type::keybd_event(${vkCode}, 0, 2, [UIntPtr]::Zero)
         throw new Error('Spotify search needs a song or artist.');
       }
       const uri = 'spotify:search:' + encodeURIComponent(query);
-      await runPowerShell('Start-Process -FilePath ' + quotePowerShell(uri) + ' -ErrorAction Stop');
+      await this.runPowerShell('Start-Process -FilePath ' + quotePowerShell(uri) + ' -ErrorAction Stop');
       return {
         success: true,
         verified: false,
@@ -219,18 +223,30 @@ $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
 $bmp = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
 $graphics = [System.Drawing.Graphics]::FromImage($bmp)
 $graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
-$bmp.Save("${fullPath.replace(/\\/g, '\\\\')}", [System.Drawing.Imaging.ImageFormat]::Png)
+ $bmp.Save(${quotePowerShell(fullPath)}, [System.Drawing.Imaging.ImageFormat]::Png)
 $graphics.Dispose()
 $bmp.Dispose()
-Test-Path "${fullPath.replace(/\\/g, '\\\\')}"
+ Test-Path -LiteralPath ${quotePowerShell(fullPath)}
 `;
-      await runPowerShell(script);
-      const fileExists = fs.existsSync(fullPath);
+      await this.runPowerShell(script);
+      const fileExists = fs.existsSync(fullPath) && fs.statSync(fullPath).size > 128;
+      let verified = false;
+      if (fileExists) {
+        const fd = fs.openSync(fullPath, 'r');
+        try {
+          const signature = Buffer.alloc(8);
+          const bytes = fs.readSync(fd, signature, 0, 8, 0);
+          verified = bytes === 8 && signature.equals(Buffer.from('89504e470d0a1a0a', 'hex'));
+        } finally {
+          fs.closeSync(fd);
+        }
+      }
       return {
-        success: fileExists,
-        message: fileExists ? `Screenshot saved to ${fullPath}` : 'Screenshot file was not created',
+        success: verified,
+        message: verified ? `Screenshot saved to ${fullPath}` : 'Screenshot PNG could not be verified.',
+        error: verified ? undefined : 'Screenshot file is missing, empty, or not a valid PNG.',
         filePath: fullPath,
-        verified: fileExists
+        verified
       };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
@@ -255,7 +271,7 @@ Test-Path "${fullPath.replace(/\\/g, '\\\\')}"
   // Launch Snipping Tool
   async launchSnippingTool() {
     try {
-      await runPowerShell('Start-Process "snippingtool.exe"');
+      await this.runPowerShell('Start-Process "snippingtool.exe"');
       return { success: true, message: 'Snipping Tool opened', verified: true };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
@@ -265,7 +281,7 @@ Test-Path "${fullPath.replace(/\\/g, '\\\\')}"
   // Launch Windows Terminal
   async launchTerminal() {
     try {
-      await runPowerShell('Start-Process "wt.exe" -ErrorAction SilentlyContinue; if (!$?) { Start-Process "powershell.exe" }');
+      await this.runPowerShell('Start-Process "wt.exe" -ErrorAction SilentlyContinue; if (!$?) { Start-Process "powershell.exe" }');
       return { success: true, message: 'Terminal opened', verified: true };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
@@ -275,7 +291,7 @@ Test-Path "${fullPath.replace(/\\/g, '\\\\')}"
   // Open Windows Settings
   async openSettings() {
     try {
-      await runPowerShell('Start-Process "ms-settings:"');
+      await this.runPowerShell('Start-Process "ms-settings:"');
       return { success: true, message: 'Windows Settings opened', verified: true };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
@@ -285,7 +301,7 @@ Test-Path "${fullPath.replace(/\\/g, '\\\\')}"
   // Lock Workstation
   async lockWorkstation() {
     try {
-      await runPowerShell('rundll32.exe user32.dll,LockWorkStation');
+      await this.runPowerShell('rundll32.exe user32.dll,LockWorkStation');
       return {
         success: true, verified: false,
         message: 'Windows lock request was issued; the locked state was not observed.',
@@ -309,7 +325,7 @@ Test-Path "${fullPath.replace(/\\/g, '\\\\')}"
   // Launch Windows Camera
   async launchCamera() {
     try {
-      await runPowerShell('Start-Process "microsoft.windows.camera:"');
+      await this.runPowerShell('Start-Process "microsoft.windows.camera:"');
       return { success: true, message: 'Camera opened', verified: true };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
@@ -319,7 +335,7 @@ Test-Path "${fullPath.replace(/\\/g, '\\\\')}"
   // Launch Windows Clock & Alarms
   async launchClock() {
     try {
-      await runPowerShell('Start-Process "ms-clock:"');
+      await this.runPowerShell('Start-Process "ms-clock:"');
       return { success: true, message: 'Clock & Alarms opened', verified: true };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
@@ -329,7 +345,7 @@ Test-Path "${fullPath.replace(/\\/g, '\\\\')}"
   // Launch Windows Weather
   async launchWeather() {
     try {
-      await runPowerShell('Start-Process "bingweather:"');
+      await this.runPowerShell('Start-Process "bingweather:"');
       return { success: true, message: 'Weather app opened', verified: true };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
@@ -357,7 +373,7 @@ if (Test-Path $discordPath) {
   Start-Process "https://discord.com/app"
 }
 `;
-      await runPowerShell(script);
+      await this.runPowerShell(script);
       return { success: true, message: 'Discord opened', verified: true };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
@@ -367,7 +383,7 @@ if (Test-Path $discordPath) {
   // Launch Steam
   async launchSteam() {
     try {
-      await runPowerShell('Start-Process "steam://open/main" -ErrorAction SilentlyContinue; if (!$?) { Start-Process "https://store.steampowered.com" }');
+      await this.runPowerShell('Start-Process "steam://open/main" -ErrorAction SilentlyContinue; if (!$?) { Start-Process "https://store.steampowered.com" }');
       return { success: true, message: 'Steam opened', verified: true };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
@@ -377,7 +393,7 @@ if (Test-Path $discordPath) {
   // Empty Windows Recycle Bin
   async emptyRecycleBin() {
     try {
-      await runPowerShell('Clear-RecycleBin -Force -ErrorAction Stop');
+      await this.runPowerShell('Clear-RecycleBin -Force -ErrorAction Stop');
       return { success: true, message: 'Recycle Bin clear command completed; contents not independently verified.', verified: false };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
@@ -387,7 +403,7 @@ if (Test-Path $discordPath) {
   // Show Desktop / Minimize All Windows
   async showDesktop() {
     try {
-      await runPowerShell('(New-Object -ComObject Shell.Application).MinimizeAll()');
+      await this.runPowerShell('(New-Object -ComObject Shell.Application).MinimizeAll()');
       return {
         success: true, verified: false,
         message: 'Windows was asked to minimize open windows; resulting desktop visibility is not verified.',
@@ -407,11 +423,12 @@ if ($b) {
   $status = if ($b.BatteryStatus -eq 2) { "Charging" } else { "Discharging" }
   "$($b.EstimatedChargeRemaining)% ($status)"
 } else {
-  "Plugged into AC power (No battery detected)"
+  "No battery was reported by Windows; charging state is unknown"
 }
 `;
-      const { stdout } = await runPowerShell(script);
-      const info = stdout.trim() || 'Battery info unavailable';
+      const { stdout } = await this.runPowerShell(script);
+      const info = stdout.trim();
+      if (!info) return { success: false, verified: false, error: 'Windows did not return battery status.' };
       return { success: true, message: `Battery status: ${info}`, battery: info, verified: true };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
@@ -427,8 +444,12 @@ $ram = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory 
 $os = (Get-CimInstance Win32_OperatingSystem).Caption.Trim()
 "$os | $cpu | ${ram}GB RAM"
 `;
-      const { stdout } = await runPowerShell(script);
+      const { stdout } = await this.runPowerShell(script);
       const specs = stdout.trim();
+      const fields = specs.split('|').map(part => part.trim());
+      if (fields.length !== 3 || fields.some(part => !part) || !/\b\d+GB RAM\b/i.test(fields[2])) {
+        return { success: false, verified: false, error: 'Windows returned incomplete hardware specifications.' };
+      }
       return { success: true, message: `System: ${specs}`, specs, verified: true };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
@@ -464,7 +485,7 @@ $os = (Get-CimInstance Win32_OperatingSystem).Caption.Trim()
         name = 'Power & Battery Settings';
       }
 
-      await runPowerShell(`Start-Process "${uri}"`);
+      await this.runPowerShell(`Start-Process "${uri}"`);
       return { success: true, message: `${name} opened`, verified: true };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
@@ -487,7 +508,7 @@ if ($m) {
   Write-Output "unsupported"
 }
 `;
-      const { stdout } = await runPowerShell(script);
+      const { stdout } = await this.runPowerShell(script);
       const ok = stdout.trim() === 'ok';
       return {
         success: ok,
@@ -517,7 +538,7 @@ if ($m) {
   "unsupported"
 }
 `;
-      const { stdout } = await runPowerShell(script);
+      const { stdout } = await this.runPowerShell(script);
       const res = stdout.trim();
       const ok = /^\d+$/.test(res);
       return {
@@ -533,7 +554,7 @@ if ($m) {
   // Get Clipboard Content
   async getClipboardText() {
     try {
-      const { stdout } = await runPowerShell('Get-Clipboard -ErrorAction SilentlyContinue');
+      const { stdout } = await this.runPowerShell('Get-Clipboard -ErrorAction SilentlyContinue');
       const text = stdout.trim();
       return {
         success: true,
@@ -549,8 +570,18 @@ if ($m) {
   // Clear Clipboard Content
   async clearClipboard() {
     try {
-      await runPowerShell('Set-Clipboard -Value $null -ErrorAction SilentlyContinue');
-      return { success: true, message: 'Clipboard cleared', verified: true };
+      const { stdout } = await this.runPowerShell([
+        'Set-Clipboard -Value $null -ErrorAction Stop',
+        '$remaining = Get-Clipboard -Raw -ErrorAction SilentlyContinue',
+        "if ([string]::IsNullOrEmpty($remaining)) { 'COMPANIO_CLIPBOARD_EMPTY' } else { 'COMPANIO_CLIPBOARD_NOT_EMPTY' }"
+      ].join('\n'));
+      const verified = stdout.trim() === 'COMPANIO_CLIPBOARD_EMPTY';
+      return {
+        success: verified,
+        verified,
+        message: verified ? 'Clipboard is empty.' : 'Clipboard clear could not be verified.',
+        error: verified ? undefined : 'Clipboard content remained or Windows did not confirm it was cleared.'
+      };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
     }
@@ -564,8 +595,11 @@ $ip = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias "Wi-Fi*","Ethernet*"
 $conn = (Get-NetConnectionProfile -ErrorAction SilentlyContinue | Select-Object -First 1).Name
 "$ip on $conn"
 `;
-      const { stdout } = await runPowerShell(script);
-      const netInfo = stdout.trim() || 'Connected';
+      const { stdout } = await this.runPowerShell(script);
+      const netInfo = stdout.trim();
+      if (!/\b(?:\d{1,3}\.){3}\d{1,3}\b/.test(netInfo)) {
+        return { success: false, verified: false, error: 'Windows did not return a valid local IPv4 address.' };
+      }
       return {
         success: true,
         message: `Network: ${netInfo}`,
@@ -579,3 +613,4 @@ $conn = (Get-NetConnectionProfile -ErrorAction SilentlyContinue | Select-Object 
 }
 
 module.exports = new WinAppsController();
+module.exports.WinAppsController = WinAppsController;
