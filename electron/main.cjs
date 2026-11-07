@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const { fileURLToPath } = require('url');
 const { validateToolRequest, validateShortcut } = require('./automation/requestValidation.cjs');
+const { allowPermissionRequest, allowPermissionCheck, validVolume, validPosition } = require('./automation/securityPolicy.cjs');
 
 const browserController = require('./automation/browserController.cjs');
 const winAppsController = require('./automation/winAppsController.cjs');
@@ -55,7 +56,9 @@ function isTrustedAppURL(raw) {
 
 function isTrustedSender(event) {
   const win = BrowserWindow.fromWebContents(event.sender);
-  return !!win && (win === overlayWindow || win === dashboardWindow) && isTrustedAppURL(event.sender.getURL());
+  return !!win && (win === overlayWindow || win === dashboardWindow)
+    && event.senderFrame === event.sender.mainFrame
+    && isTrustedAppURL(event.sender.getURL());
 }
 
 function secureHandle(channel, callback) {
@@ -270,7 +273,8 @@ function registerHotkeys(requested = currentShortcut) {
       } else {
         overlayWindow.show();
         overlayWindow.focus();
-        overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+        overlayWindow.setAlwaysOnTop(overlayPreferences.alwaysOnTop,
+          overlayPreferences.alwaysOnTop ? 'screen-saver' : 'normal');
         overlayWindow.webContents.send('shortcut-activated');
       }
     });
@@ -496,8 +500,12 @@ secureHandle('cancel-model-download', async () => {
 });
 
 secureHandle('get-volume', async () => await volumeController.getVolume());
-secureHandle('set-volume', async (_, level) => await volumeController.setVolume(level));
-secureHandle('set-mute', async (_, mute) => await volumeController.setMute(mute));
+secureHandle('set-volume', async (_, level) => validVolume(level)
+  ? volumeController.setVolume(level)
+  : { success: false, verified: false, error: 'Volume must be a number between 0 and 100.' });
+secureHandle('set-mute', async (_, mute) => typeof mute === 'boolean'
+  ? volumeController.setMute(mute)
+  : { success: false, verified: false, error: 'Mute must be true or false.' });
 secureHandle('take-screenshot', async () => await winAppsController.takeScreenshot());
 
 secureHandle('toggle-dashboard', async (_, show) => {
@@ -509,9 +517,9 @@ secureHandle('toggle-dashboard', async (_, show) => {
   return true;
 });
 
-secureHandle('save-overlay-position', async (_, { x, y }) => {
-  savePosition(x, y);
-  return true;
+secureHandle('save-overlay-position', async (event, position) => {
+  if (event.sender !== overlayWindow?.webContents || !validPosition(position)) return false;
+  return savePosition(position.x, position.y);
 });
 
 secureHandle('get-overlay-position', async () => {
@@ -520,9 +528,9 @@ secureHandle('get-overlay-position', async () => {
 
 secureHandle('set-ignore-mouse-events', (event, ignore) => {
   const win = BrowserWindow.fromWebContents(event.sender);
-  if (win) {
-    win.setIgnoreMouseEvents(ignore, { forward: true });
-  }
+  if (win !== overlayWindow || typeof ignore !== 'boolean') return false;
+  win.setIgnoreMouseEvents(ignore, { forward: true });
+  return true;
 });
 
 secureHandle('quit-app', () => {
@@ -532,7 +540,8 @@ secureHandle('quit-app', () => {
 
 // State synchronization between overlay and dashboard windows
 ipcMain.on('sync-state-broadcast', (event, state) => {
-  if (!isTrustedSender(event)) return;
+  if (!isTrustedSender(event) || !state || typeof state !== 'object' || Array.isArray(state)) return;
+  if (JSON.stringify(state).length > 65536) return;
   if (overlayWindow && event.sender !== overlayWindow.webContents) {
     overlayWindow.webContents.send('sync-state', state);
   }
@@ -577,14 +586,12 @@ app.whenReady().then(() => {
       return !!win && (win === overlayWindow || win === dashboardWindow) && isTrustedAppURL(wc.getURL());
     };
     session.defaultSession.setPermissionRequestHandler((wc, permission, callback, details) => {
-      const audioOnly = permission === 'media' && Array.isArray(details?.mediaTypes)
-        && details.mediaTypes.includes('audio') && !details.mediaTypes.includes('video');
-      callback(trusted(wc) && (audioOnly || permission === 'notifications'));
+      const sameTrustedDocument = trusted(wc) && !!details?.requestingUrl && isTrustedAppURL(details.requestingUrl);
+      callback(allowPermissionRequest(permission, details, sameTrustedDocument));
     });
     session.defaultSession.setPermissionCheckHandler((wc, permission, requestingOrigin, details) => {
-      const audioOnly = permission === 'media' && Array.isArray(details?.mediaTypes)
-        && details.mediaTypes.includes('audio') && !details.mediaTypes.includes('video');
-      return trusted(wc) && (audioOnly || permission === 'notifications');
+      const sameTrustedDocument = trusted(wc) && !!details?.requestingUrl && isTrustedAppURL(details.requestingUrl);
+      return allowPermissionCheck(permission, details, sameTrustedDocument);
     });
   }
 
