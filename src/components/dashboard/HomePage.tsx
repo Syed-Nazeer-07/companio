@@ -180,7 +180,7 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
           </div>
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
             <p className="text-slate-500 mb-1 font-medium">Processor Architecture</p>
-            <p className="text-slate-900 font-bold">ARM64 (Snapdragon X)</p>
+            <p className="text-slate-900 font-bold">Universal (x64 & ARM64)</p>
           </div>
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
             <p className="text-slate-500 mb-1 font-medium">Global Hotkey</p>

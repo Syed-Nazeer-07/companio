@@ -246,6 +246,24 @@ class BrowserController {
     }
   }
 
+  // 9. Search Wikipedia
+  async searchWikipedia(query) {
+    const url = `https://en.wikipedia.org/wiki/Special:Search?search=${encodeURIComponent(query)}`;
+    return await this.openWebsite(url, `Wikipedia search for "${query}"`);
+  }
+
+  // 10. Search Amazon
+  async searchAmazon(query) {
+    const url = `https://www.amazon.com/s?k=${encodeURIComponent(query)}`;
+    return await this.openWebsite(url, `Amazon search for "${query}"`);
+  }
+
+  // 11. Search Google Maps
+  async searchGoogleMaps(location) {
+    const url = `https://www.google.com/maps/search/${encodeURIComponent(location)}`;
+    return await this.openWebsite(url, `Google Maps for "${location}"`);
+  }
+
   async dismissPopups(page) {
     try {
       const dismissBtn = await page.$('button[aria-label*="Accept"], button:has-text("Accept all"), button:has-text("I agree")');

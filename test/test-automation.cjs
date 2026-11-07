@@ -9,7 +9,7 @@ const browserController = require('../electron/automation/browserController.cjs'
 async function runAcceptanceTests() {
   console.log('====================================================');
   console.log('       COMPANIO - AUTOMATED ACCEPTANCE TEST SUITE    ');
-  console.log('   Target: Windows 11 on ARM64 (Snapdragon X Elite)  ');
+  console.log('   Target: Windows 11 (x64 & ARM64 Snapdragon)       ');
   console.log('====================================================\n');
 
   let passed = 0;
@@ -32,11 +32,11 @@ async function runAcceptanceTests() {
     }
   }
 
-  // 1. Architecture & ARM64 check
-  await test('ARM64 Platform Compatibility Check', async () => {
+  // 1. Architecture check (Windows x64 & ARM64)
+  await test('Windows Platform Compatibility Check (x64 / ARM64)', async () => {
     const arch = os.arch();
     console.log(`(Arch: ${arch})`);
-    return arch === 'arm64' || process.arch === 'arm64';
+    return ['x64', 'arm64', 'ia32'].includes(arch) || ['x64', 'arm64'].includes(process.arch);
   });
 
   // 2. Volume control test

@@ -11,6 +11,10 @@ interface Props {
 export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) => {
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [testingVoice, setTestingVoice] = useState<boolean>(false);
+  const [testingMic, setTestingMic] = useState<boolean>(false);
+  const [micLevel, setMicLevel] = useState<number>(0);
+  const micIntervalRef = React.useRef<any>(null);
+  const micStreamRef = React.useRef<MediaStream | null>(null);
 
   useEffect(() => {
     const loadVoices = () => {
@@ -21,7 +25,44 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.onvoiceschanged = loadVoices;
     }
+
+    return () => {
+      if (micIntervalRef.current) clearInterval(micIntervalRef.current);
+      if (micStreamRef.current) micStreamRef.current.getTracks().forEach((t) => t.stop());
+    };
   }, []);
+
+  const handleToggleTestMic = async () => {
+    if (testingMic) {
+      if (micIntervalRef.current) clearInterval(micIntervalRef.current);
+      if (micStreamRef.current) micStreamRef.current.getTracks().forEach((t) => t.stop());
+      setTestingMic(false);
+      setMicLevel(0);
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      micStreamRef.current = stream;
+      setTestingMic(true);
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 64;
+      source.connect(analyser);
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      micIntervalRef.current = setInterval(() => {
+        analyser.getByteFrequencyData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) sum += data[i];
+        const avg = sum / data.length;
+        const norm = Math.min(100, Math.round(avg * 1.2));
+        setMicLevel(norm);
+      }, 50);
+    } catch (e: any) {
+      alert(`Could not access microphone: ${e.message}`);
+    }
+  };
 
   const handleTestVoice = () => {
     setTestingVoice(true);
@@ -79,6 +120,39 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700">
               Click the microphone button on the companion or press <span className="font-mono font-bold text-sky-700">Ctrl + Shift + Space</span> to talk!
             </div>
+          </div>
+
+          {/* Test Live Microphone Meter */}
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-800">Test Live Microphone</span>
+              <button
+                type="button"
+                onClick={handleToggleTestMic}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                  testingMic
+                    ? 'bg-rose-500 text-white shadow-sm'
+                    : 'bg-sky-500 text-white shadow-sm hover:bg-sky-600'
+                }`}
+              >
+                {testingMic ? 'Stop Mic Test' : 'Test Mic'}
+              </button>
+            </div>
+
+            {testingMic && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[11px] text-slate-600 font-mono">
+                  <span>Speak into mic:</span>
+                  <span className="font-bold text-emerald-600">{micLevel}%</span>
+                </div>
+                <div className="w-full h-3 bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500 transition-all duration-75 rounded-full"
+                    style={{ width: `${micLevel}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

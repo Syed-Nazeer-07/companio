@@ -443,8 +443,216 @@ export class AgentEngine {
       });
     }
 
+    // 6.5 Expanded Native Windows Tools
+    else if (q.includes('volume up') || q.includes('louder') || q.includes('increase volume') || q.includes('raise volume')) {
+      intent = 'win.volume.change';
+      steps.push({
+        id: 'step_1',
+        tool: 'win.volume.change',
+        description: 'Increase system volume by +10%',
+        params: { delta: 10 },
+        status: 'pending'
+      });
+    } else if (q.includes('volume down') || q.includes('softer') || q.includes('decrease volume') || q.includes('lower volume')) {
+      intent = 'win.volume.change';
+      steps.push({
+        id: 'step_1',
+        tool: 'win.volume.change',
+        description: 'Decrease system volume by -10%',
+        params: { delta: -10 },
+        status: 'pending'
+      });
+    } else if (q.includes('recycle bin') || q.includes('empty trash') || q.includes('clear trash')) {
+      intent = 'win.recyclebin.empty';
+      steps.push({
+        id: 'step_1',
+        tool: 'win.recyclebin.empty',
+        description: 'Empty Windows Recycle Bin',
+        params: {},
+        status: 'pending'
+      });
+    } else if (q.includes('show desktop') || q.includes('minimize all') || q.includes('go to desktop')) {
+      intent = 'win.desktop.show';
+      steps.push({
+        id: 'step_1',
+        tool: 'win.desktop.show',
+        description: 'Show Desktop and minimize all windows',
+        params: {},
+        status: 'pending'
+      });
+    } else if (q.includes('battery') || q.includes('power level') || q.includes('battery percentage')) {
+      intent = 'win.battery.get';
+      steps.push({
+        id: 'step_1',
+        tool: 'win.battery.get',
+        description: 'Check battery status and level',
+        params: {},
+        status: 'pending'
+      });
+    } else if (q.includes('system specs') || q.includes('pc specs') || q.includes('hardware') || q.includes('computer specs')) {
+      intent = 'win.system.specs';
+      steps.push({
+        id: 'step_1',
+        tool: 'win.system.specs',
+        description: 'Check CPU, RAM, and OS system specs',
+        params: {},
+        status: 'pending'
+      });
+    } else if (q.includes('command prompt') || q.includes('open cmd')) {
+      intent = 'win.cmd.launch';
+      steps.push({
+        id: 'step_1',
+        tool: 'win.cmd.launch',
+        description: 'Launch Command Prompt',
+        params: {},
+        status: 'pending'
+      });
+    } else if (q.includes('camera') || q.includes('take a photo') || q.includes('webcam')) {
+      intent = 'win.camera.launch';
+      steps.push({
+        id: 'step_1',
+        tool: 'win.camera.launch',
+        description: 'Launch Windows Camera',
+        params: {},
+        status: 'pending'
+      });
+    } else if (q.includes('clock') || q.includes('timer') || q.includes('alarm') || q.includes('stopwatch')) {
+      intent = 'win.clock.launch';
+      steps.push({
+        id: 'step_1',
+        tool: 'win.clock.launch',
+        description: 'Launch Clock & Alarms app',
+        params: {},
+        status: 'pending'
+      });
+    } else if (q.includes('weather') || q.includes('forecast')) {
+      intent = 'win.weather.launch';
+      steps.push({
+        id: 'step_1',
+        tool: 'win.weather.launch',
+        description: 'Launch Windows Weather',
+        params: {},
+        status: 'pending'
+      });
+    } else if (q.includes('open edge') || q.includes('microsoft edge')) {
+      intent = 'win.edge.launch';
+      steps.push({
+        id: 'step_1',
+        tool: 'win.edge.launch',
+        description: 'Launch Microsoft Edge browser',
+        params: {},
+        status: 'pending'
+      });
+    } else if (q.includes('open chrome') || q.includes('google chrome')) {
+      intent = 'win.chrome.launch';
+      steps.push({
+        id: 'step_1',
+        tool: 'win.chrome.launch',
+        description: 'Launch Google Chrome browser',
+        params: {},
+        status: 'pending'
+      });
+    } else if (q.includes('discord')) {
+      intent = 'win.discord.launch';
+      steps.push({
+        id: 'step_1',
+        tool: 'win.discord.launch',
+        description: 'Launch Discord',
+        params: {},
+        status: 'pending'
+      });
+    } else if (q.includes('steam')) {
+      intent = 'win.steam.launch';
+      steps.push({
+        id: 'step_1',
+        tool: 'win.steam.launch',
+        description: 'Launch Steam',
+        params: {},
+        status: 'pending'
+      });
+    } else if (q.includes('wifi') || q.includes('wi-fi') || q.includes('bluetooth') || q.includes('display settings') || q.includes('windows update')) {
+      intent = 'win.settings.category';
+      const cat = q.includes('wifi') || q.includes('wi-fi') ? 'wifi'
+        : q.includes('bluetooth') ? 'bluetooth'
+        : q.includes('display') ? 'display'
+        : q.includes('update') ? 'update' : 'settings';
+      steps.push({
+        id: 'step_1',
+        tool: 'win.settings.category',
+        description: `Open Windows ${cat.toUpperCase()} Settings`,
+        params: { category: cat },
+        status: 'pending'
+      });
+    }
+
     // 7. Browser & Web Search
-    else if (q.includes('open github') || q.includes('go to my repositories')) {
+    else if (q.includes('wikipedia') || (q.includes('who is') && q.includes('on wiki'))) {
+      intent = 'browser.wikipedia.search';
+      const searchTopic = query.replace(/search wikipedia for/i, '').replace(/wikipedia/i, '').replace(/on wiki/i, '').trim();
+      steps.push({
+        id: 'step_1',
+        tool: 'browser.wikipedia.search',
+        description: `Search Wikipedia for "${searchTopic}"`,
+        params: { query: searchTopic },
+        status: 'pending'
+      });
+    } else if (q.includes('amazon') || (q.includes('buy') && q.includes('online'))) {
+      intent = 'browser.amazon.search';
+      const item = query.replace(/search amazon for/i, '').replace(/amazon/i, '').replace(/buy/i, '').trim();
+      steps.push({
+        id: 'step_1',
+        tool: 'browser.amazon.search',
+        description: `Search Amazon for "${item}"`,
+        params: { query: item },
+        status: 'pending'
+      });
+    } else if (q.includes('maps') || q.includes('directions to') || (q.includes('where is') && !q.includes('who is'))) {
+      intent = 'browser.maps.search';
+      const loc = query.replace(/search maps for/i, '').replace(/maps/i, '').replace(/directions to/i, '').replace(/where is/i, '').trim();
+      steps.push({
+        id: 'step_1',
+        tool: 'browser.maps.search',
+        description: `Search Google Maps for "${loc}"`,
+        params: { query: loc },
+        status: 'pending'
+      });
+    } else if (q.includes('deepseek')) {
+      intent = 'browser.deepseek.open';
+      steps.push({
+        id: 'step_1',
+        tool: 'browser.open_url',
+        description: 'Open DeepSeek AI Chat',
+        params: { url: 'https://chat.deepseek.com' },
+        status: 'pending'
+      });
+    } else if (q.includes('twitch')) {
+      intent = 'browser.twitch.open';
+      steps.push({
+        id: 'step_1',
+        tool: 'browser.open_url',
+        description: 'Open Twitch live streaming',
+        params: { url: 'https://www.twitch.tv' },
+        status: 'pending'
+      });
+    } else if (q.includes('linkedin')) {
+      intent = 'browser.linkedin.open';
+      steps.push({
+        id: 'step_1',
+        tool: 'browser.open_url',
+        description: 'Open LinkedIn',
+        params: { url: 'https://www.linkedin.com' },
+        status: 'pending'
+      });
+    } else if (q.includes('translate') || q.includes('google translate')) {
+      intent = 'browser.translate.open';
+      steps.push({
+        id: 'step_1',
+        tool: 'browser.open_url',
+        description: 'Open Google Translate',
+        params: { url: 'https://translate.google.com' },
+        status: 'pending'
+      });
+    } else if (q.includes('open github') || q.includes('go to my repositories')) {
       intent = 'browser.github';
       steps.push({
         id: 'step_1',
@@ -512,38 +720,67 @@ export class AgentEngine {
   private async generateConversationalResponse(query: string, aiConfig?: AiConfig): Promise<string> {
     const q = query.toLowerCase().trim();
 
-    // Try Local LLM (Ollama / LM Studio) if configured
+    // 1. Time & Date direct queries
+    if (q.includes('what time') || q.includes('current time') || q.includes('tell me the time')) {
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return `The current time is ${timeStr}! ⏰ Anything else you need?`;
+    }
+    if (q.includes('what date') || q.includes('what is the date') || q.includes("today's date") || q.includes('what day is it')) {
+      const dateStr = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+      return `Today is ${dateStr}! 📅 Ready for an awesome day!`;
+    }
+
+    // 2. Motivational Quotes
+    if (q.includes('quote') || q.includes('inspire') || q.includes('motivation')) {
+      const quotes = [
+        "\"The only way to do great work is to love what you do.\" — Steve Jobs ✨",
+        "\"Success is not final, failure is not fatal: it is the courage to continue that counts.\" — Winston Churchill 🚀",
+        "\"Believe you can and you're halfway there.\" — Theodore Roosevelt 🌟",
+        "\"Small daily improvements over time lead to stunning results.\" — Robin Sharma 💡",
+        "\"Your time is limited, don't waste it living someone else's life.\" — Steve Jobs 💖"
+      ];
+      return quotes[Math.floor(Math.random() * quotes.length)];
+    }
+
+    // 3. Try Local LLM (Ollama / LM Studio) if configured
     if (aiConfig?.provider === 'local') {
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 3500);
+      const endpoints = [
+        aiConfig.localEndpoint,
+        'http://localhost:11434/v1',
+        'http://localhost:1234/v1'
+      ].filter(Boolean) as string[];
 
-        const res = await fetch('http://localhost:11434/v1/chat/completions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: aiConfig.model || 'llama3.2',
-            messages: [
-              {
-                role: 'system',
-                content: 'You are Companio, an adorable, friendly, helpful personal AI desktop companion for Windows 11. Keep replies concise (1-2 sentences), sweet, and warm.'
-              },
-              { role: 'user', content: query }
-            ],
-            max_tokens: 100,
-            temperature: 0.7
-          }),
-          signal: controller.signal
-        });
+      for (const base of endpoints) {
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 3500);
 
-        clearTimeout(timeout);
-        if (res.ok) {
-          const data = await res.json();
-          const reply = data.choices?.[0]?.message?.content?.trim();
-          if (reply) return reply;
-        }
-      } catch (err) {
-        // Fall back gracefully to built-in companion personality
+          const url = base.endsWith('/chat/completions') ? base : `${base.replace(/\/+$/, '')}/chat/completions`;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: aiConfig.model || 'llama3.2',
+              messages: [
+                {
+                  role: 'system',
+                  content: 'You are Companio, an adorable, friendly, helpful personal AI desktop companion for Windows 11. Keep replies concise (1-2 sentences), sweet, and warm.'
+                },
+                { role: 'user', content: query }
+              ],
+              max_tokens: 100,
+              temperature: 0.7
+            }),
+            signal: controller.signal
+          });
+
+          clearTimeout(timeout);
+          if (res.ok) {
+            const data = await res.json();
+            const reply = data.choices?.[0]?.message?.content?.trim();
+            if (reply) return reply;
+          }
+        } catch (err) {}
       }
     }
 
@@ -578,7 +815,7 @@ export class AgentEngine {
       return "Want me to play CarryMinati or some good music on Spotify, or maybe open ChatGPT to brainstorm cool projects? Just say the word! 🚀";
     }
     if (q.includes('help') || q.includes('what can you do')) {
-      return "I can open ChatGPT, YouTube, Spotify, VS Code, and Calculator; control system volume; take screenshots; manage tabs; and automate computer workflows!";
+      return "I can open ChatGPT, YouTube, Spotify, Chrome, VS Code, and Camera; control system volume; take screenshots; empty recycle bin; show desktop; check battery; and automate computer workflows!";
     }
 
     return `Got it! I'm here and ready to help. You can ask me to open ChatGPT, control volume, search YouTube, or launch any Windows app anytime ✨`;
@@ -597,6 +834,8 @@ export class AgentEngine {
           return "Claude is ready! Time for some deep thinking and code 🧠";
         case 'browser.gemini.open':
           return "Google Gemini is open! What would you like to explore? 🌟";
+        case 'browser.deepseek.open':
+          return "DeepSeek AI is ready! Let's solve something great 🧠";
         case 'browser.whatsapp.open':
           return "WhatsApp Web is open! Catch up on your messages 💬";
         case 'browser.gmail.open':
@@ -607,6 +846,18 @@ export class AgentEngine {
           return "Netflix is loaded! Grab your popcorn and enjoy 🍿";
         case 'browser.x.open':
           return "X is open! Let's see what's trending 🐦";
+        case 'browser.twitch.open':
+          return "Twitch is open! Enjoy the live streams 🎮";
+        case 'browser.linkedin.open':
+          return "LinkedIn is open! 💼";
+        case 'browser.translate.open':
+          return "Google Translate is open! 🌐";
+        case 'browser.wikipedia.search':
+          return `Here is Wikipedia for "${p.query}"! 📚`;
+        case 'browser.amazon.search':
+          return `Here are the Amazon results for "${p.query}"! 🛍️`;
+        case 'browser.maps.search':
+          return `Here is Google Maps for "${p.query}"! 🗺️`;
         case 'browser.youtube.search_and_play':
           if (p.creator === 'CarryMinati') {
             return "Playing CarryMinati's newest video for you! Enjoy the laughs ✨";
@@ -639,12 +890,41 @@ export class AgentEngine {
           return "Snipping Tool is open! Capture away ✂️";
         case 'win.terminal.launch':
           return "Terminal is open and ready for commands! ⚡";
+        case 'win.cmd.launch':
+          return "Command Prompt is open! ⚡";
+        case 'win.powershell.launch':
+          return "PowerShell console is ready! ⚡";
+        case 'win.camera.launch':
+          return "Camera is open! Say cheese 📸";
+        case 'win.clock.launch':
+          return "Clock & Timer app is open! ⏰";
+        case 'win.weather.launch':
+          return "Weather forecast opened! ☀️";
+        case 'win.edge.launch':
+          return "Microsoft Edge opened! 🌐";
+        case 'win.chrome.launch':
+          return "Google Chrome opened! 🌐";
+        case 'win.discord.launch':
+          return "Discord is open! Have fun chatting 🎮";
+        case 'win.steam.launch':
+          return "Steam is open! Game on 🕹️";
+        case 'win.recyclebin.empty':
+          return "Emptied the Recycle Bin! Your disk is clean ✨";
+        case 'win.desktop.show':
+          return "Showing desktop! All windows minimized 🪟";
+        case 'win.battery.get':
+          return `${step.result?.message || 'Battery checked!'} 🔋`;
+        case 'win.system.specs':
+          return `${step.result?.message || 'System specs checked!'} 💻`;
+        case 'win.settings.category':
         case 'win.settings.open':
           return "Windows Settings opened! ⚙️";
         case 'win.system.lock':
           return "Locking your computer. See you soon! 🔒";
         case 'win.volume.set':
           return `Set the volume to ${p.level}%! Sounds just right 🎵`;
+        case 'win.volume.change':
+          return `Volume adjusted by ${p.delta > 0 ? '+' : ''}${p.delta}%! 🔊`;
         case 'win.volume.mute':
           return p.mute ? "Muted system audio! Shh... 🤫" : "Sound unmuted! Audio is back 🎶";
         case 'win.screenshot':

@@ -99,7 +99,7 @@ export const DashboardLayout: React.FC<Props> = ({
           </button>
 
           <div className="px-2 pt-1 flex items-center justify-between text-[11px] text-slate-400">
-            <span>Windows 11 ARM64</span>
+            <span>Windows 11 (x64 / ARM64)</span>
             <span className="text-emerald-600 flex items-center gap-1 font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               Active

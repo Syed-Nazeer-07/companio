@@ -174,14 +174,38 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
             </button>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-white border border-slate-200 text-xs text-slate-700 space-y-1.5">
-            <p className="font-bold text-slate-800">Quick start with Ollama:</p>
-            <p className="font-mono bg-slate-100 p-2 rounded-lg text-slate-800">
-              ollama run llama3.2
+          <div className="p-3.5 rounded-xl bg-white border border-slate-200 text-xs text-slate-700 space-y-2">
+            <p className="font-bold text-slate-800">Recommended Lightweight Models (Fast & Low RAM):</p>
+            <div className="space-y-1.5 font-mono text-[11px]">
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200">
+                <span>ollama run llama3.2:1b</span>
+                <span className="text-emerald-600 font-bold font-sans text-[10px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">1.3 GB • Fastest</span>
+              </div>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200">
+                <span>ollama run qwen2.5:1.5b</span>
+                <span className="text-sky-600 font-bold font-sans text-[10px] bg-sky-50 px-2 py-0.5 rounded border border-sky-200">0.9 GB • Sharp</span>
+              </div>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200">
+                <span>ollama run llama3.2</span>
+                <span className="text-slate-600 font-bold font-sans text-[10px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200">2.0 GB • Balanced</span>
+              </div>
+            </div>
+            <p className="text-slate-500 text-[11px] pt-1">
+              Supports <strong>Ollama</strong> (<span className="font-mono text-sky-700">http://localhost:11434</span>) and <strong>LM Studio</strong> (<span className="font-mono text-sky-700">http://localhost:1234/v1</span>). Once running, Companio communicates with it automatically!
             </p>
-            <p className="text-slate-500 text-[11px]">
-              Ollama serves on <span className="font-mono text-sky-700">http://localhost:11434</span>. Once running, Companio talks to it automatically!
-            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              Local Model Name (e.g. llama3.2:1b, qwen2.5:1.5b):
+            </label>
+            <input
+              type="text"
+              value={settings.ai.model || 'llama3.2:1b'}
+              onChange={(e) => onUpdateSettings({ ai: { ...settings.ai, model: e.target.value } })}
+              placeholder="e.g. llama3.2:1b, qwen2.5:1.5b"
+              className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-mono font-bold focus:outline-none focus:border-sky-500 shadow-sm"
+            />
           </div>
 
           {detectedLocalModels.length > 0 && (

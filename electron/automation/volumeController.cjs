@@ -125,6 +125,17 @@ Write-Output "$v"
     }
   }
 
+  async changeVolume(delta) {
+    try {
+      const current = await this.getVolume();
+      const currentLevel = (current && typeof current.volume === 'number') ? current.volume : 50;
+      const target = Math.max(0, Math.min(100, currentLevel + delta));
+      return await this.setVolume(target);
+    } catch (err) {
+      return { success: false, error: err.message, verified: false };
+    }
+  }
+
   async setMute(mute) {
     try {
       const muteArg = mute ? '$true' : '$false';

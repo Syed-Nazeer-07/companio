@@ -5,6 +5,8 @@ export class SpeechService {
   private isListening: boolean = false;
   private audioCtx: AudioContext | null = null;
   private mouthAnimInterval: any = null;
+  private micStream: MediaStream | null = null;
+  private micInterval: any = null;
 
   constructor() {
     this.initRecognition();
@@ -24,7 +26,8 @@ export class SpeechService {
   startListening(
     onInterim: (text: string) => void,
     onFinal: (text: string) => void,
-    onError: (err: string) => void
+    onError: (err: string) => void,
+    onAudioLevel?: (level: number) => void
   ) {
     if (!this.recognition) {
       onError('Speech recognition not supported in this environment. Use text input.');
@@ -36,6 +39,29 @@ export class SpeechService {
     }
 
     this.playChime('activate');
+
+    // Live microphone volume reactivity
+    if (onAudioLevel && navigator.mediaDevices?.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+        this.micStream = stream;
+        try {
+          const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const source = audioCtx.createMediaStreamSource(stream);
+          const analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 64;
+          source.connect(analyser);
+          const data = new Uint8Array(analyser.frequencyBinCount);
+          this.micInterval = setInterval(() => {
+            analyser.getByteFrequencyData(data);
+            let sum = 0;
+            for (let i = 0; i < data.length; i++) sum += data[i];
+            const avg = sum / data.length;
+            const norm = Math.min(1, Math.max(0, (avg - 10) / 70));
+            onAudioLevel(norm);
+          }, 50);
+        } catch (e) {}
+      }).catch(() => {});
+    }
 
     this.recognition.onresult = (event: any) => {
       let interim = '';
@@ -49,32 +75,32 @@ export class SpeechService {
       }
       if (interim) onInterim(interim);
       if (final) {
-        this.isListening = false;
+        this.stopListening();
         onFinal(final.trim());
       }
     };
 
     this.recognition.onerror = (event: any) => {
-      this.isListening = false;
+      this.stopListening();
       if (event.error === 'no-speech' || event.error === 'aborted') {
         return; // Normal silence or user cancellation
       }
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        onError('Mic permission needed. You can speak or type commands below!');
+        onError('Mic permission needed in Windows settings. Speak or type below!');
         return;
       }
       onError('Listening paused. Click mic to speak or type your request.');
     };
 
     this.recognition.onend = () => {
-      this.isListening = false;
+      this.stopListening();
     };
 
     try {
       this.recognition.start();
       this.isListening = true;
     } catch (e: any) {
-      this.isListening = false;
+      this.stopListening();
       // If already active, restart cleanly
       if (e.name === 'InvalidStateError') {
         try {
@@ -90,6 +116,14 @@ export class SpeechService {
   }
 
   stopListening() {
+    if (this.micInterval) {
+      clearInterval(this.micInterval);
+      this.micInterval = null;
+    }
+    if (this.micStream) {
+      this.micStream.getTracks().forEach((t) => t.stop());
+      this.micStream = null;
+    }
     if (this.recognition && this.isListening) {
       try {
         this.recognition.stop();

@@ -31,19 +31,39 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
 
   const resetTimerRef = useRef<any>(null);
 
+  const handleDismiss = () => {
+    setIsInputOpen(false);
+    setCharacterState('idle');
+    setBubbleText('');
+    setAudioLevel(0);
+    if (isListeningVoice) {
+      speechService.stopListening();
+      setIsListeningVoice(false);
+    }
+  };
+
   // Global hotkey toggle listener: press once to open/wake, press again to dismiss/close!
   useEffect(() => {
     const unbind = desktopBridge.onShortcutToggle(() => {
-      if (isInputOpen) {
-        setIsInputOpen(false);
-        setCharacterState('idle');
-        setBubbleText("See you soon! Press Ctrl+Shift+Space anytime ✨");
+      if (isInputOpen || bubbleText) {
+        handleDismiss();
       } else {
         handleWakeAndActivate();
       }
     });
-    return () => unbind();
-  }, [isInputOpen, isSleeping]);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleDismiss();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      unbind();
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isInputOpen, bubbleText, isListeningVoice, isSleeping]);
 
   const handleWakeAndActivate = () => {
     if (isSleeping) setIsSleeping(false);
@@ -70,6 +90,8 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     if (nextInputState) {
       setCharacterState('listening');
       setBubbleText("What can I do for you?");
+    } else {
+      handleDismiss();
     }
   };
 
@@ -78,6 +100,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       speechService.stopListening();
       setIsListeningVoice(false);
       setCharacterState('idle');
+      setAudioLevel(0);
     } else {
       setIsListeningVoice(true);
       setCharacterState('listening');
@@ -88,12 +111,17 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         },
         (final) => {
           setIsListeningVoice(false);
+          setAudioLevel(0);
           handleExecuteQuery(final);
         },
         (err) => {
           setIsListeningVoice(false);
+          setAudioLevel(0);
           setCharacterState('idle');
           setBubbleText(err);
+        },
+        (lvl) => {
+          setAudioLevel(lvl);
         }
       );
     }
@@ -254,7 +282,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
             onOpenDashboard={onOpenDashboard}
             isSleeping={isSleeping}
             onToggleSleep={handleToggleSleep}
-            onClose={() => setIsInputOpen(false)}
+            onClose={handleDismiss}
           />
         </div>
       )}

@@ -347,5 +347,222 @@ export const TOOL_CATALOG: ToolSchema[] = [
     permissionsRequired: ['System Lock'],
     parameters: [],
     samplePrompts: ['Lock my PC', 'Lock computer', 'Lock workstation']
+  },
+  {
+    id: 'win.cmd.launch',
+    name: 'Command Prompt',
+    category: 'Windows Apps',
+    description: 'Launches Windows Command Prompt (cmd.exe).',
+    permissionsRequired: ['App Execution'],
+    parameters: [],
+    samplePrompts: ['Open Command Prompt', 'Launch cmd']
+  },
+  {
+    id: 'win.powershell.launch',
+    name: 'PowerShell',
+    category: 'Windows Apps',
+    description: 'Launches Windows PowerShell terminal.',
+    permissionsRequired: ['App Execution'],
+    parameters: [],
+    samplePrompts: ['Open PowerShell', 'Launch PowerShell console']
+  },
+  {
+    id: 'win.camera.launch',
+    name: 'Windows Camera',
+    category: 'Windows Apps',
+    description: 'Opens native Windows Camera application.',
+    permissionsRequired: ['App Execution'],
+    parameters: [],
+    samplePrompts: ['Open camera', 'Launch camera', 'Take a photo']
+  },
+  {
+    id: 'win.clock.launch',
+    name: 'Alarms & Clock',
+    category: 'Windows Apps',
+    description: 'Opens Windows Clock for timers, stopwatches, and alarms.',
+    permissionsRequired: ['App Execution'],
+    parameters: [],
+    samplePrompts: ['Open clock', 'Set a timer', 'Open alarms']
+  },
+  {
+    id: 'win.weather.launch',
+    name: 'Windows Weather',
+    category: 'Windows Apps',
+    description: 'Opens Windows Weather forecast app.',
+    permissionsRequired: ['App Execution'],
+    parameters: [],
+    samplePrompts: ['Open weather', 'Check weather forecast']
+  },
+  {
+    id: 'win.edge.launch',
+    name: 'Microsoft Edge',
+    category: 'Browser',
+    description: 'Launches Microsoft Edge browser.',
+    permissionsRequired: ['App Execution'],
+    parameters: [],
+    samplePrompts: ['Open Edge', 'Launch Microsoft Edge']
+  },
+  {
+    id: 'win.chrome.launch',
+    name: 'Google Chrome',
+    category: 'Browser',
+    description: 'Launches Google Chrome browser.',
+    permissionsRequired: ['App Execution'],
+    parameters: [],
+    samplePrompts: ['Open Chrome', 'Launch Google Chrome']
+  },
+  {
+    id: 'win.discord.launch',
+    name: 'Discord',
+    category: 'Windows Apps',
+    description: 'Opens Discord desktop or web application.',
+    permissionsRequired: ['App Execution'],
+    parameters: [],
+    samplePrompts: ['Open Discord', 'Launch Discord']
+  },
+  {
+    id: 'win.steam.launch',
+    name: 'Steam',
+    category: 'Windows Apps',
+    description: 'Opens Steam gaming client or store.',
+    permissionsRequired: ['App Execution'],
+    parameters: [],
+    samplePrompts: ['Open Steam', 'Launch Steam games']
+  },
+  {
+    id: 'win.recyclebin.empty',
+    name: 'Empty Recycle Bin',
+    category: 'System',
+    description: 'Safely empties the Windows Recycle Bin to free disk storage.',
+    permissionsRequired: ['File Operations'],
+    parameters: [],
+    samplePrompts: ['Empty Recycle Bin', 'Clear trash', 'Clean recycle bin']
+  },
+  {
+    id: 'win.desktop.show',
+    name: 'Show Desktop',
+    category: 'System',
+    description: 'Minimizes all open windows to reveal the clean desktop.',
+    permissionsRequired: ['Window Management'],
+    parameters: [],
+    samplePrompts: ['Show desktop', 'Minimize all windows', 'Go to desktop']
+  },
+  {
+    id: 'win.battery.get',
+    name: 'Battery Status',
+    category: 'System',
+    description: 'Checks current battery percentage and AC charging status.',
+    permissionsRequired: ['System Status'],
+    parameters: [],
+    samplePrompts: ['Check battery', 'What is my battery percentage', 'Battery level']
+  },
+  {
+    id: 'win.system.specs',
+    name: 'System Specs',
+    category: 'System',
+    description: 'Displays current CPU processor, RAM, and Windows 11 OS specifications.',
+    permissionsRequired: ['System Status'],
+    parameters: [],
+    samplePrompts: ['System specs', 'Show PC hardware', 'What are my computer specs']
+  },
+  {
+    id: 'win.settings.category',
+    name: 'Open Settings Section',
+    category: 'System',
+    description: 'Jumps directly to Wi-Fi, Bluetooth, Display, Sound, or Updates in Windows Settings.',
+    permissionsRequired: ['System Settings'],
+    parameters: [
+      { name: 'category', type: 'string', required: true, description: 'wifi, bluetooth, display, sound, apps, update, power' }
+    ],
+    samplePrompts: ['Open Wi-Fi settings', 'Open Bluetooth settings', 'Open Display settings', 'Check Windows updates']
+  },
+  {
+    id: 'win.volume.change',
+    name: 'Volume Up / Down',
+    category: 'Audio & Media',
+    description: 'Relatively increases or decreases master volume by step delta (e.g. +10%, -10%).',
+    permissionsRequired: ['Audio Control'],
+    parameters: [
+      { name: 'delta', type: 'number', required: true, description: 'Percentage change, e.g. +10 or -10' }
+    ],
+    samplePrompts: ['Volume up', 'Make it louder', 'Volume down', 'Softer']
+  },
+  {
+    id: 'browser.wikipedia.search',
+    name: 'Wikipedia Search',
+    category: 'Browser',
+    description: 'Searches encyclopedia articles directly on Wikipedia.',
+    permissionsRequired: ['Browser Control'],
+    parameters: [
+      { name: 'query', type: 'string', required: true, description: 'Search term or topic' }
+    ],
+    samplePrompts: ['Search Wikipedia for Quantum Computing', 'Who is Alan Turing on Wikipedia']
+  },
+  {
+    id: 'browser.amazon.search',
+    name: 'Amazon Search',
+    category: 'Browser',
+    description: 'Searches for products and shopping items on Amazon.',
+    permissionsRequired: ['Browser Control'],
+    parameters: [
+      { name: 'query', type: 'string', required: true, description: 'Product or item search' }
+    ],
+    samplePrompts: ['Search Amazon for mechanical keyboards', 'Find wireless earbuds on Amazon']
+  },
+  {
+    id: 'browser.maps.search',
+    name: 'Google Maps Search',
+    category: 'Browser',
+    description: 'Finds locations, restaurants, or directions on Google Maps.',
+    permissionsRequired: ['Browser Control'],
+    parameters: [
+      { name: 'query', type: 'string', required: true, description: 'Location, address, or landmark' }
+    ],
+    samplePrompts: ['Search maps for nearest coffee shop', 'Show Paris on Google Maps']
+  },
+  {
+    id: 'browser.deepseek.open',
+    name: 'Open DeepSeek AI',
+    category: 'Browser',
+    description: 'Opens DeepSeek reasoning chat.',
+    permissionsRequired: ['Browser Control'],
+    parameters: [],
+    samplePrompts: ['Open DeepSeek', 'Go to DeepSeek']
+  },
+  {
+    id: 'browser.github.open',
+    name: 'Open GitHub',
+    category: 'Browser',
+    description: 'Opens GitHub dashboard and repositories.',
+    permissionsRequired: ['Browser Control'],
+    parameters: [],
+    samplePrompts: ['Open GitHub', 'Go to my repositories']
+  },
+  {
+    id: 'browser.twitch.open',
+    name: 'Open Twitch',
+    category: 'Browser',
+    description: 'Opens Twitch live streaming homepage.',
+    permissionsRequired: ['Browser Control'],
+    parameters: [],
+    samplePrompts: ['Open Twitch', 'Go to Twitch']
+  },
+  {
+    id: 'browser.linkedin.open',
+    name: 'Open LinkedIn',
+    category: 'Browser',
+    description: 'Opens professional feed on LinkedIn.',
+    permissionsRequired: ['Browser Control'],
+    parameters: [],
+    samplePrompts: ['Open LinkedIn']
+  },
+  {
+    id: 'browser.translate.open',
+    name: 'Google Translate',
+    category: 'Browser',
+    description: 'Opens Google Translate tool.',
+    permissionsRequired: ['Browser Control'],
+    parameters: [],
+    samplePrompts: ['Open Google Translate', 'Translate text']
   }
 ];

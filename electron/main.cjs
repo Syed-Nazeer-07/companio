@@ -194,6 +194,13 @@ function registerHotkeys() {
         createOverlayWindow();
         return;
       }
+      if (!overlayWindow.isVisible()) {
+        overlayWindow.show();
+        overlayWindow.focus();
+        overlayWindow.setAlwaysOnTop(true, 'screen-saver');
+        overlayWindow.webContents.send('shortcut-activated');
+        return;
+      }
       // Toggle overlay: if visible, send toggle event to close/dismiss
       overlayWindow.webContents.send('shortcut-toggle');
     });
@@ -228,6 +235,12 @@ ipcMain.handle('execute-tool', async (_, { toolName, params }) => {
       return await browserController.openTabs(params.urls);
     case 'browser.close_tab':
       return await browserController.closeCurrentTab();
+    case 'browser.wikipedia.search':
+      return await browserController.searchWikipedia(params.query);
+    case 'browser.amazon.search':
+      return await browserController.searchAmazon(params.query);
+    case 'browser.maps.search':
+      return await browserController.searchGoogleMaps(params.query || params.location);
 
     // Direct Web Apps
     case 'browser.chatgpt.open':
@@ -236,6 +249,10 @@ ipcMain.handle('execute-tool', async (_, { toolName, params }) => {
       return await browserController.openUrl('https://claude.ai');
     case 'browser.gemini.open':
       return await browserController.openUrl('https://gemini.google.com');
+    case 'browser.deepseek.open':
+      return await browserController.openUrl('https://chat.deepseek.com');
+    case 'browser.github.open':
+      return await browserController.openUrl('https://github.com');
     case 'browser.gmail.open':
       return await browserController.openUrl('https://mail.google.com');
     case 'browser.whatsapp.open':
@@ -246,6 +263,12 @@ ipcMain.handle('execute-tool', async (_, { toolName, params }) => {
       return await browserController.openUrl('https://x.com');
     case 'browser.netflix.open':
       return await browserController.openUrl('https://netflix.com');
+    case 'browser.twitch.open':
+      return await browserController.openUrl('https://www.twitch.tv');
+    case 'browser.linkedin.open':
+      return await browserController.openUrl('https://www.linkedin.com');
+    case 'browser.translate.open':
+      return await browserController.openUrl('https://translate.google.com');
 
     // Windows App tools
     case 'win.calculator.launch':
@@ -266,6 +289,34 @@ ipcMain.handle('execute-tool', async (_, { toolName, params }) => {
       return await winAppsController.launchSnippingTool();
     case 'win.terminal.launch':
       return await winAppsController.launchTerminal();
+    case 'win.cmd.launch':
+      return await winAppsController.launchCmd();
+    case 'win.powershell.launch':
+      return await winAppsController.launchPowerShell();
+    case 'win.camera.launch':
+      return await winAppsController.launchCamera();
+    case 'win.clock.launch':
+      return await winAppsController.launchClock();
+    case 'win.weather.launch':
+      return await winAppsController.launchWeather();
+    case 'win.edge.launch':
+      return await winAppsController.launchEdge();
+    case 'win.chrome.launch':
+      return await winAppsController.launchChrome();
+    case 'win.discord.launch':
+      return await winAppsController.launchDiscord();
+    case 'win.steam.launch':
+      return await winAppsController.launchSteam();
+    case 'win.recyclebin.empty':
+      return await winAppsController.emptyRecycleBin();
+    case 'win.desktop.show':
+      return await winAppsController.showDesktop();
+    case 'win.battery.get':
+      return await winAppsController.getBatteryStatus();
+    case 'win.system.specs':
+      return await winAppsController.getSystemSpecs();
+    case 'win.settings.category':
+      return await winAppsController.openSettingsCategory(params.category);
     case 'win.settings.open':
       return await winAppsController.openSettings();
     case 'win.system.lock':
@@ -284,6 +335,8 @@ ipcMain.handle('execute-tool', async (_, { toolName, params }) => {
     // Volume tools
     case 'win.volume.set':
       return await volumeController.setVolume(params.level);
+    case 'win.volume.change':
+      return await volumeController.changeVolume(params.delta);
     case 'win.volume.get':
       return await volumeController.getVolume();
     case 'win.volume.mute':
@@ -352,12 +405,18 @@ ipcMain.handle('show-overlay', () => {
   return true;
 });
 
+app.commandLine.appendSwitch('enable-speech-dispatcher');
+app.commandLine.appendSwitch('enable-features', 'WebBluetooth,WebUSB');
+
 app.whenReady().then(() => {
   // Auto-grant microphone and media permissions for Web Speech API
   if (session && session.defaultSession) {
     session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
       const allowed = ['media', 'microphone', 'notifications', 'accessibility-events'];
       callback(allowed.includes(permission));
+    });
+    session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
+      return ['media', 'microphone', 'notifications', 'accessibility-events'].includes(permission);
     });
   }
 
