@@ -16,6 +16,7 @@ export interface AutomationLogRecord {
 class DbService {
   private db: Database | null = null;
   private initialized: boolean = false;
+  private initializationPromise: Promise<void> | null = null;
   private pendingNativeWrite: Promise<void> = Promise.resolve();
   private nativeHistoryError: string | null = null;
 
@@ -91,8 +92,15 @@ class DbService {
   }
 
 
-  async init() {
+  async init(): Promise<void> {
     if (this.initialized) return;
+    if (!this.initializationPromise) {
+      this.initializationPromise = this.initializeOnce();
+    }
+    return this.initializationPromise;
+  }
+
+  private async initializeOnce(): Promise<void> {
     try {
       const SQL = await initSqlJs({
         locateFile: () => sqliteWasmUrl
@@ -116,13 +124,12 @@ class DbService {
           durationMs INTEGER NOT NULL
         );
       `);
-      this.initialized = true;
-      console.log('[SQLite] In-memory database initialized; persisted records use localStorage.');
+      console.log('[SQLite] In-memory SQL cache initialized; native history is hydrated separately.');
     } catch (e) {
       console.warn('[SQLite] Fallback to in-memory/localStorage:', e);
-      this.initialized = true;
     }
     await this.hydrateNativeHistory();
+    this.initialized = true;
   }
 
   // Settings persistence
