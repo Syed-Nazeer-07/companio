@@ -224,7 +224,7 @@ Electron Builder writes the output under `release/`. Generated filenames depend 
 
 ### 5. GitHub Releases
 
-The repository includes [`release.yml`](.github/workflows/release.yml), which is configured to build Windows x64/ARM64 artifacts when a `v*` tag is pushed, then publish a GitHub Release. The existing [v1.0.0 release](https://github.com/Syed-Nazeer-07/companio/releases/tag/v1.0.0) was built **before Phase 1**. Preview **v1.1.0-rc.2** is generated as separate unsigned x64 and ARM64 CI artifacts after all checks pass; these are not public signed releases. View [Actions](https://github.com/Syed-Nazeer-07/companio/actions/workflows/ci.yml), open the matching successful release-candidate workflow run, and download your architecture's artifact. Artifacts expire after 14 days. They contain installers, portable executables, and SHA-256 checksums. Workflow presence does **not** guarantee that a particular release build has passed or that an installer has been published.
+The repository includes [`release.yml`](.github/workflows/release.yml), which is configured to build Windows x64/ARM64 artifacts when a `v*` tag is pushed, then publish a GitHub Release. The existing [v1.0.0 release](https://github.com/Syed-Nazeer-07/companio/releases/tag/v1.0.0) was built **before Phase 1**. The **v1.1.0-rc.3** candidate produces separate unsigned x64 and ARM64 CI artifacts only after its Windows checks pass; these are not public signed releases. View [Actions](https://github.com/Syed-Nazeer-07/companio/actions/workflows/ci.yml), open the matching successful release-candidate workflow run, and download your architecture's artifact. Artifacts expire after 14 days. They contain installers, portable executables, and SHA-256 checksums. Tagged releases also require a matching package version and passing x64 desktop smoke test. Workflow presence does **not** guarantee that a particular release build has passed or that an installer has been published.
 
 ## 📁 Project Structure
 
@@ -258,7 +258,7 @@ companio/
 Companio runs locally for its built-in command processing, but it can interact with your desktop, browser, microphone, and local files. Treat automation as **powerful software with real permissions**.
 
 - **No mandatory paid AI API key:** the predefined command planner does not require one.
-- **Local history:** preferences, conversation messages, notes, and tool logs are stored using browser/Electron local storage. The current `sql.js` database is initialized in memory, **not saved as a durable SQLite file**.
+- **Local history:** preferences, conversation messages, notes, and tool logs are stored using browser/Electron local storage. The current `sql.js` database is initialized in memory, **not saved as a durable SQLite file**. The History page can export conversations, automation logs, and notes to JSON without including the API-key settings; import is not yet supported. Exported logs may still contain personal information.
 - **API key caution:** provider-key fields currently use local application settings. They are **not a secure secrets vault**; avoid entering sensitive production keys.
 - **Permissions:** IPC is restricted to trusted app windows; microphone requests are audio-only, while camera/USB/accessibility permissions are not auto-granted. Real-device permission testing is still required.
 - **Tool effects:** commands can change system settings, open websites, capture screenshots, or act on existing windows. Run them only on a device you control.
@@ -310,7 +310,7 @@ The prior state is preserved in [`rollback/pre-phase1-2026-11-07`](https://githu
 - Voice input and speech output depend on runtime/device support; there is no true always-listening hotword service.
 - Local-model endpoint configuration is incomplete; downloaded GGUF files are not integrated with a bundled inference engine.
 - OpenAI/Gemini settings exist, but end-to-end cloud reasoning is unfinished.
-- Local history is not yet a portable, durable database.
+- History can be exported as local JSON, but import/restore and a durable SQLite database are not yet supported.
 - Installer targets and a release workflow exist, but code signing, auto-updates, and device-wide acceptance testing are outstanding.
 
 ## 🗺️ Roadmap
@@ -320,7 +320,7 @@ The prior state is preserved in [`rollback/pre-phase1-2026-11-07`](https://githu
 - [ ] Complete local LLM configuration and integrate downloaded models with inference
 - [ ] Finish optional cloud-provider integrations with secure key handling
 - [ ] Strengthen browser automation, permissions, and sensitive-action safeguards
-- [ ] Provide durable local history with backup/export and restore
+- [ ] Add durable SQLite storage and JSON import/restore (history export is available)
 - [ ] Improve speech recognition, activation, and character synchronization
 - [ ] Test Windows x64 and ARM64 installers; add code signing and update support
 - [ ] Introduce CI quality gates, automated UI coverage, and accessibility checks
