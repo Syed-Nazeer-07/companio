@@ -73,6 +73,9 @@ test('offline compound tasks work with no inference server or API key', () => {
   assert.equal(result.requiresConfirmation, true);
   assert.deepEqual(result.steps.map(step => step.tool), ['win.notepad.launch', 'win.volume.set']);
   assert.equal(result.steps[1].params.level, 45);
+  const polite = planOfflineSequence({query:'Could you open Notepad and then please set volume to 45%?'});
+  assert.equal(polite.success, true);
+  assert.equal(polite.steps[1].params.level, 45);
   const youtube = planOfflineSequence({query:'Open YouTube and search Google for Python tutorials'});
   assert.equal(youtube.success, true);
   assert.deepEqual(youtube.steps.map(step=>step.tool), ['browser.youtube.open','browser.search_google']);
