@@ -507,6 +507,9 @@ secureHandle('set-mute', async (_, mute) => typeof mute === 'boolean'
 secureHandle('take-screenshot', async () => await winAppsController.takeScreenshot());
 
 secureHandle('toggle-dashboard', async (_, show) => {
+  // The packaged smoke test intentionally verifies only the overlay.
+  // Avoid launching first-run setup in a second window during its shortcut probe.
+  if (SMOKE_TEST) return false;
   if (show === false) {
     if (dashboardWindow) dashboardWindow.hide();
   } else {
