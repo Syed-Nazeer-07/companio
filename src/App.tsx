@@ -81,13 +81,23 @@ const mergeSettings = (saved: Partial<AppSettings> = {}): AppSettings => {
 
 export const App: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>(() => mergeSettings(dbService.loadSettings()));
+  const [historyReady, setHistoryReady] = useState(false);
 
   const [currentTab, setCurrentTab] = useState<DashboardTab>('home');
   const [viewMode, setViewMode] = useState<'overlay' | 'dashboard'>('overlay');
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
 
   useEffect(() => {
-    dbService.init();
+    let active = true;
+    void dbService.init().then(() => {
+      if (active) {
+        setSettings(mergeSettings(dbService.loadSettings()));
+        setHistoryReady(true);
+      }
+    }).catch((error) => {
+      console.error('[Companio] History initialization failed:', error);
+      if (active) setHistoryReady(true);
+    });
 
     // Check query params for initial view
     const urlParams = new URLSearchParams(window.location.search);
@@ -124,6 +134,7 @@ export const App: React.FC = () => {
     window.addEventListener('storage', handleStorage);
 
     return () => {
+      active = false;
       unbind();
       window.removeEventListener('storage', handleStorage);
     };
@@ -157,6 +168,12 @@ export const App: React.FC = () => {
   const handleOpenDashboard = () => {
     desktopBridge.toggleDashboard(true);
   };
+
+  // Wait for the native history snapshot to hydrate before accepting new
+  // chat/log writes. This prevents two windows from racing old cached data.
+  if (!historyReady) {
+    return <div className="w-screen h-screen bg-transparent" aria-label="Preparing Companio history" />;
+  }
 
   // If in overlay view mode (transparent desktop companion)
   if (viewMode === 'overlay') {

@@ -11,6 +11,7 @@ export const HistoryPage: React.FC = () => {
   const [filterQuery, setFilterQuery] = useState<string>('');
   const [exportStatus, setExportStatus] = useState<string>('');
   const [importing, setImporting] = useState(false);
+  const nativeStorageWarning = dbService.getHistoryPersistenceError();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -86,7 +87,7 @@ export const HistoryPage: React.FC = () => {
         return;
       }
       // Contents are sanitized in the trusted Electron main process.
-      const outcome = dbService.restoreHistory(validated.backup as {
+      const outcome = await dbService.restoreHistory(validated.backup as {
         conversations: ChatMessage[];
         automationLogs: AutomationLogRecord[];
         notes: string[];
@@ -169,6 +170,12 @@ export const HistoryPage: React.FC = () => {
       </div>
 
       {exportStatus && <p role="status" className="text-xs text-slate-600">{exportStatus}</p>}
+      {nativeStorageWarning && (
+        <p role="alert" className="text-xs text-amber-700">
+          Windows history disk storage needs attention: {nativeStorageWarning}
+          {' '}Export your current history before restarting Companio.
+        </p>
+      )}
 
       {/* Controls Bar */}
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
