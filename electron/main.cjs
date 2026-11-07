@@ -745,6 +745,20 @@ app.whenReady().then(async () => {
       }
       smokeReport({ stage: 'native-history-verified' });
 
+      const deviceCheck = await win.webContents.executeJavaScript(
+        "window.companioDesktop.getDesktopDiagnostics()"
+      );
+      if (!deviceCheck?.success || deviceCheck.platform !== 'win32' ||
+          deviceCheck.architecture !== 'x64' ||
+          deviceCheck.history?.available !== true ||
+          typeof deviceCheck.shortcutRegistered !== 'boolean' ||
+          typeof deviceCheck.audio?.available !== 'boolean') {
+        throw new Error('Read-only Windows diagnostics were not available through the packaged IPC bridge.');
+      }
+      // CI need not have an audio device or an interactive registered shortcut:
+      // diagnostics report actual capabilities rather than inventing success.
+      smokeReport({ stage: 'device-diagnostics-verified' });
+
       // End-to-end safety: send a harmless *proposal*, inspect the UI, and
       // cancel. No Windows action is approved or executed in the CI runner.
       const approvalFound = await win.webContents.executeJavaScript(
