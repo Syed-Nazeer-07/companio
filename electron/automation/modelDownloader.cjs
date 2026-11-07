@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
-const http = require('http');
 const { app } = require('electron');
 
 const AVAILABLE_MODELS = {
@@ -58,12 +57,17 @@ class ModelDownloader {
         size = fs.statSync(filePath).size;
       } catch (e) {}
     }
+    let complete = false;
+    try {
+      const marker = JSON.parse(fs.readFileSync(filePath + '.complete.json', 'utf8'));
+      complete = marker.modelId === meta.id && marker.fileSize === size;
+    } catch {}
     return {
       id: meta.id,
       name: meta.name,
       filename: meta.filename,
       filePath,
-      installed: exists && size > 10 * 1024 * 1024,
+      installed: exists && complete && size > 10 * 1024 * 1024,
       fileSize: size,
       sizeDisplay: meta.sizeDisplay,
       isDownloading: this.currentDownload?.modelId === modelId
@@ -94,12 +98,19 @@ class ModelDownloader {
       let totalBytes = meta.sizeBytes;
       let startTime = Date.now();
 
-      const downloadFromUrl = (url) => {
-        const client = url.startsWith('https') ? https : http;
-        this.activeRequest = client.get(url, { headers: { 'User-Agent': 'Companio-Desktop/1.0' } }, (response) => {
+      const downloadFromUrl = (url, redirects = 0) => {
+        const parsed = new URL(url);
+        if (parsed.protocol !== 'https:' || redirects > 6) {
+          fileStream.destroy();
+          try { fs.unlinkSync(tempPath); } catch {}
+          this.currentDownload = null;
+          return reject(new Error('Insecure or excessive download redirect rejected.'));
+        }
+        this.activeRequest = https.get(parsed, { headers: { 'User-Agent': 'Companio-Desktop/1.0' } }, (response) => {
           // Handle 301, 302, 307 redirects (common on Hugging Face / GitHub)
           if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-            return downloadFromUrl(response.headers.location);
+            response.resume();
+            return downloadFromUrl(new URL(response.headers.location, parsed).toString(), redirects + 1);
           }
 
           if (response.statusCode !== 200) {
@@ -116,7 +127,10 @@ class ModelDownloader {
 
           response.on('data', (chunk) => {
             receivedBytes += chunk.length;
-            fileStream.write(chunk);
+            if (!fileStream.write(chunk)) {
+              response.pause();
+              fileStream.once('drain', () => response.resume());
+            }
 
             const elapsedSec = (Date.now() - startTime) / 1000;
             const speedBytesPerSec = elapsedSec > 0 ? (receivedBytes / elapsedSec) : 0;
@@ -138,10 +152,20 @@ class ModelDownloader {
           response.on('end', () => {
             fileStream.end(async () => {
               try {
+                const actualSize = fs.statSync(tempPath).size;
+                if (actualSize !== receivedBytes || (Number.isFinite(totalBytes) && receivedBytes !== totalBytes)) {
+                  throw new Error('Incomplete download: byte count did not match the expected file size.');
+                }
+                if (receivedBytes < meta.sizeBytes * 0.75) {
+                  throw new Error('Downloaded model file is unexpectedly small.');
+                }
                 if (fs.existsSync(targetPath)) {
                   fs.unlinkSync(targetPath);
                 }
                 fs.renameSync(tempPath, targetPath);
+                fs.writeFileSync(targetPath + '.complete.json', JSON.stringify({
+                  modelId, fileSize: actualSize, completedAt: new Date().toISOString()
+                }));
                 this.currentDownload = null;
                 this.activeRequest = null;
 
@@ -164,6 +188,7 @@ class ModelDownloader {
                 });
               } catch (err) {
                 this.currentDownload = null;
+                try { fs.unlinkSync(tempPath); } catch {}
                 reject(err);
               }
             });
@@ -178,6 +203,7 @@ class ModelDownloader {
           });
         });
 
+        this.activeRequest.setTimeout(60000, () => this.activeRequest?.destroy(new Error('Model download timed out')));
         this.activeRequest.on('error', (err) => {
           fileStream.close();
           try { fs.unlinkSync(tempPath); } catch (e) {}
