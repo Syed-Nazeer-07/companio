@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { runPowerShell } = require('./psHelper.cjs');
+const { launchVerifiedApp } = require('./appLaunchController.cjs');
 const quotePowerShell = (value) => "'" + String(value).replace(/'/g, "''") + "'";
 
 class WinAppsController {
@@ -205,32 +206,17 @@ Test-Path "${fullPath.replace(/\\/g, '\\\\')}"
 
   // Launch Notepad
   async launchNotepad() {
-    try {
-      await runPowerShell('Start-Process "notepad.exe"');
-      return { success: true, message: 'Notepad opened', verified: true };
-    } catch (err) {
-      return { success: false, error: err.message, verified: false };
-    }
+    return launchVerifiedApp('notepad');
   }
 
   // Launch Paint
   async launchPaint() {
-    try {
-      await runPowerShell('Start-Process "mspaint.exe"');
-      return { success: true, message: 'Paint opened', verified: true };
-    } catch (err) {
-      return { success: false, error: err.message, verified: false };
-    }
+    return launchVerifiedApp('paint');
   }
 
   // Launch Task Manager
   async launchTaskManager() {
-    try {
-      await runPowerShell('Start-Process "taskmgr.exe"');
-      return { success: true, message: 'Task Manager launched', verified: true };
-    } catch (err) {
-      return { success: false, error: err.message, verified: false };
-    }
+    return launchVerifiedApp('taskmgr');
   }
 
   // Launch Snipping Tool
@@ -275,22 +261,12 @@ Test-Path "${fullPath.replace(/\\/g, '\\\\')}"
 
   // Launch Command Prompt
   async launchCmd() {
-    try {
-      await runPowerShell('Start-Process "cmd.exe"');
-      return { success: true, message: 'Command Prompt opened', verified: true };
-    } catch (err) {
-      return { success: false, error: err.message, verified: false };
-    }
+    return launchVerifiedApp('cmd');
   }
 
   // Launch Windows PowerShell
   async launchPowerShell() {
-    try {
-      await runPowerShell('Start-Process "powershell.exe"');
-      return { success: true, message: 'PowerShell opened', verified: true };
-    } catch (err) {
-      return { success: false, error: err.message, verified: false };
-    }
+    return launchVerifiedApp('powershell');
   }
 
   // Launch Windows Camera
@@ -325,22 +301,12 @@ Test-Path "${fullPath.replace(/\\/g, '\\\\')}"
 
   // Launch Microsoft Edge
   async launchEdge() {
-    try {
-      await runPowerShell('Start-Process "msedge.exe"');
-      return { success: true, message: 'Microsoft Edge launched', verified: true };
-    } catch (err) {
-      return { success: false, error: err.message, verified: false };
-    }
+    return launchVerifiedApp('edge');
   }
 
   // Launch Google Chrome
   async launchChrome() {
-    try {
-      await runPowerShell('Start-Process "chrome.exe" -ErrorAction SilentlyContinue; if (!$?) { Start-Process "msedge.exe" }');
-      return { success: true, message: 'Browser launched', verified: true };
-    } catch (err) {
-      return { success: false, error: err.message, verified: false };
-    }
+    return launchVerifiedApp('chrome');
   }
 
   // Launch Discord
