@@ -113,12 +113,12 @@ For optional local conversations, run [Ollama](https://ollama.com/) and install 
 ollama run llama3.2
 ```
 
-Then open **AI Configuration → Local Offline LLM**, enter the local server URL and model name, select **Check Connection**, and try the live prompt. Companio uses the same connection for the test and for ordinary assistant conversations:
+Then open **AI Configuration → Local Offline LLM** and select **Find Local AI**. Companio checks the configured local address and the standard Ollama/LM Studio ports, choosing a running server with a loaded model when possible. **Check Connection** tests only the currently selected server; **Test** verifies an actual model reply. You can still enter a custom loopback address or model ID:
 
 - **Ollama:** `http://127.0.0.1:11434/v1` (default).
 - **LM Studio:** `http://127.0.0.1:1234/v1` (start its local server and load a model first).
 
-The local requests run through validated Electron IPC, not browser CORS, and only HTTP loopback endpoints are allowed. A failed connection produces a visible error rather than a fake reply. **This adds conversational reasoning, not free-form Windows computer control:** desktop actions still use the predefined, validated command planner. The local server and model must be installed and running independently. When selected, local inference does not require a cloud API key.
+Discovery never contacts public AI services, starts an inference process, or downloads a model. Local requests run through validated Electron IPC, not browser CORS, and only HTTP loopback endpoints are allowed. A failed connection produces a visible error rather than a fake reply. **This adds conversational reasoning, not free-form Windows computer control:** desktop actions still use the predefined, validated command planner. The local server and model must be installed and running independently. When selected, local inference does not require a cloud API key.
 
 The SQLite WebAssembly runtime is now bundled with the desktop assets rather than fetched from a CDN. Conversation history remains stored in local storage; SQLite is still an in-memory prototype.
 
@@ -126,7 +126,7 @@ The app also includes an **in-app GGUF model downloader**. Downloaded files are 
 
 ### Local AI integration status
 
-This preview adds a **single validated local AI path** for Ollama and LM Studio, local server/model selection, a test prompt, explicit connection failures, and conversation/error history. The app bundles SQLite's WebAssembly asset instead of fetching it from a CDN. The incomplete cloud-provider option is disabled rather than collecting new API keys.
+This preview adds a **single validated local AI path** for Ollama and LM Studio, local model discovery, a test prompt, explicit connection failures, and conversation/error history. The app bundles SQLite's WebAssembly asset instead of fetching it from a CDN. The incomplete cloud-provider option is disabled rather than collecting new API keys.
 
 **What this does not provide:** a built-in inference runtime, guaranteed ARM64 model performance, free-form system automation from AI-generated commands, code signing, or real-device acceptance testing.
 
@@ -331,6 +331,8 @@ Companio now handles speech and automation more conservatively:
 - **Review before actions:** local model proposals and supported multi-step commands display each validated tool and argument in a compact dialog. Run is a separate button; Escape, Close or Cancel execute **zero** actions.
 - **YouTube latest:** a newest-video request attempts to match the actual creator channel and select YouTube's Latest uploads tab. If identity/sort/playback cannot be verified, it reports a failure rather than playing an unrelated search result. Real YouTube DOM and account-specific behavior still need testing.
 - **Settings → Device diagnostics:** read-only reports for Windows architecture, shortcut registration, native history availability and system audio state. It never records audio or sends desktop commands.
+- **Settings reliability:** global shortcut changes restore the previous registration when persistence fails. Overlay preferences are saved before applying, with best-effort rollback if the native window rejects them. Window and shortcut config writes now use adjacent temporary files and atomic rename, keeping the old file if replacement fails.
+- **First-run tests:** Windows action buttons report verified success, unverified dispatch, or failure separately; a click alone never counts as a successful automation.
 
 ### Windows ARM64 acceptance checklist
 
@@ -342,7 +344,7 @@ These are **manual tests required on a real Windows ARM64 machine**, not claims 
 4. Request `Open Notepad and set volume to 45%`; inspect the proposed tools, press **Cancel**, and confirm no action is executed. Repeat with **Run** only if you want those changes.
 5. Add notes and messages, restart Companio, and confirm history persists. Export history, restore it, and confirm settings are unaffected.
 6. Try `Play the latest video from CarryMinati`. If channel lookup or playback fails, report the actual error; do not interpret a first search hit as a newest upload.
-7. Configure a running Ollama or LM Studio model, select it in AI Settings, and test a conversational question plus a supported AI-planned action.
+7. Start Ollama or LM Studio with a loaded model, select **Find Local AI** in AI Settings, and test a conversational question plus a supported AI-planned action. Confirm an absent server produces an error instead of a fabricated answer.
 8. Repeat the essential tests on Windows x64. Check startup time, crashes, memory usage and microphone behavior across several launches.
 
 **Production blockers:** an easy bundled local inference runtime, sustained ARM64 speech/browser reliability, signed installers, updates and actual unattended/crash-recovery testing are still pending. Passing CI is not a production readiness certification.
@@ -425,7 +427,7 @@ The prior state is preserved in [`rollback/pre-phase1-2026-11-07`](https://githu
 - [ ] Continue validating unverified native actions and improve failure feedback on real devices
 - [x] Add allowlisted, confirmation-first local AI proposals and basic offline command chains
 - [ ] Expand natural-language coverage and independently verify additional native actions on Windows devices
-- [x] Integrate validated local chat/model discovery for Ollama and LM Studio
+- [x] Integrate validated local chat and safe one-click model discovery for Ollama and LM Studio
 - [ ] Bundle an inference runtime and activate downloaded GGUF files safely
 - [ ] Finish optional cloud-provider integrations with secure key handling
 - [x] Add explicit multi-action approval UI and a command-versus-question safety guard
@@ -436,7 +438,8 @@ The prior state is preserved in [`rollback/pre-phase1-2026-11-07`](https://githu
 - [ ] Validate microphone recognition on real ARM64 hardware and improve voice activation
 - [x] Add packaged Electron smoke coverage and a read-only Device Diagnostics panel
 - [ ] Test Windows x64 and ARM64 installers on physical devices; add code signing and updates
-- [ ] Introduce CI quality gates, automated UI coverage, and accessibility checks
+- [x] Add Windows CI quality gates, unit tests, and packaged Electron UI/IPC smoke coverage
+- [ ] Expand automated accessibility checks and real-device acceptance tests
 
 ## 🎯 Design Philosophy
 
