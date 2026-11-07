@@ -1,6 +1,7 @@
 import { TaskPlan, TaskStep, AiConfig } from '../types';
 import { desktopBridge } from './desktopBridge';
 import { dbService } from './dbService';
+import { isCommandRequest } from './intentSafety';
 
 export class AgentEngine {
   private activeAbortController: AbortController | null = null;
@@ -22,22 +23,35 @@ export class AgentEngine {
     const steps: TaskStep[] = [];
     let intent = 'conversation';
 
+    // Safety boundary: questions and incidental app names are conversation,
+    // not permission to operate a computer. Only explicit requests reach
+    // legacy keyword matching or any model-based action planning.
+    if (!isCommandRequest(query)) {
+      return {
+        id: planId, query, intent: 'conversation', steps: [],
+        currentStepIndex: 0, status: 'completed', createdAt: Date.now(),
+        finalMessage: await this.generateConversationalResponse(query, aiConfig)
+      };
+    }
+
     // Check explicit multi-action requests before the old single-command
     // matcher; otherwise a request can silently execute only its first part.
     // The built-in grammar works with no LLM; supported plans still need approval.
     const explicitAction = /^(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:open|launch|start|search|find|look\s+up|play|pause|mute|unmute|set|change|go\s+to|visit|show)\b/i.test(query.trim());
-    const multiAction = /\b(?:and\s+then|then|and\s+also|after\s+that|followed\s+by|and)\b/i.test(query);
+    // "Tom and Jerry" is not a two-step instruction, but "open YouTube
+    // and play ..." is. Never run only the first half of an unsupported chain.
+    const multiAction = /\b(?:and\s+then|then|and\s+also|after\s+that|followed\s+by|and\s+(?=(?:please\s+)?(?:open|launch|start|search|find|look\s+up|play|pause|mute|unmute|set|change|go\s+to|visit|show|ask|send|write|type|click|navigate|delete|clear)\b))/i.test(query);
     if (explicitAction && multiAction) {
       const offline = await desktopBridge.planOfflineSequence({ query });
       if (offline.success && offline.steps?.length && offline.requiresConfirmation === true) {
         return this.buildApprovedActionPlan(query, planId, 'builtin_sequence', offline.steps);
       }
-      if (offline.recognized) {
-        if (aiConfig?.provider === 'local') {
-          return this.planSafeLocalActions(query, aiConfig, planId);
-        }
-        throw new Error(offline.error || 'This multi-step request is not supported by the built-in engine.');
+      if (aiConfig?.provider === 'local') {
+        return this.planSafeLocalActions(query, aiConfig, planId);
       }
+      // A compound command is all-or-nothing, even when the fixed grammar
+      // cannot split it into actions. Partial execution is misleading.
+      throw new Error(offline.error || 'This multi-step command is not fully supported. No actions were executed.');
     }
 
     // 1. Direct Web Apps (ChatGPT, Claude, Gemini, WhatsApp, Gmail, Reddit, Netflix, X)
@@ -296,7 +310,21 @@ export class AgentEngine {
     }
 
     // 5. Volume & Audio Control
-    else if (q.includes('mute') && !q.includes('unmute')) {
+    else if (/\b(?:volume\s+up|increase\s+(?:the\s+)?volume|raise\s+(?:the\s+)?volume|louder)\b/.test(q)) {
+      intent = 'win.volume.change';
+      steps.push({
+        id: 'step_1', tool: 'win.volume.change',
+        description: 'Increase Windows master volume by 10%',
+        params: { delta: 10 }, status: 'pending'
+      });
+    } else if (/\b(?:volume\s+down|decrease\s+(?:the\s+)?volume|lower\s+(?:the\s+)?volume|softer)\b/.test(q)) {
+      intent = 'win.volume.change';
+      steps.push({
+        id: 'step_1', tool: 'win.volume.change',
+        description: 'Decrease Windows master volume by 10%',
+        params: { delta: -10 }, status: 'pending'
+      });
+    } else if (q.includes('mute') && !q.includes('unmute')) {
       intent = 'win.volume.mute';
       steps.push({
         id: 'step_1',
@@ -317,8 +345,12 @@ export class AgentEngine {
         verification: 'Audio mute scalar verified false'
       });
     } else if (q.includes('volume')) {
-      const match = q.match(/(\d+)\s*%/);
-      const level = match ? parseInt(match[1], 10) : (q.includes('up') ? 75 : 50);
+      const match = q.match(/\b(?:to|at)\s*(\d{1,3})\s*%?\b|\b(\d{1,3})\s*%/);
+      if (!match) throw new Error('Specify a volume level, for example "set volume to 40%". No change was made.');
+      const level = Number(match[1] || match[2]);
+      if (!Number.isFinite(level) || level < 0 || level > 100) {
+        throw new Error('Volume must be between 0 and 100%. No change was made.');
+      }
       intent = 'win.volume.set';
       steps.push({
         id: 'step_1',
@@ -994,7 +1026,7 @@ export class AgentEngine {
     if (q.includes('thank you') || q.includes('thanks')) {
       return "You're so very welcome! Always happy to help you 🥰";
     }
-    if (q.includes('hello') || q.includes('hi') || q.includes('hey')) {
+    if (/\b(?:hello|hi|hey)\b/.test(q)) {
       return "Hello there! ✨ What can I do for you on your computer today?";
     }
     if (q.includes('bored')) {
