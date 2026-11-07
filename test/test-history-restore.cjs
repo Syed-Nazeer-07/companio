@@ -125,3 +125,18 @@ test('missing disk file is seeded once from existing browser storage', async () 
   assert.equal(seed.backup.conversations[0].id,'old');
   assert.equal(h.service.getMessages()[0].id,'old');
 });
+
+test('concurrent initialization hydrates the native disk copy only once', async () => {
+  let loads=0;
+  const h=harness({
+    native:true,
+    load:async () => {
+      loads++;
+      await new Promise(resolve => setTimeout(resolve,20));
+      return {success:true,exists:true,backup:backup()};
+    }
+  });
+  await Promise.all([h.service.init(),h.service.init(),h.service.init()]);
+  assert.equal(loads,1);
+  assert.equal(h.service.getMessages()[0].id,'m1');
+});
