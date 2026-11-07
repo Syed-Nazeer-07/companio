@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { normalizeEndpoint, listModels, chat } = require('../electron/automation/localAiController.cjs');
+const { normalizeEndpoint, listModels, chat, discoverLocalAi } = require('../electron/automation/localAiController.cjs');
 
 test('local endpoints only accept loopback HTTP and a fixed /v1 route', () => {
   assert.equal(normalizeEndpoint(), 'http://127.0.0.1:11434/v1');
@@ -73,4 +73,59 @@ test('failed model calls return errors, never fabricated success', async () => {
   assert.match(missing.error, /no text/);
   const invalid = await listModels({}, async () => ({ok: true, json: async () => ({})}));
   assert.equal(invalid.success, false);
+});
+
+test('discovery finds a running LM Studio model when Ollama is unavailable', async () => {
+  const visited = [];
+  const found = await discoverLocalAi({}, async (url, options) => {
+    visited.push(url);
+    assert.equal(options.redirect, 'error');
+    if (url === 'http://127.0.0.1:1234/v1/models') {
+      return { ok: true, json: async () => ({ data: [{ id: 'qwen2.5-1.5b' }] }) };
+    }
+    throw new TypeError('connection refused');
+  });
+  assert.equal(found.success, true);
+  assert.equal(found.endpoint, 'http://127.0.0.1:1234/v1');
+  assert.deepEqual(found.models, ['qwen2.5-1.5b']);
+  assert.deepEqual(visited.sort(), [
+    'http://127.0.0.1:11434/v1/models',
+    'http://127.0.0.1:1234/v1/models'
+  ]);
+});
+
+test('discovery prefers a model-ready server over a running but empty one', async () => {
+  const result = await discoverLocalAi({}, async url => ({
+    ok: true,
+    json: async () => ({
+      data: url.includes(':1234/') ? [{ id: 'local-ready' }] : []
+    })
+  }));
+  assert.equal(result.success, true);
+  assert.equal(result.endpoint, 'http://127.0.0.1:1234/v1');
+  assert.deepEqual(result.models, ['local-ready']);
+});
+
+test('discovery never probes a non-loopback host or reports a fake connection', async () => {
+  let calls = 0;
+  const fetchImpl = async () => { calls++; throw new TypeError('connection refused'); };
+  const invalid = await discoverLocalAi({ endpoint: 'http://remote.example/v1' }, fetchImpl);
+  assert.equal(invalid.success, false);
+  assert.equal(calls, 0);
+  const absent = await discoverLocalAi({}, fetchImpl);
+  assert.equal(absent.success, false);
+  assert.deepEqual(absent.models, []);
+  assert.equal(calls, 2);
+});
+
+test('discovery honors a custom safe loopback address before standard servers', async () => {
+  const result = await discoverLocalAi({ endpoint: 'http://localhost:9876/v1' }, async url => {
+    if (url.startsWith('http://localhost:9876/')) {
+      return { ok: true, json: async () => ({ data: [{ id: 'custom-model' }] }) };
+    }
+    throw new TypeError('connection refused');
+  });
+  assert.equal(result.success, true);
+  assert.equal(result.endpoint, 'http://localhost:9876/v1');
+  assert.equal(result.checkedEndpoints, 3);
 });
