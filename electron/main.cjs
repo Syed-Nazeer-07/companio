@@ -15,6 +15,7 @@ const localActionPlanner = require('./automation/localActionPlanner.cjs');
 const historyBackupController = require('./automation/historyBackupController.cjs');
 const { NativeHistoryStore } = require('./automation/nativeHistoryStore.cjs');
 const { updateShortcutWithRollback, updateOverlayWithRollback } = require('./automation/settingsTransaction.cjs');
+const { writeConfigAtomically } = require('./automation/atomicConfigStore.cjs');
 
 let overlayWindow = null;
 let dashboardWindow = null;
@@ -40,8 +41,7 @@ function loadSavedPosition() {
 
 function saveConfig(patch) {
   try {
-    fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify({ ...(loadSavedPosition() || {}), ...patch }), 'utf-8');
+    writeConfigAtomically(CONFIG_PATH, { ...(loadSavedPosition() || {}), ...patch });
     return true;
   } catch (err) {
     console.error('[Companio] Failed to persist settings:', err.message);
