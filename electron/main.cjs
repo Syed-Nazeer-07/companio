@@ -269,16 +269,12 @@ function registerHotkeys(requested = currentShortcut) {
         createOverlayWindow();
         return;
       }
-      if (overlayWindow.isVisible()) {
-        overlayWindow.hide();
-        overlayWindow.webContents.send('shortcut-dismiss');
-      } else {
-        overlayWindow.show();
-        overlayWindow.focus();
-        overlayWindow.setAlwaysOnTop(overlayPreferences.alwaysOnTop,
-          overlayPreferences.alwaysOnTop ? 'screen-saver' : 'normal');
-        overlayWindow.webContents.send('shortcut-activated');
-      }
+      if (!overlayWindow.isVisible()) overlayWindow.show();
+      overlayWindow.focus();
+      overlayWindow.setAlwaysOnTop(overlayPreferences.alwaysOnTop,
+        overlayPreferences.alwaysOnTop ? 'screen-saver' : 'normal');
+      // React decides whether to open the text box or dismiss the companion.
+      overlayWindow.webContents.send('shortcut-toggle');
     });
 
     if (!registered) return { success: false, error: 'Shortcut unavailable: ' + shortcut };
@@ -625,8 +621,15 @@ app.whenReady().then(async () => {
       if (negative.success !== false || negative.verified !== false) {
         throw new Error('Native tool validation did not reject the malformed request');
       }
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      win.webContents.send('shortcut-toggle');
+      await new Promise((resolve) => setTimeout(resolve, 450));
+      const awakened = await win.webContents.executeJavaScript(
+        "!!document.querySelector('input[placeholder=\"Ask Companio...\"]')"
+      );
+      if (!awakened) throw new Error('Global shortcut did not open the companion text input');
       clearTimeout(timer);
-      console.log('COMPANIO_SMOKE_OK: React, Electron preload, and negative IPC verified');
+      console.log('COMPANIO_SMOKE_OK: React, Electron preload, hotkey UI and negative IPC verified');
       app.exit(0);
     } catch (err) {
       clearTimeout(timer);

@@ -6,7 +6,7 @@ import { SpeechBubble } from './SpeechBubble';
 import { CompactInput } from './CompactInput';
 import { agentEngine } from '../../services/agentEngine';
 import { speechService } from '../../services/speechService';
-import { desktopBridge } from '../../services/desktopBridge';
+import { desktopBridge, isNativeDesktop } from '../../services/desktopBridge';
 import { dbService } from '../../services/dbService';
 import { GripHorizontal, MessageSquare, Mic, X } from 'lucide-react';
 
@@ -48,7 +48,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
   // Global hotkey toggle listener: press once to open/wake, press again to dismiss/close!
   useEffect(() => {
     const unbindToggle = desktopBridge.onShortcutToggle(() => {
-      if (isInputOpen || bubbleText) {
+      if (isInputOpen) {
         handleDismiss();
       } else {
         handleWakeAndActivate();
@@ -58,6 +58,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     const unbindDismiss = desktopBridge.onShortcutDismiss?.(() => {
       handleDismiss();
     });
+    const unbindWake = isNativeDesktop() ? desktopBridge.onShortcut(() => handleWakeAndActivate()) : () => {};
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -68,6 +69,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
 
     return () => {
       unbindToggle();
+      unbindWake();
       if (unbindDismiss) unbindDismiss();
       window.removeEventListener('keydown', handleKeyDown);
     };
