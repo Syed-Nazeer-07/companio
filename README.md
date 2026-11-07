@@ -140,7 +140,7 @@ This preview adds a **single validated local AI path** for Ollama and LM Studio,
 | **Web tools** | Playwright Core, Microsoft Edge | Browser navigation and supported web actions |
 | **System tools** | Node.js, PowerShell, Windows APIs | Application launching, system controls, screenshots |
 | **Speech** | Web Speech APIs | Voice input and spoken output |
-| **Storage** | localStorage, sql.js | Local preferences/history and experimental in-memory SQL |
+| **Storage** | Electron user-data JSON, localStorage, sql.js | Atomic native history file, browser cache, and experimental in-memory SQL |
 | **Alternative prototype** | Tauri / Rust source | Experimental shell, not the main release path |
 
 ## 🏗️ Architecture
@@ -273,7 +273,8 @@ companio/
 Companio runs locally for its built-in command processing, but it can interact with your desktop, browser, microphone, and local files. Treat automation as **powerful software with real permissions**.
 
 - **No mandatory paid AI API key:** the predefined command planner does not require one.
-- **Local history:** preferences, conversation messages, notes, and tool logs are stored using browser/Electron local storage. The bundled `sql.js` database is initialized in memory, **not saved as a durable SQLite file**. The History page can export conversations, automation logs, and notes to JSON without including the API-key settings; import is not yet supported. Exported logs may still contain personal information.
+- **Local history:** in the installed Electron app, conversations, automation logs, and notes are kept in an **atomic JSON file inside the Windows application-data directory**, with localStorage as the synchronous UI cache. Older browser-stored history is migrated once when no native file exists. Browser-only preview uses localStorage. The bundled `sql.js` database remains **in memory**; this is *not* durable SQLite.
+- **Backup/restore:** the History page can export a JSON copy and, in the installed desktop app, validate and restore exported history backups up to 8 MiB. Restore previews counts and requires confirmation because it **replaces** current conversations, logs, and notes. Only the backup history sections are accepted; app settings and API keys are never imported. Imported executable task plans are discarded. Both the native history file and exported backups are **unencrypted** and may contain personal information; protect them like any other private document.
 - **API key caution:** cloud providers are disabled until genuinely implemented. Older provider keys may still exist in legacy local settings; remove them in AI Settings. Local application preferences are **not a secure secrets vault**.
 - **Permissions:** IPC is restricted to trusted app windows; microphone requests are audio-only, while camera/USB/accessibility permissions are not auto-granted. Real-device permission testing is still required.
 - **Tool effects:** commands can change system settings, open websites, capture screenshots, or act on existing windows. Run them only on a device you control.
@@ -332,6 +333,16 @@ This Windows preview addresses false-success reporting in volume/mute controls, 
 
 **Known constraints:** a running process does not prove a window gained focus; HTTP navigation verification does not prove the requested content was displayed or interacted with; and some operating-system URI handlers remain unverified. The current media control and active-window minimize limitations are described below. Windows ARM64 builds are CI-packaged but not hardware acceptance tested.
 
+## 💾 History persistence and recovery
+
+Companio's installed Windows app mirrors recent history to `companio_history_v1.json` in Electron's user-data directory, using a temporary file and rename to avoid partially written snapshots. Each native write is validated before it replaces the last stored version. Invalid or corrupted history is **not** silently overwritten.
+
+To keep a manual copy, open **Control Center → History → Export History**. To recover it, use **Restore History**, select the exported JSON, review the displayed counts, and confirm. The application restores the conversations, automation logs, and notes only; it doesn't overwrite your character, hotkeys, AI settings, or provider keys. A failed restore attempts to roll back browser-storage writes, and a native disk failure is shown rather than reported as a successful restore.
+
+If native persistence fails, History shows a warning and a **Retry disk sync** option. Export your current history before restarting if you see that warning. Native file persistence, encryption, multi-window conflict handling, and interrupted-write recovery still need device-level acceptance testing.
+
+Rollback before this work: [`rollback/pre-history-restore-2026-11-08`](https://github.com/Syed-Nazeer-07/companio/tree/rollback/pre-history-restore-2026-11-08).
+
 ## 🛡️ Native outcome verification
 
 Companio distinguishes **command attempted**, **process/page observed**, and **verified result**. A successful PowerShell launch or Playwright navigation is not treated as proof that the requested app or page is ready.
@@ -366,7 +377,7 @@ The prior state is preserved in [`rollback/pre-phase1-2026-11-07`](https://githu
 - Voice input and speech output depend on runtime/device support; there is no true always-listening hotword service.
 - Ollama/LM Studio connection and conversation are integrated, but a separate local server and loaded model are required. Downloaded GGUF files are not integrated with a bundled inference engine.
 - OpenAI/Gemini provider activation is disabled until end-to-end cloud reasoning and safe key storage are implemented.
-- History can be exported as local JSON, but import/restore and a durable SQLite database are not yet supported.
+- History is stored in a native JSON file and can be exported/restored in the desktop app, but the optional SQL.js cache is still in memory, and there is no encrypted storage or durable SQLite database yet.
 - Installer targets and a release workflow exist, but code signing, auto-updates, and device-wide acceptance testing are outstanding.
 
 ## 🗺️ Roadmap
@@ -379,7 +390,8 @@ The prior state is preserved in [`rollback/pre-phase1-2026-11-07`](https://githu
 - [ ] Bundle an inference runtime and activate downloaded GGUF files safely
 - [ ] Finish optional cloud-provider integrations with secure key handling
 - [ ] Strengthen browser automation, permissions, and sensitive-action safeguards
-- [ ] Add durable SQLite storage and JSON import/restore (history export is available)
+- [x] Add native JSON history persistence, localStorage migration, and validated export/restore
+- [ ] Evaluate durable SQLite and optional encrypted history storage; test crash recovery on real devices
 - [ ] Improve speech recognition, activation, and character synchronization
 - [ ] Test Windows x64 and ARM64 installers; add code signing and update support
 - [ ] Introduce CI quality gates, automated UI coverage, and accessibility checks
