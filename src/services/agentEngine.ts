@@ -1188,12 +1188,16 @@ export class AgentEngine {
             verified: true
           };
         } else if (step.tool === 'utility.notes.clear') {
-          dbService.clearNotes();
-          result = {
-            success: true,
-            message: 'All notes cleared! 🧹',
-            verified: true
-          };
+          if (!window.confirm('Delete all saved Companio notes? This cannot be undone.')) {
+            result = { success: false, verified: false, error: 'Note deletion cancelled.' };
+          } else {
+            dbService.clearNotes();
+            result = {
+              success: true,
+              message: 'All notes cleared! 🧹',
+              verified: true
+            };
+          }
         } else {
           result = await desktopBridge.executeTool(step.tool, step.params);
         }

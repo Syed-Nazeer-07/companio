@@ -292,16 +292,17 @@ secureHandle('execute-tool', async (event, payload) => {
   if (!validated.success) return { success: false, verified: false, error: validated.error };
   const { toolName, params } = validated;
 
-  if (toolName === 'win.recyclebin.empty') {
+  if (toolName === 'win.recyclebin.empty' || toolName === 'win.clipboard.clear') {
+    const recycle = toolName === 'win.recyclebin.empty';
     const answer = await dialog.showMessageBox(BrowserWindow.fromWebContents(event.sender), {
       type: 'warning',
-      buttons: ['Cancel', 'Empty Recycle Bin'],
+      buttons: ['Cancel', recycle ? 'Empty Recycle Bin' : 'Clear Clipboard'],
       defaultId: 0,
       cancelId: 0,
-      message: 'Permanently delete everything in the Recycle Bin?',
-      title: 'Confirm permanent deletion'
+      message: recycle ? 'Permanently delete everything in the Recycle Bin?' : 'Erase the current Windows clipboard contents?',
+      title: recycle ? 'Confirm permanent deletion' : 'Confirm clipboard reset'
     });
-    if (answer.response !== 1) return { success: false, verified: false, error: 'Deletion cancelled.' };
+    if (answer.response !== 1) return { success: false, verified: false, error: 'Action cancelled.' };
   }
 
   switch (toolName) {
