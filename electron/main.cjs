@@ -14,7 +14,7 @@ let overlayWindow = null;
 let dashboardWindow = null;
 let tray = null;
 let currentShortcut = 'CommandOrControl+Shift+Space';
-let overlayPreferences = { alwaysOnTop: true };
+let overlayPreferences = { alwaysOnTop: true, snapToEdge: true };
 
 // Position storage file
 const CONFIG_PATH = path.join(app.getPath('userData'), 'companio_window_config.json');
@@ -82,18 +82,18 @@ function protectWindow(win) {
 
 function createOverlayWindow() {
   const primaryDisplay = screen.getPrimaryDisplay();
-  const { width, height } = primaryDisplay.workAreaSize;
+  const { x: workX, y: workY, width, height } = primaryDisplay.workArea;
   const saved = loadSavedPosition();
 
   const winWidth = 360;
   const winHeight = 440;
 
   // Default to bottom-right
-  const defaultX = width - winWidth - 24;
-  const defaultY = height - winHeight - 24;
+  const defaultX = workX + width - winWidth - 24;
+  const defaultY = workY + height - winHeight - 24;
 
-  const posX = (saved && saved.x != null) ? Math.min(Math.max(0, saved.x), width - winWidth) : defaultX;
-  const posY = (saved && saved.y != null) ? Math.min(Math.max(0, saved.y), height - winHeight) : defaultY;
+  const posX = (saved && Number.isFinite(saved.x)) ? Math.min(Math.max(workX, saved.x), workX + width - winWidth) : defaultX;
+  const posY = (saved && Number.isFinite(saved.y)) ? Math.min(Math.max(workY, saved.y), workY + height - winHeight) : defaultY;
 
   overlayWindow = new BrowserWindow({
     width: winWidth,
@@ -118,10 +118,20 @@ function createOverlayWindow() {
   loadWindowContent(overlayWindow, 'overlay');
 
   overlayWindow.on('moved', () => {
-    if (overlayWindow) {
-      const [x, y] = overlayWindow.getPosition();
-      savePosition(x, y);
+    if (!overlayWindow) return;
+    const bounds = overlayWindow.getBounds();
+    if (overlayPreferences.snapToEdge) {
+      const area = screen.getDisplayMatching(bounds).workArea;
+      const snap = (value, low, high) => Math.abs(value - low) <= 24 ? low : Math.abs(value - high) <= 24 ? high : value;
+      const x = snap(bounds.x, area.x, area.x + area.width - bounds.width);
+      const y = snap(bounds.y, area.y, area.y + area.height - bounds.height);
+      if (x !== bounds.x || y !== bounds.y) {
+        overlayWindow.setPosition(x, y);
+        savePosition(x, y);
+        return;
+      }
     }
+    savePosition(bounds.x, bounds.y);
   });
 
   overlayWindow.on('closed', () => {
@@ -449,12 +459,13 @@ secureHandle('set-activation-shortcut', async (_, value) => {
   return applied;
 });
 secureHandle('set-overlay-preferences', async (_, options) => {
-  if (!options || typeof options.alwaysOnTop !== 'boolean') {
-    return { success: false, error: 'Invalid overlay preferences' };
+  if (!options || typeof options.alwaysOnTop !== 'boolean' || typeof options.snapToEdge !== 'boolean') {
+    return { success: false, verified: false, error: 'Invalid overlay preferences' };
   }
   overlayPreferences.alwaysOnTop = options.alwaysOnTop;
+  overlayPreferences.snapToEdge = options.snapToEdge;
   if (overlayWindow) overlayWindow.setAlwaysOnTop(options.alwaysOnTop);
-  const saved = saveConfig({ alwaysOnTop: options.alwaysOnTop });
+  const saved = saveConfig({ alwaysOnTop: options.alwaysOnTop, snapToEdge: options.snapToEdge });
   return { success: saved, verified: saved, error: saved ? undefined : 'Could not save overlay preference' };
 });
 
@@ -580,6 +591,7 @@ app.whenReady().then(() => {
   const shortcut = validateShortcut(saved.activationShortcut);
   if (shortcut.success) currentShortcut = shortcut.shortcut;
   if (typeof saved.alwaysOnTop === 'boolean') overlayPreferences.alwaysOnTop = saved.alwaysOnTop;
+  if (typeof saved.snapToEdge === 'boolean') overlayPreferences.snapToEdge = saved.snapToEdge;
   createOverlayWindow();
   setupTray();
   registerHotkeys();

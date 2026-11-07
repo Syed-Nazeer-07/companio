@@ -10,6 +10,8 @@ interface CompanioDesktopAPI {
   setIgnoreMouseEvents: (ignore: boolean) => void;
   saveOverlayPosition: (x: number, y: number) => Promise<boolean>;
   getOverlayPosition: () => Promise<{ x: number; y: number } | null>;
+  setActivationShortcut: (shortcut: string) => Promise<{ success: boolean; shortcut?: string; error?: string }>;
+  setOverlayPreferences: (options: { alwaysOnTop: boolean; snapToEdge: boolean }) => Promise<{ success: boolean; error?: string }>;
   minimizeWindow: () => Promise<void>;
   quitApp: () => Promise<void>;
   hideOverlay: () => Promise<boolean>;
@@ -46,6 +48,16 @@ export const isNativeDesktop = (): boolean => {
 };
 
 export const desktopBridge = {
+  async setActivationShortcut(shortcut: string) {
+    const api = getDesktopAPI();
+    return api ? api.setActivationShortcut(shortcut)
+      : { success: false, error: 'Global shortcuts require the installed desktop app.' };
+  },
+  async setOverlayPreferences(options: { alwaysOnTop: boolean; snapToEdge: boolean }) {
+    const api = getDesktopAPI();
+    return api ? api.setOverlayPreferences(options)
+      : { success: false, error: 'Desktop window settings require the installed app.' };
+  },
   async executeTool(toolName: string, params: Record<string, any> = {}) {
     const api = getDesktopAPI();
     if (api) return await api.executeTool(toolName, params);
