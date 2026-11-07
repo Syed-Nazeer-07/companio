@@ -14,6 +14,7 @@ const localAiController = require('./automation/localAiController.cjs');
 const localActionPlanner = require('./automation/localActionPlanner.cjs');
 const historyBackupController = require('./automation/historyBackupController.cjs');
 const { NativeHistoryStore } = require('./automation/nativeHistoryStore.cjs');
+const { updateShortcutWithRollback, updateOverlayWithRollback } = require('./automation/settingsTransaction.cjs');
 
 let overlayWindow = null;
 let dashboardWindow = null;
@@ -463,21 +464,27 @@ secureHandle('execute-tool', async (event, payload) => {
 secureHandle('set-activation-shortcut', async (_, value) => {
   const validation = validateShortcut(value);
   if (!validation.success) return validation;
-  const applied = registerHotkeys(validation.shortcut);
-  if (applied.success && !saveConfig({ activationShortcut: applied.shortcut })) {
-    return { success: false, error: 'Shortcut changed but could not be saved.' };
-  }
-  return applied;
+  return updateShortcutWithRollback(
+    validation.shortcut,
+    currentShortcut,
+    registerHotkeys,
+    shortcut => saveConfig({ activationShortcut: shortcut })
+  );
 });
 secureHandle('set-overlay-preferences', async (_, options) => {
   if (!options || typeof options.alwaysOnTop !== 'boolean' || typeof options.snapToEdge !== 'boolean') {
     return { success: false, verified: false, error: 'Invalid overlay preferences' };
   }
-  overlayPreferences.alwaysOnTop = options.alwaysOnTop;
-  overlayPreferences.snapToEdge = options.snapToEdge;
-  if (overlayWindow) overlayWindow.setAlwaysOnTop(options.alwaysOnTop);
-  const saved = saveConfig({ alwaysOnTop: options.alwaysOnTop, snapToEdge: options.snapToEdge });
-  return { success: saved, verified: saved, error: saved ? undefined : 'Could not save overlay preference' };
+  const requested = { alwaysOnTop: options.alwaysOnTop, snapToEdge: options.snapToEdge };
+  return updateOverlayWithRollback(
+    requested,
+    { ...overlayPreferences },
+    preferences => saveConfig(preferences),
+    preferences => {
+      if (overlayWindow) overlayWindow.setAlwaysOnTop(preferences.alwaysOnTop);
+      overlayPreferences = { ...preferences };
+    }
+  );
 });
 
 // Local inference uses the Node main process to avoid file:// CORS issues.
