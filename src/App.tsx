@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppSettings, CharacterId } from './types';
 import { dbService } from './services/dbService';
-import { desktopBridge } from './services/desktopBridge';
+import { desktopBridge, isNativeDesktop } from './services/desktopBridge';
 import { DesktopCompanionOverlay } from './components/overlay/DesktopCompanionOverlay';
 import { DashboardLayout, DashboardTab } from './components/dashboard/DashboardLayout';
 import { HomePage } from './components/dashboard/HomePage';
@@ -139,7 +139,19 @@ export const App: React.FC = () => {
   };
 
   const handleLaunchOverlay = () => {
-    desktopBridge.toggleDashboard(false);
+    // The overlay may have been completely hidden by the dismissal shortcut.
+    // Bring it back before closing the Control Center.
+    void (async () => {
+      try {
+        if (isNativeDesktop()) {
+          const shown = await desktopBridge.showOverlay();
+          if (!shown) return;
+        }
+        await desktopBridge.toggleDashboard(false);
+      } catch (error) {
+        console.error('[Companio] Could not show companion overlay:', error);
+      }
+    })();
   };
 
   const handleOpenDashboard = () => {
