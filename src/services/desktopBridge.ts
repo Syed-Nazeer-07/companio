@@ -19,7 +19,7 @@ interface CompanioDesktopAPI {
   onGlobalShortcutTriggered: (callback: () => void) => () => void;
   onGlobalShortcutToggle?: (callback: () => void) => () => void;
   onGlobalShortcutDismiss?: (callback: () => void) => () => void;
-  startNativeSpeech?: (timeoutSec?: number) => Promise<{ success: boolean; text?: string; silence?: boolean; error?: string }>;
+  startNativeSpeech?: (timeoutSec?: number) => Promise<{ success: boolean; text?: string; silence?: boolean; cancelled?: boolean; error?: string }>;
   cancelNativeSpeech?: () => Promise<any>;
   onStateUpdate: (callback: (state: any) => void) => () => void;
   sendStateUpdate: (state: any) => void;
