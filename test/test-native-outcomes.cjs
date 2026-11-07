@@ -80,3 +80,49 @@ test('the unsafe Alt+N minimization shortcut is disabled', async () => {
   assert.equal(result.verified, false);
   assert.equal(calls, 0);
 });
+
+test('File Explorer launch requires a matching observed folder window', async () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'companio-explorer-'));
+  try {
+    let script;
+    const win = new WinAppsController(async value => {
+      script = value;
+      return { stdout: 'COMPANIO_EXPLORER_UNVERIFIED' };
+    });
+    const notFound = await win.openFileExplorer(dir);
+    assert.equal(notFound.success, false);
+    assert.match(script, /Shell\.Application/);
+    assert.match(script, /LocationURL/);
+
+    const confirmed = new WinAppsController(async () => ({ stdout: 'COMPANIO_EXPLORER_OPENED' }));
+    assert.equal((await confirmed.openFileExplorer(dir)).verified, true);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('File Explorer never launches nonexistent folders or arbitrary relative commands', async () => {
+  let calls = 0;
+  const win = new WinAppsController(async () => {
+    calls++;
+    return { stdout: 'COMPANIO_EXPLORER_OPENED' };
+  });
+  assert.equal((await win.openFileExplorer('does-not-exist-relative')).success, false);
+  assert.equal((await win.openFileExplorer('/this/location/should/not/exist/companio')).success, false);
+  assert.equal(calls, 0);
+});
+
+test('File Explorer with no folder does not silently open Downloads', async () => {
+  let script;
+  const win = new WinAppsController(async value => {
+    script = value;
+    return { stdout: 'COMPANIO_EXPLORER_OPENED' };
+  });
+  const status = await win.openFileExplorer();
+  assert.equal(status.success, true);
+  assert.match(script, /Start-Process -FilePath 'explorer\.exe'/);
+  assert.doesNotMatch(script, /Downloads/);
+});
