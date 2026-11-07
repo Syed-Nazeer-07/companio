@@ -53,14 +53,14 @@ export const CompactInput: React.FC<Props> = ({
   ];
 
   return (
-    <div className="w-full glass-panel rounded-2xl p-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.12)] border border-slate-200 text-slate-800 animate-in fade-in slide-in-from-bottom-2 duration-200">
-      <form onSubmit={handleSubmit} className="flex items-center gap-2">
+    <div className="w-full max-w-[328px] mx-auto glass-panel rounded-2xl p-2 shadow-[0_16px_40px_rgba(0,0,0,0.12)] border border-slate-200 text-slate-800 animate-in fade-in slide-in-from-bottom-2 duration-200 box-border">
+      <form onSubmit={handleSubmit} className="flex items-center gap-1.5">
         {/* Push-to-Talk Mic Button */}
         <button
           type="button"
           onClick={onVoiceToggle}
           title={isListening ? 'Stop listening' : 'Push to talk (Microphone)'}
-          className={`p-2 rounded-xl transition-all ${
+          className={`shrink-0 p-2 rounded-xl transition-all ${
             isListening 
               ? 'bg-rose-500 text-white animate-pulse shadow-[0_0_12px_rgba(244,63,94,0.5)]' 
               : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
@@ -75,8 +75,8 @@ export const CompactInput: React.FC<Props> = ({
           type="text"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder={isListening ? "Listening to your voice..." : "Ask Companio to do anything..."}
-          className="flex-1 bg-transparent border-0 text-sm placeholder-slate-400 focus:outline-none text-slate-800 px-1"
+          placeholder={isListening ? "Listening..." : "Ask Companio..."}
+          className="min-w-0 flex-1 bg-transparent border-0 text-xs placeholder-slate-400 focus:outline-none text-slate-800 px-1 font-medium"
         />
 
         {/* Submit Button */}
@@ -84,19 +84,19 @@ export const CompactInput: React.FC<Props> = ({
           type="submit"
           disabled={!text.trim()}
           title="Send command (Enter)"
-          className="p-2 rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-30 disabled:hover:bg-sky-500 text-white transition-all shadow-sm"
+          className="shrink-0 p-2 rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-30 disabled:hover:bg-sky-500 text-white transition-all shadow-sm"
         >
-          <Send className="w-4 h-4" />
+          <Send className="w-3.5 h-3.5" />
         </button>
 
         {/* Control Center button */}
         <button
           type="button"
           onClick={onOpenDashboard}
-          title="Open Control Center Dashboard"
-          className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+          title="Open Settings Dashboard"
+          className="shrink-0 p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
         >
-          <Sliders className="w-4 h-4" />
+          <Sliders className="w-3.5 h-3.5" />
         </button>
 
         {/* Sleep / Wake toggle */}
@@ -104,19 +104,19 @@ export const CompactInput: React.FC<Props> = ({
           type="button"
           onClick={onToggleSleep}
           title={isSleeping ? "Wake Up" : "Sleep Mode"}
-          className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+          className="shrink-0 p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
         >
-          {isSleeping ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-sky-500" />}
+          {isSleeping ? <Sun className="w-3.5 h-3.5 text-amber-500" /> : <Moon className="w-3.5 h-3.5 text-sky-500" />}
         </button>
 
-        {/* Close Button */}
+        {/* Close Button on Right Side (Clearly Visible Circle) */}
         <button
           type="button"
           onClick={onClose}
-          title="Dismiss (Esc or Ctrl+Shift+Space)"
-          className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
+          title="Hide Companio (Esc or Ctrl+Shift+Space)"
+          className="shrink-0 p-1.5 rounded-full bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors border border-slate-200 shadow-sm"
         >
-          <X className="w-4 h-4" />
+          <X className="w-3.5 h-3.5 stroke-[2.5]" />
         </button>
       </form>
 

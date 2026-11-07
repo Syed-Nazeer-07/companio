@@ -33,6 +33,15 @@ const desktopAPI = {
     ipcRenderer.on('shortcut-toggle', handler);
     return () => ipcRenderer.removeListener('shortcut-toggle', handler);
   },
+  onGlobalShortcutDismiss: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('shortcut-dismiss', handler);
+    return () => ipcRenderer.removeListener('shortcut-dismiss', handler);
+  },
+
+  // Native Speech
+  startNativeSpeech: (timeoutSec = 5) => ipcRenderer.invoke('start-native-speech', { timeoutSec }),
+  cancelNativeSpeech: () => ipcRenderer.invoke('cancel-native-speech'),
 
   // Model Downloader
   getModelsStatus: () => ipcRenderer.invoke('get-models-status'),

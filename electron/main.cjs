@@ -6,6 +6,7 @@ const browserController = require('./automation/browserController.cjs');
 const winAppsController = require('./automation/winAppsController.cjs');
 const volumeController = require('./automation/volumeController.cjs');
 const modelDownloader = require('./automation/modelDownloader.cjs');
+const nativeSpeech = require('./automation/nativeSpeech.cjs');
 
 let overlayWindow = null;
 let dashboardWindow = null;
@@ -195,15 +196,15 @@ function registerHotkeys() {
         createOverlayWindow();
         return;
       }
-      if (!overlayWindow.isVisible()) {
+      if (overlayWindow.isVisible()) {
+        overlayWindow.hide();
+        overlayWindow.webContents.send('shortcut-dismiss');
+      } else {
         overlayWindow.show();
         overlayWindow.focus();
         overlayWindow.setAlwaysOnTop(true, 'screen-saver');
         overlayWindow.webContents.send('shortcut-activated');
-        return;
       }
-      // Toggle overlay: if visible, send toggle event to close/dismiss
-      overlayWindow.webContents.send('shortcut-toggle');
     });
 
     if (!registered) {
@@ -437,6 +438,19 @@ ipcMain.on('sync-state-broadcast', (event, state) => {
 ipcMain.handle('hide-overlay', () => {
   if (overlayWindow) overlayWindow.hide();
   return true;
+});
+
+ipcMain.handle('start-native-speech', async (_, { timeoutSec = 5 } = {}) => {
+  try {
+    return await nativeSpeech.recognizeOnce(timeoutSec);
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
+
+ipcMain.handle('cancel-native-speech', () => {
+  nativeSpeech.cancel();
+  return { success: true };
 });
 
 ipcMain.handle('show-overlay', () => {

@@ -8,7 +8,7 @@ import { agentEngine } from '../../services/agentEngine';
 import { speechService } from '../../services/speechService';
 import { desktopBridge } from '../../services/desktopBridge';
 import { dbService } from '../../services/dbService';
-import { GripHorizontal } from 'lucide-react';
+import { GripHorizontal, MessageSquare, Mic, X } from 'lucide-react';
 
 interface Props {
   settings: AppSettings;
@@ -28,6 +28,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
   const [isListeningVoice, setIsListeningVoice] = useState<boolean>(false);
   const [audioLevel, setAudioLevel] = useState<number>(0);
   const [isSleeping, setIsSleeping] = useState<boolean>(false);
+  const [isPetted, setIsPetted] = useState<boolean>(false);
 
   const resetTimerRef = useRef<any>(null);
 
@@ -40,16 +41,22 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       speechService.stopListening();
       setIsListeningVoice(false);
     }
+    // Fully hide the overlay window so it doesn't linger on screen
+    desktopBridge.hideOverlay();
   };
 
   // Global hotkey toggle listener: press once to open/wake, press again to dismiss/close!
   useEffect(() => {
-    const unbind = desktopBridge.onShortcutToggle(() => {
+    const unbindToggle = desktopBridge.onShortcutToggle(() => {
       if (isInputOpen || bubbleText) {
         handleDismiss();
       } else {
         handleWakeAndActivate();
       }
+    });
+
+    const unbindDismiss = desktopBridge.onShortcutDismiss?.(() => {
+      handleDismiss();
     });
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -60,15 +67,17 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      unbind();
+      unbindToggle();
+      if (unbindDismiss) unbindDismiss();
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isInputOpen, bubbleText, isListeningVoice, isSleeping]);
 
   const handleWakeAndActivate = () => {
     if (isSleeping) setIsSleeping(false);
-    setCharacterState('listening');
-    setBubbleText("I'm listening! What can I do for you?");
+    // Keep character state idle or talking, NOT listening (mic is off by default)
+    setCharacterState('idle');
+    setBubbleText("Hi! What can I help you with today? ✨");
     setIsInputOpen(true);
     speechService.playChime('activate');
 
@@ -77,22 +86,77 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     }
   };
 
-  const handleCharacterClick = () => {
+  // Playful Touch & Pet Interaction
+  const handleCharacterTouch = () => {
     if (isSleeping) {
       setIsSleeping(false);
       setCharacterState('idle');
-      setBubbleText("I'm awake and ready!");
+      setBubbleText("I'm awake and ready! ✨");
       speechService.playChime('activate');
       return;
     }
-    const nextInputState = !isInputOpen;
-    setIsInputOpen(nextInputState);
-    if (nextInputState) {
-      setCharacterState('listening');
-      setBubbleText("What can I do for you?");
-    } else {
-      handleDismiss();
-    }
+
+    // Trigger bounce animation & sparkle confetti
+    setIsPetted(true);
+    setTimeout(() => setIsPetted(false), 500);
+
+    speechService.playChime('activate');
+    confetti({
+      particleCount: 18,
+      spread: 50,
+      origin: { y: 0.8 },
+      colors: ['#0ea5e9', '#ec4899', '#f59e0b', '#10b981']
+    });
+
+    // Character-specific playful dialog reactions
+    const dialogues: Record<string, string[]> = {
+      sparky: [
+        "Beep boop! Systems at 100%! 🤖",
+        "Charging up! Ready to automate ✨",
+        "Power level over 9000! ⚡",
+        "Boop! At your service! 🚀"
+      ],
+      pixel: [
+        "1-UP! Ready for the next quest! 🦊",
+        "Press Start to continue! 🎮",
+        "Pixel power activated! 🌟",
+        "High score unlocked! 🏆"
+      ],
+      mochi: [
+        "Squish! Hehe, that tickles! 🥰",
+        "Bouncing with joy! 💖",
+        "So soft and happy to see you! 🌸",
+        "Yay! Best friends forever! ✨"
+      ],
+      cloudie: [
+        "Floaty and relaxed! Sending soft starry vibes~ ☁️✨",
+        "Warm rainbow sparkles for you! 🌈",
+        "Floating along happily~ 💫",
+        "Dream big today! 🌟"
+      ],
+      kiko: [
+        "Purrrr~ boop received! 🐾💖",
+        "Meow! You're my favorite human! 🐱✨",
+        "Happy kitten paws! 🥰",
+        "Nya~ ready to help you! 🌸"
+      ],
+      boba: [
+        "Sweet as boba tea! 🧋",
+        "Bubbly and smiling! What's our plan? 🐻",
+        "Tapioca pearl high five! ✨",
+        "Cozy bear hugs for you! 🍯"
+      ]
+    };
+
+    const pool = dialogues[settings.characterId] || [
+      "Hehe, that tickles! 🥰",
+      "Boop! Ready for action! ✨",
+      "Always here for you! 💖"
+    ];
+    const reaction = pool[Math.floor(Math.random() * pool.length)];
+    setBubbleText(reaction);
+    setCharacterState('talking');
+    setTimeout(() => setCharacterState('idle'), 2500);
   };
 
   const handleVoiceToggle = () => {
@@ -101,10 +165,12 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       setIsListeningVoice(false);
       setCharacterState('idle');
       setAudioLevel(0);
+      setBubbleText('Listening paused.');
     } else {
       setIsListeningVoice(true);
+      // ONLY set state to 'listening' when mic is actively turned on!
       setCharacterState('listening');
-      setBubbleText('Listening to your voice...');
+      setBubbleText('Listening to your voice... Speak now!');
       speechService.startListening(
         (interim) => {
           setBubbleText(interim);
@@ -235,6 +301,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       rate: settings.voice.ttsRate,
       pitch: settings.voice.ttsPitch,
       volume: settings.voice.ttsVolume,
+      characterId: settings.characterId, // Passes character profile for matching voice!
       onStart: () => setCharacterState('talking'),
       onEnd: () => setCharacterState('idle'),
       onAudioLevel: (lvl) => setAudioLevel(lvl)
@@ -262,7 +329,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-end p-4 select-none overflow-hidden">
+    <div className="relative w-full h-full flex flex-col items-center justify-end p-4 select-none overflow-hidden box-border">
       {/* Speech Bubble */}
       <SpeechBubble
         text={bubbleText}
@@ -274,7 +341,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
 
       {/* Compact Text/Voice Input */}
       {isInputOpen && (
-        <div className="w-full max-w-[340px] mb-3">
+        <div className="w-full max-w-[328px] mb-3 z-30">
           <CompactInput
             onSend={handleExecuteQuery}
             onVoiceToggle={handleVoiceToggle}
@@ -287,27 +354,53 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Floating Interactive Character */}
-      <div 
-        onClick={handleCharacterClick}
-        className="relative group cursor-pointer transition-transform duration-200 active:scale-95 app-no-drag"
-        title="Click to interact with Companio"
-      >
-        <CharacterRenderer
-          characterId={settings.characterId}
-          state={isSleeping ? 'sleeping' : characterState}
-          scale={settings.overlay.scale}
-          audioLevel={audioLevel}
-        />
-
-        {/* Subtle Drag Handle on Hover */}
+      {/* Floating Interactive Character Area */}
+      <div className="relative flex items-center justify-center">
+        {/* The Companion Character */}
         <div 
-          className="absolute -top-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur px-2.5 py-0.5 rounded-full border border-slate-200 shadow-sm flex items-center gap-1 text-[10px] text-slate-600 font-medium app-drag-region"
-          title="Drag to reposition character"
+          onClick={handleCharacterTouch}
+          className={`relative group cursor-pointer transition-all duration-300 app-no-drag ${
+            isPetted ? 'scale-110 -rotate-3' : 'hover:scale-105'
+          }`}
+          title="Click to interact with Companio!"
         >
-          <GripHorizontal className="w-3 h-3 text-slate-400" />
-          <span>Move</span>
+          <CharacterRenderer
+            characterId={settings.characterId}
+            state={isSleeping ? 'sleeping' : characterState}
+            scale={settings.overlay.scale}
+            audioLevel={audioLevel}
+          />
+
+          {/* Drag Handle on Hover */}
+          <div 
+            className="absolute -top-3 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur px-2.5 py-0.5 rounded-full border border-slate-200 shadow-sm flex items-center gap-1 text-[10px] text-slate-600 font-medium app-drag-region cursor-grab"
+            title="Drag to reposition character"
+          >
+            <GripHorizontal className="w-3 h-3 text-slate-400" />
+            <span>Move</span>
+          </div>
         </div>
+
+        {/* Visible Floating Circle Action Button on the Right Side */}
+        <button
+          type="button"
+          onClick={() => {
+            const next = !isInputOpen;
+            setIsInputOpen(next);
+            if (next) {
+              setCharacterState('idle');
+              setBubbleText("What can I do for you?");
+            }
+          }}
+          title={isInputOpen ? "Close command bar" : "Ask Companio or speak (Ctrl+Shift+Space)"}
+          className="absolute -right-4 bottom-8 w-9 h-9 rounded-full bg-white hover:bg-sky-50 text-sky-600 shadow-[0_8px_20px_rgba(14,165,233,0.35)] border border-sky-200 flex items-center justify-center transition-all hover:scale-115 active:scale-95 app-no-drag z-20 cursor-pointer"
+        >
+          {isInputOpen ? (
+            <X className="w-4 h-4 stroke-[2.5]" />
+          ) : (
+            <MessageSquare className="w-4 h-4" />
+          )}
+        </button>
       </div>
     </div>
   );

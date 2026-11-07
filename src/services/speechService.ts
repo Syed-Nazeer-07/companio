@@ -1,4 +1,30 @@
 // Speech Recognition & Synthesis Service with Audio Chimes
+import { desktopBridge, isNativeDesktop } from './desktopBridge';
+
+export interface CharacterVoiceProfile {
+  rate: number;
+  pitch: number;
+  voiceNameKeywords: string[];
+}
+
+export function getCharacterVoiceProfile(characterId: string): CharacterVoiceProfile {
+  switch (characterId) {
+    case 'sparky':
+      return { rate: 1.15, pitch: 0.95, voiceNameKeywords: ['David', 'George', 'Guy', 'Mark'] };
+    case 'pixel':
+      return { rate: 1.25, pitch: 1.35, voiceNameKeywords: ['Zira', 'Samantha', 'Aria'] };
+    case 'mochi':
+      return { rate: 1.05, pitch: 1.45, voiceNameKeywords: ['Jenny', 'Zira', 'Aria'] };
+    case 'cloudie':
+      return { rate: 0.88, pitch: 1.15, voiceNameKeywords: ['Jenny', 'Zira', 'Natural'] };
+    case 'kiko':
+      return { rate: 1.18, pitch: 1.55, voiceNameKeywords: ['Zira', 'Aria', 'Jenny'] };
+    case 'boba':
+      return { rate: 0.95, pitch: 0.92, voiceNameKeywords: ['David', 'Guy', 'George'] };
+    default:
+      return { rate: 1.05, pitch: 1.15, voiceNameKeywords: ['Zira', 'Jenny', 'Aria'] };
+  }
+}
 
 export class SpeechService {
   private recognition: any = null;
@@ -23,24 +49,20 @@ export class SpeechService {
   }
 
   // Push-to-Talk / Voice Start
-  startListening(
+  async startListening(
     onInterim: (text: string) => void,
     onFinal: (text: string) => void,
     onError: (err: string) => void,
     onAudioLevel?: (level: number) => void
   ) {
-    if (!this.recognition) {
-      onError('Speech recognition not supported in this environment. Use text input.');
-      return;
-    }
-
     if (this.isListening) {
       this.stopListening();
     }
 
     this.playChime('activate');
+    this.isListening = true;
 
-    // Live microphone volume reactivity
+    // Live microphone volume reactivity via Web Audio API
     if (onAudioLevel && navigator.mediaDevices?.getUserMedia) {
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
         this.micStream = stream;
@@ -63,6 +85,36 @@ export class SpeechService {
       }).catch(() => {});
     }
 
+    // On native Windows desktop: Use Windows' built-in offline Speech Recognition Engine!
+    if (isNativeDesktop()) {
+      onInterim("Listening to your voice... Speak now!");
+      try {
+        const res = await desktopBridge.startNativeSpeech(6);
+        this.stopListening();
+        if (res.success && res.text) {
+          onFinal(res.text);
+          return;
+        } else if (res.silence) {
+          onInterim("");
+          return;
+        } else if (res.error) {
+          onError("Could not hear speech clearly. Click mic or type below!");
+          return;
+        }
+      } catch (e: any) {
+        this.stopListening();
+        onError("Click mic to speak or type your request below!");
+        return;
+      }
+    }
+
+    // Web Fallback: webkitSpeechRecognition
+    if (!this.recognition) {
+      this.stopListening();
+      onError('Speech recognition ready. Click mic or type below!');
+      return;
+    }
+
     this.recognition.onresult = (event: any) => {
       let interim = '';
       let final = '';
@@ -83,10 +135,6 @@ export class SpeechService {
     this.recognition.onerror = (event: any) => {
       this.stopListening();
       if (event.error === 'no-speech' || event.error === 'aborted') {
-        return; // Normal silence or user cancellation
-      }
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        onError('Mic permission needed in Windows settings. Speak or type below!');
         return;
       }
       onError('Listening paused. Click mic to speak or type your request.');
@@ -98,24 +146,17 @@ export class SpeechService {
 
     try {
       this.recognition.start();
-      this.isListening = true;
     } catch (e: any) {
       this.stopListening();
-      // If already active, restart cleanly
-      if (e.name === 'InvalidStateError') {
-        try {
-          this.recognition.stop();
-          setTimeout(() => {
-            try { this.recognition.start(); this.isListening = true; } catch {}
-          }, 200);
-        } catch {}
-      } else {
-        onError('Click mic to speak or type your request below.');
-      }
+      onError('Click mic to speak or type your request below.');
     }
   }
 
   stopListening() {
+    this.isListening = false;
+    if (isNativeDesktop()) {
+      desktopBridge.cancelNativeSpeech();
+    }
     if (this.micInterval) {
       clearInterval(this.micInterval);
       this.micInterval = null;
@@ -124,15 +165,14 @@ export class SpeechService {
       this.micStream.getTracks().forEach((t) => t.stop());
       this.micStream = null;
     }
-    if (this.recognition && this.isListening) {
+    if (this.recognition) {
       try {
         this.recognition.stop();
       } catch (e) {}
-      this.isListening = false;
     }
   }
 
-  // Text-To-Speech
+  // Text-To-Speech with Character Profiles
   speak(
     text: string,
     options: {
@@ -140,6 +180,7 @@ export class SpeechService {
       rate?: number;
       pitch?: number;
       volume?: number;
+      characterId?: string;
       muted?: boolean;
       onStart?: () => void;
       onEnd?: () => void;
@@ -152,21 +193,29 @@ export class SpeechService {
       return;
     }
 
+    const profile = options.characterId ? getCharacterVoiceProfile(options.characterId) : null;
+    const finalRate = options.rate ?? profile?.rate ?? 1.0;
+    const finalPitch = options.pitch ?? profile?.pitch ?? 1.1;
+
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = options.rate ?? 1.0;
-    utterance.pitch = options.pitch ?? 1.0;
+    utterance.rate = finalRate;
+    utterance.pitch = finalPitch;
     utterance.volume = options.volume ?? 1.0;
 
     const voices = window.speechSynthesis.getVoices();
     if (options.voiceName) {
       const selectedVoice = voices.find(v => v.name === options.voiceName);
       if (selectedVoice) utterance.voice = selectedVoice;
+    } else if (profile) {
+      const preferred = voices.find(v =>
+        v.lang.startsWith('en') && profile.voiceNameKeywords.some(k => v.name.includes(k))
+      ) || voices.find(v => v.lang.startsWith('en'));
+      if (preferred) utterance.voice = preferred;
     } else {
-      // Prefer friendly, sweet natural English voices
-      const preferred = voices.find(v => 
-        v.lang.startsWith('en') && 
-        (v.name.includes('Jenny') || v.name.includes('Aria') || v.name.includes('Zira') || v.name.includes('Samantha') || v.name.includes('Natural'))
+      const preferred = voices.find(v =>
+        v.lang.startsWith('en') &&
+        (v.name.includes('Jenny') || v.name.includes('Aria') || v.name.includes('Zira') || v.name.includes('Samantha'))
       ) || voices.find(v => v.lang.startsWith('en'));
       if (preferred) utterance.voice = preferred;
     }

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AppSettings, CharacterId, CharacterState } from '../../types';
 import { CharacterRenderer } from '../characters/CharacterRenderer';
-import { Check, Upload, Sliders } from 'lucide-react';
+import { Check, Sliders } from 'lucide-react';
 
 interface Props {
   settings: AppSettings;
@@ -10,8 +10,6 @@ interface Props {
 
 export const CharacterStudioPage: React.FC<Props> = ({ settings, onUpdateSettings }) => {
   const [previewState, setPreviewState] = useState<CharacterState>('idle');
-  const [customAssetUrl, setCustomAssetUrl] = useState<string>('');
-  const [importError, setImportError] = useState<string | null>(null);
 
   const characters = [
     {
@@ -62,30 +60,6 @@ export const CharacterStudioPage: React.FC<Props> = ({ settings, onUpdateSetting
     onUpdateSettings({ characterId: id });
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setImportError(null);
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.includes('image/svg') && !file.type.includes('image/png')) {
-      setImportError('Invalid format. Please upload an SVG or PNG asset.');
-      return;
-    }
-
-    if (file.size > 2 * 1024 * 1024) {
-      setImportError('File exceeds 2MB limit.');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const url = event.target?.result as string;
-      setCustomAssetUrl(url);
-      onUpdateSettings({ characterId: 'custom' });
-    };
-    reader.readAsDataURL(file);
-  };
-
   const testStates: CharacterState[] = [
     'idle',
     'listening',
@@ -119,7 +93,6 @@ export const CharacterStudioPage: React.FC<Props> = ({ settings, onUpdateSetting
               characterId={settings.characterId}
               state={previewState}
               scale={settings.overlay.scale}
-              customAssetUrl={customAssetUrl}
             />
           </div>
 
@@ -180,29 +153,6 @@ export const CharacterStudioPage: React.FC<Props> = ({ settings, onUpdateSetting
                 className="w-full accent-sky-500 h-2 bg-slate-200 rounded-lg cursor-pointer mt-3"
               />
             </div>
-          </div>
-
-          {/* Custom Asset Import Section */}
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                <Upload className="w-3.5 h-3.5 text-sky-600" />
-                Import Custom Asset
-              </span>
-              <span className="text-[10px] text-slate-400">Supported: SVG, PNG (up to 2MB)</span>
-            </div>
-            <p className="text-xs text-slate-500 mb-3">
-              Upload custom character art. Companio will automatically validate format and apply breathing and floating idle animations.
-            </p>
-            <input
-              type="file"
-              accept=".svg,.png"
-              onChange={handleFileUpload}
-              className="text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3.5 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-sky-500 file:text-white hover:file:bg-sky-600 cursor-pointer"
-            />
-            {importError && (
-              <p className="text-xs text-rose-600 font-semibold mt-2">{importError}</p>
-            )}
           </div>
         </div>
       </div>

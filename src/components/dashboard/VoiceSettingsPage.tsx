@@ -179,10 +179,26 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
             />
           </div>
 
+          {/* Character Voice Profile Preview */}
+          <div className="p-3.5 rounded-xl bg-sky-50/60 border border-sky-200 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-sky-600" />
+                <span>Auto-Matched for {settings.characterName || 'Companion'}</span>
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">
+                {settings.characterId} profile
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-relaxed">
+              Companio automatically customizes pitch and rate to match {settings.characterName}'s personality.
+            </p>
+          </div>
+
           {/* Voice Selector */}
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Select Voice
+              Specific Windows System Voice (Optional Override)
             </label>
             <select
               value={settings.voice.ttsVoice}
@@ -191,7 +207,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
               })}
               className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-xs font-semibold focus:outline-none focus:border-sky-500"
             >
-              <option value="">Default Sweet Friendly Voice</option>
+              <option value="">Auto-Match Character Profile (Recommended)</option>
               {availableVoices
                 .filter((v) => v.lang.startsWith('en'))
                 .map((v) => (

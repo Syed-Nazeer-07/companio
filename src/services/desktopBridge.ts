@@ -16,6 +16,9 @@ interface CompanioDesktopAPI {
   showOverlay: () => Promise<boolean>;
   onGlobalShortcutTriggered: (callback: () => void) => () => void;
   onGlobalShortcutToggle?: (callback: () => void) => () => void;
+  onGlobalShortcutDismiss?: (callback: () => void) => () => void;
+  startNativeSpeech?: (timeoutSec?: number) => Promise<{ success: boolean; text?: string; silence?: boolean; error?: string }>;
+  cancelNativeSpeech?: () => Promise<any>;
   onStateUpdate: (callback: (state: any) => void) => () => void;
   sendStateUpdate: (state: any) => void;
   getModelsStatus?: () => Promise<any[]>;
@@ -157,6 +160,30 @@ export const desktopBridge = {
       return api.onGlobalShortcutToggle(callback);
     }
     return this.onShortcut(callback);
+  },
+
+  onShortcutDismiss(callback: () => void) {
+    const api = getDesktopAPI();
+    if (api?.onGlobalShortcutDismiss) {
+      return api.onGlobalShortcutDismiss(callback);
+    }
+    return () => {};
+  },
+
+  async startNativeSpeech(timeoutSec: number = 6) {
+    const api = getDesktopAPI();
+    if (api?.startNativeSpeech) {
+      return await api.startNativeSpeech(timeoutSec);
+    }
+    return { success: false, error: 'Native speech only available in desktop Electron mode.' };
+  },
+
+  async cancelNativeSpeech() {
+    const api = getDesktopAPI();
+    if (api?.cancelNativeSpeech) {
+      return await api.cancelNativeSpeech();
+    }
+    return { success: true };
   },
 
   sendStateUpdate(state: any) {

@@ -57,24 +57,19 @@ class BrowserController {
   async searchAndPlayYouTube(creatorQuery, specificTopic = '') {
     try {
       const page = await this.ensureBrowser();
+      const query = specificTopic ? `${creatorQuery} ${specificTopic}` : `${creatorQuery}`;
       console.log(`[YouTube] Searching for creator: "${creatorQuery}", topic: "${specificTopic}"`);
 
-      await page.goto('https://www.youtube.com', { waitUntil: 'domcontentloaded', timeout: 25000 });
+      // Navigate directly to YouTube search results to avoid search bar rendering delays
+      await page.goto(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`, { waitUntil: 'domcontentloaded', timeout: 25000 });
       await this.dismissPopups(page);
 
-      // Search input interaction
-      const searchSelector = 'input[name="search_query"], input#search';
-      await page.waitForSelector(searchSelector, { timeout: 10000 });
-      const query = specificTopic ? `${creatorQuery} ${specificTopic}` : `${creatorQuery}`;
-      await page.fill(searchSelector, query);
-      await page.keyboard.press('Enter');
-
       // Wait for search results
-      await page.waitForTimeout(2000);
-      await page.waitForSelector('ytd-video-renderer, ytd-channel-renderer', { timeout: 15000 });
+      await page.waitForTimeout(1500);
+      await page.waitForSelector('ytd-video-renderer, ytd-channel-renderer, a#video-title', { timeout: 15000 });
 
       // Click the first prominent video result
-      const videoLink = page.locator('ytd-video-renderer a#video-title').first();
+      const videoLink = page.locator('ytd-video-renderer a#video-title, a#video-title').first();
       await videoLink.waitFor({ state: 'visible', timeout: 10000 });
       const videoTitle = (await videoLink.innerText()).trim();
       console.log(`[YouTube] Found video: "${videoTitle}", opening...`);

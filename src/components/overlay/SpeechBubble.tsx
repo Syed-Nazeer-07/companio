@@ -82,7 +82,7 @@ export const SpeechBubble: React.FC<Props> = ({
 
         {/* Main message text */}
         <p className="text-sm font-normal leading-relaxed text-slate-800 select-text">
-          {text || (activePlan?.status === 'executing' ? activePlan.steps[activePlan.currentStepIndex]?.description : 'Listening...')}
+          {text || (activePlan?.status === 'executing' ? activePlan.steps[activePlan.currentStepIndex]?.description : (state === 'listening' ? 'Listening to your voice...' : ''))}
         </p>
 
         {/* Multi-step progress list */}
