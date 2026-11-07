@@ -117,6 +117,9 @@ function createOverlayWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
+      // CI runs headless: do not suspend timers needed by the smoke probe.
+      // Normal desktop sessions retain Electron's power-saving defaults.
+      backgroundThrottling: !SMOKE_TEST,
     }
   });
   protectWindow(overlayWindow);
