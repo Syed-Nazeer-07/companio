@@ -184,7 +184,7 @@ export const desktopBridge = {
     if (api?.cancelNativeSpeech) {
       return await api.cancelNativeSpeech();
     }
-    return { success: true };
+    return { success: false, error: 'Native speech cancellation requires the desktop app.' };
   },
 
   sendStateUpdate(state: any) {
@@ -248,7 +248,7 @@ export const desktopBridge = {
     if (api?.cancelModelDownload) {
       return await api.cancelModelDownload();
     }
-    return { success: true };
+    return { success: false, error: 'Model cancellation requires the desktop app.' };
   },
 
   onModelDownloadProgress(callback: (progress: any) => void): () => void {
