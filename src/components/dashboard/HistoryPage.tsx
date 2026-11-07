@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { dbService, AutomationLogRecord } from '../../services/dbService';
 import { ChatMessage } from '../../types';
-import { Search, Trash2, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { Search, Trash2, Download, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 
 export const HistoryPage: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [logs, setLogs] = useState<AutomationLogRecord[]>([]);
   const [viewMode, setViewMode] = useState<'conversations' | 'automations'>('automations');
   const [filterQuery, setFilterQuery] = useState<string>('');
+  const [exportStatus, setExportStatus] = useState<string>('');
 
   useEffect(() => {
     loadData();
@@ -23,6 +24,32 @@ export const HistoryPage: React.FC = () => {
       dbService.clearMessages();
       dbService.clearLogs();
       loadData();
+    }
+  };
+
+  const handleExport = () => {
+    try {
+      // Keep API keys and other application preferences out of history exports.
+      const backup = {
+        format: 'companio-local-history',
+        schemaVersion: 1,
+        exportedAt: new Date().toISOString(),
+        conversations: dbService.getMessages(),
+        automationLogs: dbService.getLogs(),
+        notes: dbService.getNotes()
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'companio-history-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setExportStatus('History export requested. Check your Downloads folder and store the file securely.');
+    } catch {
+      setExportStatus('Could not create a history export on this device.');
     }
   };
 
@@ -43,18 +70,31 @@ export const HistoryPage: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold text-slate-900 mb-1">Execution History & Logs</h2>
           <p className="text-sm text-slate-600">
-            Searchable local SQLite records of computer commands, tool parameters, and verified state changes.
+            Search your conversations and command results, stored locally on this device.
           </p>
         </div>
 
-        <button
-          onClick={handleClearAll}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold transition-colors"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-          <span>Clear Logs</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExport}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-sky-50 text-sky-700 border border-sky-200 text-xs font-bold transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Export History</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleClearAll}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Clear Logs</span>
+          </button>
+        </div>
       </div>
+
+      {exportStatus && <p role="status" className="text-xs text-slate-600">{exportStatus}</p>}
 
       {/* Controls Bar */}
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
@@ -129,7 +169,7 @@ export const HistoryPage: React.FC = () => {
                       {log.durationMs}ms
                     </span>
                     <span>•</span>
-                    <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
+                    <span>{new Date(log.timestamp).toLocaleString()}</span>
                   </div>
                 </div>
 
@@ -163,7 +203,7 @@ export const HistoryPage: React.FC = () => {
                   <span className="font-bold uppercase tracking-wider text-slate-700">
                     {msg.sender === 'user' ? 'You' : 'Companio'}
                   </span>
-                  <span>{new Date(msg.timestamp).toLocaleTimeString()}</span>
+                  <span>{new Date(msg.timestamp).toLocaleString()}</span>
                 </div>
                 <p className="text-slate-800 text-sm leading-relaxed">{msg.content}</p>
               </div>
