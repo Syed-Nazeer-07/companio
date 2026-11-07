@@ -37,13 +37,39 @@ class DbService {
     this.pendingNativeWrite = this.pendingNativeWrite.then(async () => {
       const result = await desktopBridge.mutateHistoryStore(operation);
       if (!result.success) {
+        // Once a write fails, keep the warning until the *entire* current
+        // history is successfully resynchronized. Later successful appends
+        // cannot repair an earlier missing record.
         this.reportNativeWriteError(result.error || 'Cannot save history to disk.');
-      } else {
-        this.nativeHistoryError = null;
       }
     }).catch((error) => {
       this.reportNativeWriteError(error instanceof Error ? error.message : 'Native history save failed.');
     });
+  }
+
+  async retryNativeHistorySave(): Promise<{ success: boolean; error?: string }> {
+    if (!isNativeDesktop()) {
+      return { success: false, error: 'On-disk history is available only in the desktop app.' };
+    }
+    await this.pendingNativeWrite;
+    try {
+      const snapshot = {
+        conversations: this.getMessages().slice(-100),
+        automationLogs: this.getLogs().slice(0, 150),
+        notes: this.getNotes().slice(-200)
+      };
+      const result = await desktopBridge.mutateHistoryStore({ kind: 'replace', backup: snapshot });
+      if (!result.success) {
+        this.reportNativeWriteError(result.error || 'Could not resynchronize disk history.');
+      } else {
+        this.nativeHistoryError = null;
+      }
+      return { success: result.success, error: result.error };
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : 'Could not resynchronize disk history.';
+      this.reportNativeWriteError(detail);
+      return { success: false, error: detail };
+    }
   }
 
   private async hydrateNativeHistory(): Promise<void> {
