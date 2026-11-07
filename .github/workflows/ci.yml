@@ -31,7 +31,9 @@ jobs:
         run: npm run test:unit
       - name: Typecheck and production bundle
         run: npm run build
-      - name: Smoke test actual Electron UI and IPC
+      - name: Package the actual Windows x64 app for smoke testing
+        run: npx electron-builder --win --x64 --dir --publish never
+      - name: Smoke test packaged Electron UI and IPC
         run: npm run test:desktop-smoke
 
   package-preview:

@@ -1,9 +1,14 @@
 'use strict';
 const { spawn } = require('node:child_process');
 const path = require('node:path');
-const binary = require('electron');
+const fs = require('node:fs');
 const root = path.resolve(__dirname, '..');
-const child = spawn(binary, ['.', '--companio-smoke'], {
+const binary = path.join(root, 'release', 'win-unpacked', 'Companio.exe');
+if (!fs.existsSync(binary)) {
+  console.error('Packaged Windows executable not found. Run: npx electron-builder --win --x64 --dir --publish never');
+  process.exit(1);
+}
+const child = spawn(binary, ['--companio-smoke'], {
   cwd: root,
   env: { ...process.env, NODE_ENV: 'production' },
   windowsHide: true,
@@ -15,7 +20,7 @@ const timer = setTimeout(() => {
   if (settled) return;
   settled = true;
   child.kill();
-  console.error('Electron smoke test exceeded 150 seconds, possibly during binary download or startup.\n' + text.slice(-6000));
+  console.error('Packaged Electron smoke test exceeded 150 seconds.\n' + text.slice(-6000));
   process.exitCode = 1;
 }, 150000);
 
