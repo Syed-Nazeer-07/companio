@@ -99,7 +99,7 @@ $rem = Get-Process -Name "CalculatorApp","Calculator","calc" -ErrorAction Silent
         '      $url = [string]$w.LocationURL',
         "      if ($url -like 'file:*') {",
         '        $localPath = ([Uri]$url).LocalPath',
-        "        if ([string]::Equals($localPath.TrimEnd('\'), $target.TrimEnd('\'), [StringComparison]::OrdinalIgnoreCase)) {",
+        "        if ([string]::Equals($localPath.TrimEnd('\\'), $target.TrimEnd('\\'), [StringComparison]::OrdinalIgnoreCase)) {",
         '          $confirmed = $true; break',
         '        }',
         '      }',
