@@ -51,6 +51,9 @@ const desktopAPI = {
   planLocalActions: (options) => ipcRenderer.invoke('local-ai-plan', options),
   planOfflineSequence: (options) => ipcRenderer.invoke('offline-sequence', options),
 
+  // Local history backup import is validated by the trusted main process.
+  validateHistoryImport: (content) => ipcRenderer.invoke('history-validate-import', content),
+
   // Model Downloader
   getModelsStatus: () => ipcRenderer.invoke('get-models-status'),
   downloadModel: (modelId) => ipcRenderer.invoke('download-model', { modelId }),

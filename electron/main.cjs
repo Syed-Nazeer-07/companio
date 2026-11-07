@@ -12,6 +12,7 @@ const modelDownloader = require('./automation/modelDownloader.cjs');
 const nativeSpeech = require('./automation/nativeSpeech.cjs');
 const localAiController = require('./automation/localAiController.cjs');
 const localActionPlanner = require('./automation/localActionPlanner.cjs');
+const historyBackupController = require('./automation/historyBackupController.cjs');
 
 let overlayWindow = null;
 let dashboardWindow = null;
@@ -483,6 +484,7 @@ secureHandle('local-ai-models', async (_, options) => localAiController.listMode
 secureHandle('local-ai-chat', async (_, options) => localAiController.chat(options));
 secureHandle('local-ai-plan', async (_, options) => localActionPlanner.proposeActions(options));
 secureHandle('offline-sequence', async (_, options) => localActionPlanner.planOfflineSequence(options));
+secureHandle('history-validate-import', async (_, content) => historyBackupController.validateHistoryBackup(content));
 
 // Model Downloader IPC handlers
 secureHandle('get-models-status', async () => {

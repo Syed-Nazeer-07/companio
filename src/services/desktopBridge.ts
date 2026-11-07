@@ -27,6 +27,16 @@ interface CompanioDesktopAPI {
   chatLocalAi?: (options: { endpoint?: string; model: string; prompt: string; systemPrompt?: string; temperature?: number }) => Promise<{ success: boolean; reply?: string; error?: string }>;
   planLocalActions?: (options: { endpoint?: string; model: string; query: string }) => Promise<{ success: boolean; steps?: Array<{tool: string; params: Record<string, any>; description: string}>; requiresConfirmation?: boolean; error?: string }>;
   planOfflineSequence?: (options: {query: string}) => Promise<{success: boolean; recognized: boolean; steps?: Array<{tool: string; params: Record<string, any>; description: string}>; requiresConfirmation?: boolean; error?: string}>;
+  validateHistoryImport?: (content: string) => Promise<{
+    success: boolean;
+    error?: string;
+    counts?: { conversations: number; automationLogs: number; notes: number };
+    backup?: {
+      conversations: Array<{id: string; sender: string; content: string; timestamp: number; status: string}>;
+      automationLogs: Array<{id: string; timestamp: number; tool: string; params: string; result: string; verified: boolean; durationMs: number}>;
+      notes: string[];
+    };
+  }>;
   getModelsStatus?: () => Promise<any[]>;
   downloadModel?: (modelId: string) => Promise<any>;
   cancelModelDownload?: () => Promise<any>;
@@ -243,6 +253,13 @@ export const desktopBridge = {
     return api?.planOfflineSequence
       ? api.planOfflineSequence(options)
       : { success: false, recognized: true, steps: [], error: 'Multi-step automation requires the installed Companio desktop app.' };
+  },
+
+  async validateHistoryImport(content: string) {
+    const api = getDesktopAPI();
+    return api?.validateHistoryImport
+      ? api.validateHistoryImport(content)
+      : { success: false, error: 'Secure backup import requires the installed desktop application.' };
   },
 
   async getModelsStatus(): Promise<any[]> {
