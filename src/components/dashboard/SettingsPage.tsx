@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AppSettings } from '../../types';
-import { Keyboard, Bell, Monitor, RotateCcw } from 'lucide-react';
+import { Keyboard, Bell, Monitor, RotateCcw, Activity, RefreshCw } from 'lucide-react';
 import { desktopBridge, isNativeDesktop } from '../../services/desktopBridge';
 
 interface Props {
@@ -12,6 +12,10 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
   const [shortcutDraft, setShortcutDraft] = useState(settings.activationShortcut);
   const [status, setStatus] = useState('');
   const [savingShortcut, setSavingShortcut] = useState(false);
+  const [checkingDevice, setCheckingDevice] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<
+    Awaited<ReturnType<typeof desktopBridge.getDesktopDiagnostics>> | null
+  >(null);
   useEffect(() => setShortcutDraft(settings.activationShortcut), [settings.activationShortcut]);
 
   const handleSaveShortcut = async () => {
@@ -36,6 +40,21 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
         setStatus('Desktop behavior updated.');
       } else setStatus(result.error || 'Could not apply the native setting.');
     } catch (error) { setStatus(error instanceof Error ? error.message : 'Could not change desktop setting.'); }
+  };
+
+  const handleCheckDevice = async () => {
+    setCheckingDevice(true);
+    setDiagnostics(null);
+    try {
+      setDiagnostics(await desktopBridge.getDesktopDiagnostics());
+    } catch (error) {
+      setDiagnostics({
+        success: false,
+        error: error instanceof Error ? error.message : 'Device check failed.'
+      });
+    } finally {
+      setCheckingDevice(false);
+    }
   };
 
   const handleResetDefaults = async () => {
@@ -155,6 +174,68 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
           </div>
         </div>
       </div>
+
+      {/* Honest, read-only diagnostics for actual Windows installation. */}
+      <section className="acrylic-card rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
+              <Activity className="h-4 w-4 text-sky-600" />
+              Device diagnostics
+            </h3>
+            <p className="mt-1 text-xs text-slate-500">Read-only checks for your installed Windows app. No microphone recording or commands.</p>
+          </div>
+          <button
+            type="button"
+            disabled={checkingDevice || !isNativeDesktop()}
+            onClick={() => void handleCheckDevice()}
+            className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-bold text-sky-700 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${checkingDevice ? 'animate-spin' : ''}`} />
+            {checkingDevice ? 'Checking…' : 'Run diagnostics'}
+          </button>
+        </div>
+        {!isNativeDesktop() && <p className="text-xs text-amber-700">Use the installed Companio desktop app to check Windows integration.</p>}
+        {diagnostics && !diagnostics.success && <p role="alert" className="text-xs text-rose-700">{diagnostics.error}</p>}
+        {diagnostics?.success && (
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2" role="status">
+            {[
+              {
+                label: 'Desktop runtime',
+                ok: diagnostics.platform === 'win32',
+                detail: `Windows ${diagnostics.architecture || 'unknown'} · v${diagnostics.appVersion || '?'}`
+              },
+              {
+                label: 'Global shortcut',
+                ok: diagnostics.shortcutRegistered === true,
+                detail: diagnostics.shortcutRegistered ? diagnostics.shortcut || 'Registered' : 'Not registered'
+              },
+              {
+                label: 'History on disk',
+                ok: diagnostics.history?.available === true,
+                detail: diagnostics.history?.available ? 'Native snapshot readable' : diagnostics.history?.error || 'Not available'
+              },
+              {
+                label: 'Windows audio',
+                ok: diagnostics.audio?.available === true,
+                detail: diagnostics.audio?.available ? 'Volume state readable' : diagnostics.audio?.error || 'Not available'
+              }
+            ].map(item => (
+              <div key={item.label} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <div className="flex items-center gap-1.5">
+                  <span aria-hidden="true" className={`h-2 w-2 rounded-full ${item.ok ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  <span className="text-xs font-bold text-slate-800">{item.label}</span>
+                </div>
+                <p className="mt-1 text-[11px] leading-snug text-slate-600 break-words">{item.detail}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="text-[11px] text-slate-500">
+          A passed check does not prove speech recognition, browser playback or every Windows action works.
+          Test the microphone separately in Voice Settings.
+        </p>
+      </section>
 
       {/* Reset */}
       <div className="pt-2 flex items-center justify-between">
