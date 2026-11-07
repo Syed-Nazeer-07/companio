@@ -70,10 +70,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
           const defaultModel = models[0];
           setTestResult({
             success: true,
-            message: `Connected to Ollama! Active model: ${defaultModel}`
-          });
-          onUpdateSettings({
-            ai: { ...settings.ai, provider: 'local', model: defaultModel }
+            message: `Ollama is available with model ${defaultModel}. Choose the Local LLM mode to use it.`
           });
         }
       }
@@ -98,12 +95,9 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
       if (res && res.success) {
         setTestResult({
           success: true,
-          message: `Model downloaded successfully! Activated ${modelId}.`
+          message: `Downloaded ${modelId}. This is a model file only; an inference runtime is still required.`
         });
         await loadModelsList();
-        onUpdateSettings({
-          ai: { ...settings.ai, provider: 'local', model: modelId }
-        });
       }
     } catch (err: any) {
       setTestResult({
@@ -140,11 +134,6 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
           success: true,
           message: `Connected to Ollama! Found ${models.length} model(s): ${models.join(', ')}`
         });
-        if (models.length > 0) {
-          onUpdateSettings({
-            ai: { ...settings.ai, provider: 'local', model: models[0] }
-          });
-        }
         return;
       }
     } catch (e) {}
@@ -167,7 +156,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: settings.ai.model || 'llama3.2:1b',
+          model: detectedLocalModels.includes(settings.ai.model) ? settings.ai.model : (detectedLocalModels[0] || 'llama3.2:1b'),
           messages: [
             { role: 'system', content: 'You are Companio, an adorable AI companion. Keep answers short and sweet.' },
             { role: 'user', content: testPrompt }
@@ -203,7 +192,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Option 1: Local Offline LLM */}
         <div
-          onClick={() => onUpdateSettings({ ai: { ...settings.ai, provider: 'local', model: settings.ai.model || 'llama3.2:1b' } })}
+          onClick={() => onUpdateSettings({ ai: { ...settings.ai, provider: 'local', model: detectedLocalModels.includes(settings.ai.model) ? settings.ai.model : (detectedLocalModels[0] || 'llama3.2:1b') } })}
           className={`p-4 rounded-2xl border cursor-pointer transition-all ${
             settings.ai.provider === 'local'
               ? 'bg-sky-50/70 border-sky-500 ring-2 ring-sky-500/20 shadow-sm'
@@ -216,11 +205,11 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
               <span className="text-xs font-bold text-slate-900">Local Offline LLM</span>
             </div>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-              Active
+              {settings.ai.provider === 'local' ? 'Selected' : 'Optional'}
             </span>
           </div>
           <p className="text-[11px] text-slate-500 leading-relaxed">
-            Connected directly to Ollama (<span className="font-mono text-slate-700">llama3.2:1b</span>). 100% private, free, and runs on your PC.
+            Connects to a separately installed local inference server such as Ollama. Downloaded GGUF files are not automatically runnable.
           </p>
         </div>
 
@@ -239,11 +228,11 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
               <span className="text-xs font-bold text-slate-900">Built-in Engine</span>
             </div>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-              0ms Latency
+              No API Key
             </span>
           </div>
           <p className="text-[11px] text-slate-500 leading-relaxed">
-            Lightning-fast deterministic command execution for all Windows controls with zero RAM usage.
+            Fast offline handling for supported commands. Complex requests need a properly configured model.
           </p>
         </div>
 
