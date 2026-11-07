@@ -44,6 +44,15 @@ class NativeHistoryStore {
       if (!loaded.success) throw new Error(loaded.error);
       const data = loaded.backup;
       switch (operation.kind) {
+        case 'seed':
+          // The first of multiple windows to initialize wins. A late-starting
+          // window cannot overwrite history already created by another one.
+          if (loaded.exists) return { success: true, alreadyExists: true };
+          if (!isRecord(operation.backup)) throw new Error('Missing initial local history.');
+          data.conversations = operation.backup.conversations;
+          data.automationLogs = operation.backup.automationLogs;
+          data.notes = operation.backup.notes;
+          break;
         case 'add-message':
           if (!isRecord(operation.record)) throw new Error('Invalid message record.');
           data.conversations = [...data.conversations.filter(x => x.id !== operation.record.id), operation.record].slice(-100);
