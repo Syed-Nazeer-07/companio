@@ -48,67 +48,56 @@ export const isNativeDesktop = (): boolean => {
 export const desktopBridge = {
   async executeTool(toolName: string, params: Record<string, any> = {}) {
     const api = getDesktopAPI();
-    if (api) {
-      return await api.executeTool(toolName, params);
-    }
+    if (api) return await api.executeTool(toolName, params);
 
-    console.warn(`[DesktopBridge Web Fallback] Tool called: ${toolName}`, params);
-    // In browser preview mode, simulate realistic browser behavior:
-    if (toolName === 'browser.open_url') {
-      window.open(params.url, '_blank');
-      return { success: true, message: `Opened ${params.url} in new tab`, verified: true };
-    }
-    if (toolName === 'browser.youtube.open') {
-      window.open('https://www.youtube.com', '_blank');
-      return { success: true, message: 'YouTube opened', verified: true };
+    // Web preview may open a browser page, but cannot verify navigation, playback, or native actions.
+    const destinations: Record<string, string> = {
+      'browser.youtube.open': 'https://www.youtube.com'
+    };
+    if (toolName === 'browser.open_url') destinations[toolName] = params.url;
+    if (toolName === 'browser.search_google') {
+      destinations[toolName] = 'https://www.google.com/search?q=' + encodeURIComponent(params.query || '');
     }
     if (toolName === 'browser.youtube.search_and_play') {
-      const q = encodeURIComponent(`${params.creator} ${params.topic || ''}`);
-      window.open(`https://www.youtube.com/results?search_query=${q}`, '_blank');
-      return { success: true, message: `Playing ${params.creator} on YouTube`, verified: true };
+      destinations[toolName] = 'https://www.youtube.com/results?search_query='
+        + encodeURIComponent((params.creator || '') + ' ' + (params.topic || ''));
     }
-    if (toolName === 'browser.search_google') {
-      window.open(`https://www.google.com/search?q=${encodeURIComponent(params.query)}`, '_blank');
-      return { success: true, message: `Google search executed for "${params.query}"`, verified: true };
+    if (destinations[toolName]) {
+      try {
+        const address = new URL(destinations[toolName]);
+        if (!['http:', 'https:'].includes(address.protocol)) throw Error('Invalid URL');
+        const opened = window.open(address.href, '_blank', 'noopener,noreferrer');
+        return {
+          success: false,
+          verified: false,
+          error: opened ? 'Page opened, but the action cannot be verified in web preview.'
+            : 'Browser preview cannot confirm this action (popup may be blocked). Use the desktop app.'
+        };
+      } catch {
+        return { success: false, verified: false, error: 'Invalid website address' };
+      }
     }
-
-    return {
-      success: true,
-      message: `[Web Preview] Simulated tool execution: ${toolName}`,
-      verified: true
-    };
+    return { success: false, verified: false, error: 'Native automation requires the installed Companio desktop app.' };
   },
 
   async getVolume() {
     const api = getDesktopAPI();
-    if (api) {
-      return await api.getVolume();
-    }
-    return { volume: 65, muted: false, verified: true };
+    return api ? api.getVolume() : { success: false, verified: false, error: 'Volume status unavailable in web preview.' };
   },
 
   async setVolume(percentage: number) {
     const api = getDesktopAPI();
-    if (api) {
-      return await api.setVolume(percentage);
-    }
-    return { success: true, volume: percentage, message: `Volume set to ${percentage}%`, verified: true };
+    return api ? api.setVolume(percentage) : { success: false, verified: false, error: 'Volume control requires the desktop app.' };
   },
 
   async setMute(mute: boolean) {
     const api = getDesktopAPI();
-    if (api) {
-      return await api.setMute(mute);
-    }
-    return { success: true, muted: mute, message: mute ? 'Muted' : 'Unmuted', verified: true };
+    return api ? api.setMute(mute) : { success: false, verified: false, error: 'Mute control requires the desktop app.' };
   },
 
   async takeScreenshot() {
     const api = getDesktopAPI();
-    if (api) {
-      return await api.takeScreenshot();
-    }
-    return { success: true, message: 'Screenshot captured (web fallback)', verified: true };
+    return api ? api.takeScreenshot() : { success: false, verified: false, error: 'Screenshot capture requires the desktop app.' };
   },
 
   async toggleDashboard(show?: boolean) {
@@ -128,7 +117,7 @@ export const desktopBridge = {
     if (api?.hideOverlay) {
       return await api.hideOverlay();
     }
-    return true;
+    return false;
   },
 
   async showOverlay() {
@@ -136,7 +125,7 @@ export const desktopBridge = {
     if (api?.showOverlay) {
       return await api.showOverlay();
     }
-    return true;
+    return false;
   },
 
   onShortcut(callback: () => void) {

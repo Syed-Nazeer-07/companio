@@ -1207,14 +1207,14 @@ export class AgentEngine {
           return plan;
         }
 
-        if (result && result.success !== false) {
+        if (result && result.success === true && result.verified === true) {
           step.status = 'success';
           step.result = result;
           // Log to local SQLite database
           dbService.addLog(step.tool, step.params, result, result.verified !== false, duration);
         } else {
           step.status = 'failed';
-          step.error = result?.error || 'Execution verification failed';
+          step.error = result?.error || (result?.success ? 'Action attempted but outcome not verified.' : 'Execution failed.');
           plan.status = 'failed';
           plan.error = `Step failed: ${step.description}. ${step.error}`;
           dbService.addLog(step.tool, step.params, result, false, duration);

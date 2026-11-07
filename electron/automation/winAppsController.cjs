@@ -374,8 +374,8 @@ if (Test-Path $discordPath) {
   // Empty Windows Recycle Bin
   async emptyRecycleBin() {
     try {
-      await runPowerShell('Clear-RecycleBin -Force -ErrorAction SilentlyContinue');
-      return { success: true, message: 'Recycle Bin emptied successfully ✨', verified: true };
+      await runPowerShell('Clear-RecycleBin -Force -ErrorAction Stop');
+      return { success: true, message: 'Recycle Bin clear command completed; contents not independently verified.', verified: false };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
     }
@@ -472,8 +472,10 @@ $os = (Get-CimInstance Win32_OperatingSystem).Caption.Trim()
       const script = `
 $m = Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods -ErrorAction SilentlyContinue
 if ($m) {
-  $m.WmiSetBrightness(1, ${clamped})
-  Write-Output "ok"
+  $m.WmiSetBrightness(1, ${clamped}) | Out-Null
+  $after = Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightness -ErrorAction SilentlyContinue
+  if ($after -and [int]$after.CurrentBrightness -eq ${clamped}) { Write-Output "ok" }
+  else { Write-Output "unverified" }
 } else {
   Write-Output "unsupported"
 }
@@ -481,10 +483,10 @@ if ($m) {
       const { stdout } = await runPowerShell(script);
       const ok = stdout.trim() === 'ok';
       return {
-        success: true,
-        message: ok ? `Screen brightness set to ${clamped}%` : `Brightness adjustment not supported on this display`,
+        success: ok,
+        message: ok ? `Screen brightness set to ${clamped}%` : 'Brightness could not be verified or is unsupported on this display',
         level: clamped,
-        verified: true
+        verified: ok
       };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
@@ -501,18 +503,20 @@ $lvl = if ($cur) { $cur.CurrentBrightness } else { 70 }
 $target = [math]::Max(10, [math]::Min(100, $lvl + ${delta}))
 $m = Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods -ErrorAction SilentlyContinue
 if ($m) {
-  $m.WmiSetBrightness(1, $target)
-  "$target"
+  $m.WmiSetBrightness(1, $target) | Out-Null
+  $after = Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightness -ErrorAction SilentlyContinue
+  if ($after -and [int]$after.CurrentBrightness -eq [int]$target) { "$target" } else { "unverified" }
 } else {
   "unsupported"
 }
 `;
       const { stdout } = await runPowerShell(script);
       const res = stdout.trim();
+      const ok = /^\d+$/.test(res);
       return {
-        success: true,
-        message: res !== 'unsupported' ? `Brightness changed to ${res}%` : 'Brightness adjustment not supported on this display',
-        verified: true
+        success: ok,
+        message: ok ? `Brightness changed to ${res}%` : 'Brightness could not be verified or is unsupported on this display',
+        verified: ok
       };
     } catch (err) {
       return { success: false, error: err.message, verified: false };

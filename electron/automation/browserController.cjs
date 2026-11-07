@@ -87,17 +87,24 @@ class BrowserController {
           if (v.paused) await v.play();
           return !v.paused;
         } catch (e) {
-          return true;
+          return false;
         }
       });
+      await page.waitForTimeout(1000);
+      const confirmedPlaying = isPlaying && await page.evaluate(() => {
+        const v = document.querySelector('video.html5-main-video');
+        return !!v && !v.paused && !v.ended && v.readyState >= 2 && v.currentTime > 0;
+      });
+      const verified = confirmedPlaying && page.url().includes('/watch?v=');
 
       return {
-        success: true,
+        success: verified,
         creator: creatorQuery,
         videoTitle,
         url: page.url(),
-        message: `Playing "${videoTitle}" on YouTube`,
-        verified: isPlaying || page.url().includes('watch?v=')
+        message: verified ? `Playing "${videoTitle}" on YouTube` : 'Video opened, but playback could not be verified.',
+        error: verified ? undefined : 'YouTube playback was not confirmed.',
+        verified
       };
     } catch (err) {
       console.error('[YouTube] Search and play failed:', err.message);
@@ -114,37 +121,39 @@ class BrowserController {
       }
 
       if (action === 'pause' || action === 'play' || action === 'toggle') {
-        await page.keyboard.press('k');
-        await page.waitForTimeout(600);
-        const isPaused = await page.evaluate(() => {
-          const v = document.querySelector('video.html5-main-video');
-          return v ? v.paused : null;
+        const before = await page.evaluate(() => {
+          const video = document.querySelector('video.html5-main-video');
+          return video ? video.paused : null;
         });
-        return {
-          success: true,
-          action,
-          isPaused,
-          message: isPaused ? 'YouTube video paused' : 'YouTube video playing',
-          verified: true
-        };
+        if (before === null) return { success: false, verified: false, error: 'No video player found' };
+        const shouldToggle = action === 'toggle' || (action === 'pause' && !before) || (action === 'play' && before);
+        if (shouldToggle) await page.keyboard.press('k');
+        await page.waitForTimeout(500);
+        const isPaused = await page.evaluate(() => {
+          const video = document.querySelector('video.html5-main-video');
+          return video ? video.paused : null;
+        });
+        const verified = isPaused !== null && (action === 'toggle' ? isPaused !== before
+          : action === 'pause' ? isPaused === true : isPaused === false);
+        return { success: verified, action, isPaused, verified,
+          message: verified ? (isPaused ? 'YouTube video paused' : 'YouTube video playing') : 'Playback action could not be confirmed' };
       }
-
       if (action === 'fullscreen') {
+        const before = await page.evaluate(() => !!document.fullscreenElement);
         await page.keyboard.press('f');
-        return {
-          success: true,
-          message: 'Toggled fullscreen on YouTube',
-          verified: true
-        };
+        await page.waitForTimeout(450);
+        const after = await page.evaluate(() => !!document.fullscreenElement);
+        const verified = before !== after;
+        return { success: verified, verified, message: verified ? 'YouTube fullscreen toggled' : 'Fullscreen not confirmed' };
       }
-
       if (action === 'mute') {
+        const before = await page.evaluate(() => document.querySelector('video.html5-main-video')?.muted);
+        if (typeof before !== 'boolean') return { success: false, verified: false, error: 'No video player found' };
         await page.keyboard.press('m');
-        return {
-          success: true,
-          message: 'Toggled YouTube video mute',
-          verified: true
-        };
+        await page.waitForTimeout(350);
+        const after = await page.evaluate(() => document.querySelector('video.html5-main-video')?.muted);
+        const verified = typeof after === 'boolean' && after !== before;
+        return { success: verified, verified, message: verified ? 'YouTube mute toggled' : 'Mute toggle not confirmed' };
       }
 
       return { success: false, error: `Unknown YouTube action: ${action}`, verified: false };
@@ -194,16 +203,25 @@ class BrowserController {
     try {
       await this.ensureBrowser();
       const opened = [];
+      const failed = [];
       for (const url of urls) {
         const page = await this.context.newPage();
-        await page.goto(url.startsWith('http') ? url : `https://${url}`, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
-        opened.push(url);
+        try {
+          await page.goto(url.startsWith('http') ? url : `https://${url}`, { waitUntil: 'domcontentloaded', timeout: 15000 });
+          opened.push(url);
+          this.activePage = page;
+        } catch (err) {
+          failed.push({ url, reason: err.message });
+          await page.close().catch(() => {});
+        }
       }
+      const verified = failed.length === 0 && opened.length === urls.length;
       return {
-        success: true,
-        message: `Opened ${opened.length} tabs`,
+        success: verified,
+        message: verified ? `Opened ${opened.length} tabs` : `Opened ${opened.length} of ${urls.length} tabs; ${failed.length} failed`,
         tabs: opened,
-        verified: true
+        failed,
+        verified
       };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
