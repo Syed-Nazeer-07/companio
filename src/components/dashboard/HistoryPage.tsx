@@ -23,12 +23,19 @@ export const HistoryPage: React.FC = () => {
     setLogs(dbService.getLogs());
   };
 
-  const handleClearAll = () => {
-    if (confirm('Clear all conversation history and automation logs?')) {
-      dbService.clearMessages();
-      dbService.clearLogs();
-      loadData();
+  const handleClearAll = async () => {
+    if (!confirm('Permanently clear conversation history and automation logs? Quick notes are kept. Export history first if needed.')) return;
+    const result = await dbService.restoreHistory({
+      conversations: [],
+      automationLogs: [],
+      notes: dbService.getNotes()
+    });
+    if (!result.success) {
+      setExportStatus(result.error || 'History was not cleared because storage could not be updated.');
+      return;
     }
+    loadData();
+    setExportStatus('Conversation history and automation logs cleared. Quick notes were preserved.');
   };
 
   const handleExport = () => {
@@ -164,7 +171,7 @@ export const HistoryPage: React.FC = () => {
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold transition-colors"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span>Clear Logs</span>
+            <span>Clear History</span>
           </button>
         </div>
       </div>

@@ -393,22 +393,27 @@ class DbService {
     }
   }
 
-  addNote(text: string): string[] {
-    const notes = this.getNotes();
-    notes.push(text);
-    if (notes.length > 200) notes.splice(0, notes.length - 200);
-    try {
-      localStorage.setItem('companio_notes', JSON.stringify(notes));
-      this.enqueueNativeChange({ kind: 'add-note', record: text });
-    } catch (e) {}
-    return notes;
+  async addNote(text: string): Promise<{ success: boolean; count: number; error?: string }> {
+    if (typeof text !== 'string' || !text.trim() || text.length > 4000) {
+      return { success: false, count: this.getNotes().length, error: 'A note must contain 1–4000 characters.' };
+    }
+    const notes = [...this.getNotes(), text].slice(-200);
+    // Reuse the transactional backup path, rather than claiming success from
+    // a failed/quota-exceeded localStorage write or an unverified disk append.
+    const outcome = await this.restoreHistory({
+      conversations: this.getMessages().slice(-100),
+      automationLogs: this.getLogs().slice(0,150),
+      notes
+    });
+    return { success: outcome.success, count: outcome.success ? notes.length : this.getNotes().length, error: outcome.error };
   }
 
-  clearNotes(): void {
-    try {
-      localStorage.removeItem('companio_notes');
-      this.enqueueNativeChange({ kind: 'clear-notes' });
-    } catch (e) {}
+  async clearNotes(): Promise<{ success: boolean; error?: string }> {
+    return this.restoreHistory({
+      conversations: this.getMessages().slice(-100),
+      automationLogs: this.getLogs().slice(0,150),
+      notes: []
+    });
   }
 }
 

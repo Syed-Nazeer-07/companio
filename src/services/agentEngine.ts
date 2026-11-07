@@ -1237,11 +1237,13 @@ export class AgentEngine {
           };
         } else if (step.tool === 'utility.notes.add') {
           const note = step.params?.note || '';
-          const notes = dbService.addNote(note);
+          const saved = await dbService.addNote(note);
           result = {
-            success: true,
-            message: `Saved note: "${note}" (${notes.length} total note${notes.length === 1 ? '' : 's'}) 📝`,
-            verified: true
+            success: saved.success,
+            message: saved.success ? `Saved note: "${note}" (${saved.count} total note${saved.count === 1 ? '' : 's'}) 📝`
+              : 'The note was not saved.',
+            error: saved.error,
+            verified: saved.success
           };
         } else if (step.tool === 'utility.notes.read') {
           const notes = dbService.getNotes();
@@ -1257,11 +1259,12 @@ export class AgentEngine {
           if (!window.confirm('Delete all saved Companio notes? This cannot be undone.')) {
             result = { success: false, verified: false, error: 'Note deletion cancelled.' };
           } else {
-            dbService.clearNotes();
+            const cleared = await dbService.clearNotes();
             result = {
-              success: true,
-              message: 'All notes cleared! 🧹',
-              verified: true
+              success: cleared.success,
+              message: cleared.success ? 'All notes cleared! 🧹' : 'Notes could not be cleared.',
+              error: cleared.error,
+              verified: cleared.success
             };
           }
         } else {
