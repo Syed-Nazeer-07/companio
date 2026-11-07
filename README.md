@@ -101,7 +101,7 @@ Companio has eight primary sections: **Home**, **Character Studio**, **Automatio
 | --- | --- | --- |
 | **Built-in Instant Engine** | **No** | Rule-based command recognition and supported automation tools |
 | **Local LLM (experimental)** | **No paid cloud key** | Conversations through a locally running Ollama or LM Studio server, with an explicit connection check and error reporting |
-| **OpenAI / Gemini options** | Provider key would be needed | Settings UI exists; complete cloud-model response integration is **not implemented** |
+| **OpenAI / Gemini options** | Not applicable yet | Unfinished and disabled in the UI; previously saved keys can be removed from AI Settings |
 
 **Built-in does not mean a general-purpose LLM.** Basic local commands do not need an AI subscription, although web searches and browser interactions still require connectivity.
 
@@ -266,7 +266,7 @@ Companio runs locally for its built-in command processing, but it can interact w
 
 - **No mandatory paid AI API key:** the predefined command planner does not require one.
 - **Local history:** preferences, conversation messages, notes, and tool logs are stored using browser/Electron local storage. The bundled `sql.js` database is initialized in memory, **not saved as a durable SQLite file**. The History page can export conversations, automation logs, and notes to JSON without including the API-key settings; import is not yet supported. Exported logs may still contain personal information.
-- **API key caution:** provider-key fields currently use local application settings. They are **not a secure secrets vault**; avoid entering sensitive production keys.
+- **API key caution:** cloud providers are disabled until genuinely implemented. Older provider keys may still exist in legacy local settings; remove them in AI Settings. Local application preferences are **not a secure secrets vault**.
 - **Permissions:** IPC is restricted to trusted app windows; microphone requests are audio-only, while camera/USB/accessibility permissions are not auto-granted. Real-device permission testing is still required.
 - **Tool effects:** commands can change system settings, open websites, capture screenshots, or act on existing windows. Run them only on a device you control.
 
@@ -316,7 +316,7 @@ The prior state is preserved in [`rollback/pre-phase1-2026-11-07`](https://githu
 - Browser-only preview cannot verify Windows tools or YouTube playback and no longer claims simulated success.
 - Voice input and speech output depend on runtime/device support; there is no true always-listening hotword service.
 - Ollama/LM Studio connection and conversation are integrated, but a separate local server and loaded model are required. Downloaded GGUF files are not integrated with a bundled inference engine.
-- OpenAI/Gemini settings exist, but end-to-end cloud reasoning is unfinished.
+- OpenAI/Gemini provider activation is disabled until end-to-end cloud reasoning and safe key storage are implemented.
 - History can be exported as local JSON, but import/restore and a durable SQLite database are not yet supported.
 - Installer targets and a release workflow exist, but code signing, auto-updates, and device-wide acceptance testing are outstanding.
 
