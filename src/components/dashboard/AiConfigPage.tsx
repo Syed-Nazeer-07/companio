@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { AppSettings, AiProvider } from '../../types';
-import { Cpu, Key, CheckCircle2, AlertCircle, RefreshCw, Zap, Server, Download, X, Check, Send } from 'lucide-react';
+import { AppSettings } from '../../types';
+import { Cpu, CheckCircle2, AlertCircle, RefreshCw, Zap, Server, Send } from 'lucide-react';
 import { desktopBridge } from '../../services/desktopBridge';
 
 const DEFAULT_LOCAL_ENDPOINT = 'http://127.0.0.1:11434/v1';
@@ -225,26 +225,19 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
           </p>
         </div>
 
-        {/* Option 3: Cloud LLM */}
-        <div
-          onClick={() => onUpdateSettings({ ai: { ...settings.ai, provider: 'gemini' } })}
-          className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-            settings.ai.provider === 'gemini' || settings.ai.provider === 'openai'
-              ? 'bg-sky-50/70 border-sky-500 ring-2 ring-sky-500/20 shadow-sm'
-              : 'bg-white border-slate-200 hover:border-slate-300'
-          }`}
-        >
+        {/* Cloud reasoning is not available yet; don't invite users to store API keys. */}
+        <div aria-disabled="true" className="p-4 rounded-2xl border border-slate-200 bg-slate-50 opacity-75">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <Cpu className="w-4 h-4 text-indigo-500" />
-              <span className="text-xs font-bold text-slate-900">Cloud API</span>
+              <Cpu className="w-4 h-4 text-slate-500" />
+              <span className="text-xs font-bold text-slate-800">Cloud API</span>
             </div>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-              API Key
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">
+              Not available
             </span>
           </div>
           <p className="text-[11px] text-slate-500 leading-relaxed">
-            Experimental setting only. Cloud reasoning is not connected yet; a paid API key is not necessary for built-in or local commands.
+            Cloud model integration is unfinished. Built-in commands and local AI do not require a paid API key.
           </p>
         </div>
       </div>
@@ -353,25 +346,22 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
         </div>
       )}
 
-      {/* Cloud API Key (only if cloud selected) */}
-      {(settings.ai.provider === 'gemini' || settings.ai.provider === 'openai') && (
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3 shadow-sm">
-          <p role="status" className="text-xs text-amber-700">
-            Cloud AI is not currently wired to the assistant. Do not enter production API keys; stored settings are not a secure key vault.
+      {/* Legacy keys are never needed while cloud mode is unsupported. */}
+      {(settings.ai.apiKey || settings.ai.provider === 'gemini' || settings.ai.provider === 'openai' || settings.ai.provider === 'anthropic') && (
+        <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-2">
+          <p className="text-xs text-amber-800">
+            Cloud reasoning is not implemented. For a working assistant, choose Built-in Engine or Local Offline LLM.
+            Existing provider keys are stored in local application settings, not a secure vault.
           </p>
-          <div className="flex items-center gap-2">
-            <Key className="w-4 h-4 text-sky-600" />
-            <h3 className="text-xs font-bold text-slate-900">
-              {settings.ai.provider === 'gemini' ? 'Google Gemini API Key' : 'OpenAI API Key'}
-            </h3>
-          </div>
-          <input
-            type="password"
-            value={settings.ai.apiKey}
-            onChange={(e) => onUpdateSettings({ ai: { ...settings.ai, apiKey: e.target.value } })}
-            placeholder="Paste your API key here..."
-            className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono focus:outline-none focus:border-sky-500 focus:bg-white"
-          />
+          {!!settings.ai.apiKey && (
+            <button
+              type="button"
+              onClick={() => onUpdateSettings({ ai: { ...settings.ai, apiKey: '' } })}
+              className="text-xs font-semibold text-rose-700 underline underline-offset-2"
+            >
+              Remove saved API key from settings
+            </button>
+          )}
         </div>
       )}
     </div>
