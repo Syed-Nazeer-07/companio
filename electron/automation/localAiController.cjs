@@ -110,4 +110,43 @@ async function chat(options = {}, fetchImpl = globalThis.fetch) {
   }
 }
 
-module.exports = { DEFAULT_ENDPOINT, normalizeEndpoint, listModels, chat };
+// Search only the explicitly configured loopback endpoint and the two common
+// local model servers. This is discovery, not an automatic download or launch.
+const KNOWN_LOCAL_ENDPOINTS = Object.freeze([
+  DEFAULT_ENDPOINT,
+  'http://127.0.0.1:1234/v1'
+]);
+
+async function discoverLocalAi(options = {}, fetchImpl = globalThis.fetch) {
+  try {
+    if (!options || typeof options !== 'object' || Array.isArray(options)) {
+      throw new Error('Invalid local AI discovery request.');
+    }
+    const preferred = normalizeEndpoint(options.endpoint);
+    const endpoints = [...new Set([preferred, ...KNOWN_LOCAL_ENDPOINTS])];
+    const results = await Promise.all(endpoints.map(endpoint => listModels({ endpoint }, fetchImpl)));
+    // Prefer a usable server with a loaded model to a running but empty server.
+    // Keep the caller's configured server first when it is usable.
+    const selected = results.find(result => result.success && result.models.length > 0)
+      || results.find(result => result.success);
+    if (!selected) {
+      return {
+        success: false, models: [], checkedEndpoints: endpoints.length,
+        error: 'No local AI server responded. Start Ollama or LM Studio and load a model, then try again.'
+      };
+    }
+    return {
+      success: true,
+      endpoint: selected.endpoint,
+      models: selected.models,
+      checkedEndpoints: endpoints.length
+    };
+  } catch (error) {
+    return {
+      success: false, models: [], checkedEndpoints: 0,
+      error: error.message || 'Local AI discovery failed.'
+    };
+  }
+}
+
+module.exports = { DEFAULT_ENDPOINT, normalizeEndpoint, listModels, chat, discoverLocalAi };
