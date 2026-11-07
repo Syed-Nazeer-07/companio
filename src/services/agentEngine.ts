@@ -22,13 +22,22 @@ export class AgentEngine {
     const steps: TaskStep[] = [];
     let intent = 'conversation';
 
-    // When a local model is selected, let it propose clearly requested
-    // multi-action workflows first. Unknown single-action requests get a
-    // second chance after the deterministic planner below.
-    const explicitAction = /^(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:open|launch|start|search|find|look\s+up|play|pause|mute|unmute|set|go\s+to|visit|show)\b/i.test(query.trim());
+    // Check explicit multi-action requests before the old single-command
+    // matcher; otherwise a request can silently execute only its first part.
+    // The built-in grammar works with no LLM; supported plans still need approval.
+    const explicitAction = /^(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:open|launch|start|search|find|look\s+up|play|pause|mute|unmute|set|change|go\s+to|visit|show)\b/i.test(query.trim());
     const multiAction = /\b(?:and\s+then|then|and\s+also|after\s+that|followed\s+by|and)\b/i.test(query);
-    if (aiConfig?.provider === 'local' && explicitAction && multiAction) {
-      return this.planSafeLocalActions(query, aiConfig, planId);
+    if (explicitAction && multiAction) {
+      const offline = await desktopBridge.planOfflineSequence({ query });
+      if (offline.success && offline.steps?.length && offline.requiresConfirmation === true) {
+        return this.buildApprovedActionPlan(query, planId, 'builtin_sequence', offline.steps);
+      }
+      if (offline.recognized) {
+        if (aiConfig?.provider === 'local') {
+          return this.planSafeLocalActions(query, aiConfig, planId);
+        }
+        throw new Error(offline.error || 'This multi-step request is not supported by the built-in engine.');
+      }
     }
 
     // 1. Direct Web Apps (ChatGPT, Claude, Gemini, WhatsApp, Gmail, Reddit, Netflix, X)
@@ -831,9 +840,34 @@ export class AgentEngine {
     };
   }
 
-  // Untrusted model output is validated in the Electron main process before
-  // it reaches React. Every proposed plan still needs explicit user approval
-  // before the existing verified native executor can run any step.
+  // Centralize the proposal-to-plan conversion: the UI always obtains
+  // explicit user consent before any locally suggested actions execute.
+  private buildApprovedActionPlan(
+    query: string,
+    planId: string,
+    intent: 'builtin_sequence' | 'local_ai_actions',
+    actions: Array<{ tool: string; params: Record<string, any>; description: string }>
+  ): TaskPlan {
+    return {
+      id: planId,
+      query,
+      intent,
+      steps: actions.map((step, index) => ({
+        id: 'step_' + (index + 1),
+        tool: step.tool,
+        params: step.params,
+        description: step.description,
+        verification: 'Native action outcome must be verified before continuing.',
+        status: 'pending' as const
+      })),
+      currentStepIndex: 0,
+      status: 'planning',
+      createdAt: Date.now()
+    };
+  }
+
+  // Model suggestions are validated in Electron main and cannot bypass the
+  // native tool allowlist. Validation is not execution or user approval.
   private async planSafeLocalActions(query: string, aiConfig: AiConfig, planId: string): Promise<TaskPlan> {
     const proposal = await desktopBridge.planLocalActions({
       endpoint: aiConfig.localEndpoint,
@@ -843,22 +877,7 @@ export class AgentEngine {
     if (!proposal.success || !proposal.steps?.length || proposal.requiresConfirmation !== true) {
       throw new Error(proposal.error || 'No safe actions could be planned. Try a simpler request.');
     }
-    return {
-      id: planId,
-      query,
-      intent: 'local_ai_actions',
-      steps: proposal.steps.map((step, index) => ({
-        id: 'step_' + (index + 1),
-        tool: step.tool,
-        params: step.params,
-        description: step.description,
-        verification: 'The native action result must be verified before continuing.',
-        status: 'pending' as const
-      })),
-      currentStepIndex: 0,
-      status: 'planning',
-      createdAt: Date.now()
-    };
+    return this.buildApprovedActionPlan(query, planId, 'local_ai_actions', proposal.steps);
   }
 
   // Conversational response with local desktop inference and deterministic offline utilities
