@@ -140,7 +140,11 @@ async function proposeActions(options = {}, chatImpl = localAi.chat) {
 const ACTION_CONNECTOR = /\s+(?:and\s+then|and\s+also|after\s+that|then|and)\s+(?=(?:please\s+)?(?:open|launch|start|search|find|look\s+up|play|pause|mute|unmute|set|change|go\s+to|visit|delete|remove|clear|close|send|email|install|shutdown|restart|run|copy|move|type|write)\b)/i;
 
 function offlineClause(raw) {
-  const text = raw.trim().replace(/^please\s+/i, '').replace(/[.!]$/, '').trim();
+  const text = raw.trim()
+    .replace(/^please\s+/i, '')
+    .replace(/^(?:can|could|would)\s+you\s+/i, '')
+    .replace(/^please\s+/i, '')
+    .replace(/[.!]$/, '').trim();
   let m;
   if (/^(?:open|launch|start)\s+(?:(?:the|windows)\s+)?calculator$/i.test(text))
     return { tool: 'win.calculator.launch', params: {} };
