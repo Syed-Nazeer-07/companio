@@ -11,7 +11,8 @@ import {
   CheckCircle2,
   Cpu
 } from 'lucide-react';
-import { desktopBridge } from '../../services/desktopBridge';
+import { desktopBridge, isNativeDesktop } from '../../services/desktopBridge';
+import { classifyActionOutcome, type ActionOutcome } from '../../services/actionOutcome.mjs';
 import { speechService } from '../../services/speechService';
 
 interface Props {
@@ -31,7 +32,8 @@ export const SetupWizardModal: React.FC<Props> = ({
 }) => {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
-  const [testCmdStatus, setTestCmdStatus] = useState<string | null>(null);
+  const [testCmdStatus, setTestCmdStatus] = useState<ActionOutcome | null>(null);
+  const [testCmdRunning, setTestCmdRunning] = useState(false);
 
   // Sync localSettings if settings prop changes from live updates
   React.useEffect(() => {
@@ -69,18 +71,22 @@ export const SetupWizardModal: React.FC<Props> = ({
     }
   };
 
-  const handleTestRealCommand = async (tool: string, params: any, label: string) => {
-    setTestCmdStatus(`Testing: ${label}...`);
+  const handleTestRealCommand = async (tool: string, params: Record<string, unknown>, label: string) => {
+    if (testCmdRunning) return;
+    setTestCmdRunning(true);
+    setTestCmdStatus(null);
     try {
-      const res = await desktopBridge.executeTool(tool, params);
-      if (res && res.success !== false) {
-        setTestCmdStatus(`✓ ${label} succeeded!`);
-        speechService.playChime('success');
-      } else {
-        setTestCmdStatus(`Failed: ${res?.error || 'Execution issue'}`);
-      }
-    } catch (e: any) {
-      setTestCmdStatus(`Error: ${e.message}`);
+      const result = await desktopBridge.executeTool(tool, params);
+      const outcome = classifyActionOutcome(result, label);
+      setTestCmdStatus(outcome);
+      if (outcome.kind === 'verified') speechService.playChime('success');
+    } catch (error) {
+      setTestCmdStatus(classifyActionOutcome({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown desktop error'
+      }, label));
+    } finally {
+      setTestCmdRunning(false);
     }
   };
 
@@ -229,7 +235,7 @@ export const SetupWizardModal: React.FC<Props> = ({
                 <div>
                   <h4 className="text-sm font-bold text-slate-900">Global Activation Shortcut</h4>
                   <p className="text-xs text-slate-600 mt-0.5">
-                    Press <span className="font-mono font-bold text-sky-700 bg-white px-2 py-0.5 rounded border border-sky-200">Ctrl + Shift + Space</span> anywhere to summon or toggle Companio!
+                    Press <span className="font-mono font-bold text-sky-700 bg-white px-2 py-0.5 rounded border border-sky-200">{localSettings.activationShortcut}</span> anywhere to summon or toggle Companio while the desktop app is running.
                   </p>
                 </div>
               </div>
@@ -241,7 +247,7 @@ export const SetupWizardModal: React.FC<Props> = ({
                 <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
                   <div>
                     <p className="text-sm font-semibold text-slate-800">Spoken Voice Output</p>
-                    <p className="text-xs text-slate-500">Companio speaks responses using a friendly, sweet natural voice</p>
+                    <p className="text-xs text-slate-500">Companio can speak responses using the system's available voices</p>
                   </div>
                   <input
                     type="checkbox"
@@ -275,7 +281,9 @@ export const SetupWizardModal: React.FC<Props> = ({
               <div>
                 <h4 className="text-lg font-bold text-slate-900">Try a Real Action Now</h4>
                 <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
-                  Click a test action to see Companio interact with your Windows computer right away:
+                  {isNativeDesktop()
+                    ? 'Choose a command to test Windows integration. Only confirmed outcomes are marked as verified.'
+                    : 'Windows action tests require the installed desktop app; web preview cannot verify them.'}
                 </p>
               </div>
 
@@ -283,6 +291,7 @@ export const SetupWizardModal: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => handleTestRealCommand('win.calculator.launch', {}, 'Open Calculator')}
+                  disabled={testCmdRunning || !isNativeDesktop()}
                   className="p-3 rounded-xl bg-slate-100 hover:bg-sky-50 text-slate-800 text-xs font-bold border border-slate-200 hover:border-sky-300 transition-colors"
                 >
                   🧮 Calculator
@@ -290,6 +299,7 @@ export const SetupWizardModal: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => handleTestRealCommand('browser.chatgpt.open', {}, 'Open ChatGPT')}
+                  disabled={testCmdRunning || !isNativeDesktop()}
                   className="p-3 rounded-xl bg-slate-100 hover:bg-sky-50 text-slate-800 text-xs font-bold border border-slate-200 hover:border-sky-300 transition-colors"
                 >
                   💬 ChatGPT
@@ -297,17 +307,27 @@ export const SetupWizardModal: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => handleTestRealCommand('win.volume.set', { level: 60 }, 'Set Volume 60%')}
+                  disabled={testCmdRunning || !isNativeDesktop()}
                   className="p-3 rounded-xl bg-slate-100 hover:bg-sky-50 text-slate-800 text-xs font-bold border border-slate-200 hover:border-sky-300 transition-colors"
                 >
                   🔊 Volume 60%
                 </button>
               </div>
 
-              {testCmdStatus && (
-                <p className="text-xs font-bold text-emerald-600 animate-in fade-in duration-150">
-                  {testCmdStatus}
-                </p>
-              )}
+              <div role="status" aria-live="polite" className="min-h-5">
+                {testCmdRunning && (
+                  <p className="text-xs font-semibold text-slate-600">Running desktop test...</p>
+                )}
+                {testCmdStatus && !testCmdRunning && (
+                  <p className={`text-xs font-semibold animate-in fade-in duration-150 ${
+                    testCmdStatus.kind === 'verified' ? 'text-emerald-700'
+                      : testCmdStatus.kind === 'unverified' ? 'text-amber-700'
+                        : 'text-rose-700'
+                  }`}>
+                    {testCmdStatus.message}
+                  </p>
+                )}
+              </div>
             </div>
           )}
         </div>
