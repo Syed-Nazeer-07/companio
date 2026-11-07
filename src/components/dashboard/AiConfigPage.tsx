@@ -3,6 +3,8 @@ import { AppSettings, AiProvider } from '../../types';
 import { Cpu, Key, CheckCircle2, AlertCircle, RefreshCw, Zap, Server, Download, X, Check, Send } from 'lucide-react';
 import { desktopBridge } from '../../services/desktopBridge';
 
+const DEFAULT_LOCAL_ENDPOINT = 'http://127.0.0.1:11434/v1';
+
 interface Props {
   settings: AppSettings;
   onUpdateSettings: (newSettings: Partial<AppSettings>) => void;
@@ -60,21 +62,19 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
   }, []);
 
   const autoDetectOllama = async () => {
-    try {
-      const res = await fetch('http://127.0.0.1:11434/api/tags');
-      if (res.ok) {
-        const data = await res.json();
-        const models = (data.models || []).map((m: any) => m.name);
-        setDetectedLocalModels(models);
-        if (models.length > 0) {
-          const defaultModel = models[0];
-          setTestResult({
-            success: true,
-            message: `Ollama is available with model ${defaultModel}. Choose the Local LLM mode to use it.`
-          });
-        }
-      }
-    } catch (e) {}
+    const endpoint = settings.ai.localEndpoint || DEFAULT_LOCAL_ENDPOINT;
+    const result = await desktopBridge.listLocalAiModels(endpoint);
+    setDetectedLocalModels(result.success ? result.models : []);
+    if (result.success) {
+      setTestResult({
+        success: result.models.length > 0,
+        message: result.models.length > 0
+          ? 'Local server connected. Select a model and try a prompt.'
+          : 'Local server is running, but no models are available. Load a model in Ollama or LM Studio.'
+      });
+    } else {
+      setTestResult({ success: false, message: result.error || 'Local server is not available.' });
+    }
   };
 
   const loadModelsList = async () => {
@@ -98,6 +98,8 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
           message: `Downloaded ${modelId}. This is a model file only; an inference runtime is still required.`
         });
         await loadModelsList();
+      } else {
+        setTestResult({ success: false, message: res?.error || res?.message || 'Download did not succeed.' });
       }
     } catch (err: any) {
       setTestResult({
@@ -112,68 +114,48 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
 
   const handleCancelDownload = async () => {
     try {
-      await desktopBridge.cancelModelDownload();
+      const result = await desktopBridge.cancelModelDownload();
+      if (result?.success === false) {
+        setTestResult({ success: false, message: result.error || 'Could not cancel the download.' });
+        return;
+      }
       setActiveDownloadId(null);
       setDownloadProgress(null);
       await loadModelsList();
-    } catch (e) {}
+    } catch (error) {
+      setTestResult({ success: false, message: error instanceof Error ? error.message : 'Could not cancel the download.' });
+    }
   };
 
   const handleManualCheck = async () => {
     setTestingConnection(true);
     setTestResult(null);
-
     try {
-      const res = await fetch('http://127.0.0.1:11434/api/tags');
-      if (res.ok) {
-        const data = await res.json();
-        const models = (data.models || []).map((m: any) => m.name);
-        setDetectedLocalModels(models);
-        setTestingConnection(false);
-        setTestResult({
-          success: true,
-          message: `Connected to Ollama! Found ${models.length} model(s): ${models.join(', ')}`
-        });
-        return;
-      }
-    } catch (e) {}
-
-    setTestingConnection(false);
-    setTestResult({
-      success: false,
-      message: 'Could not connect to Ollama (http://127.0.0.1:11434). Run "ollama run llama3.2:1b" in terminal.'
-    });
+      await autoDetectOllama();
+    } catch {
+      setTestResult({ success: false, message: 'Could not check the local model server.' });
+    } finally {
+      setTestingConnection(false);
+    }
   };
 
   const handleRunLiveTest = async () => {
     if (!testPrompt.trim()) return;
     setIsTestingPrompt(true);
     setTestReply(null);
-
     try {
-      const endpoint = 'http://127.0.0.1:11434/v1/chat/completions';
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: detectedLocalModels.includes(settings.ai.model) ? settings.ai.model : (detectedLocalModels[0] || 'llama3.2:1b'),
-          messages: [
-            { role: 'system', content: 'You are Companio, an adorable AI companion. Keep answers short and sweet.' },
-            { role: 'user', content: testPrompt }
-          ],
-          max_tokens: 120
-        })
+      const result = await desktopBridge.chatLocalAi({
+        endpoint: settings.ai.localEndpoint || DEFAULT_LOCAL_ENDPOINT,
+        model: settings.ai.model || detectedLocalModels[0] || 'llama3.2:1b',
+        prompt: testPrompt,
+        temperature: settings.ai.temperature,
+        systemPrompt: settings.ai.systemPrompt
       });
-
-      if (res.ok) {
-        const data = await res.json();
-        const reply = data.choices?.[0]?.message?.content || 'No response';
-        setTestReply(reply.trim());
-      } else {
-        setTestReply(`Server returned HTTP ${res.status}: ${res.statusText}`);
-      }
-    } catch (err: any) {
-      setTestReply(`Connection failed: ${err.message}. Make sure Ollama is running.`);
+      setTestReply(result.success && result.reply
+        ? result.reply
+        : 'Local AI unavailable: ' + (result.error || 'No reply received.'));
+    } catch (error) {
+      setTestReply('Local AI request failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setIsTestingPrompt(false);
     }
@@ -192,7 +174,14 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Option 1: Local Offline LLM */}
         <div
-          onClick={() => onUpdateSettings({ ai: { ...settings.ai, provider: 'local', model: detectedLocalModels.includes(settings.ai.model) ? settings.ai.model : (detectedLocalModels[0] || 'llama3.2:1b') } })}
+          onClick={() => onUpdateSettings({ ai: {
+            ...settings.ai,
+            provider: 'local',
+            model: detectedLocalModels.includes(settings.ai.model)
+              ? settings.ai.model
+              : (detectedLocalModels[0] || (settings.ai.model !== 'companio-deterministic-v1' ? settings.ai.model : 'llama3.2:1b')),
+            localEndpoint: settings.ai.localEndpoint || DEFAULT_LOCAL_ENDPOINT
+          } })}
           className={`p-4 rounded-2xl border cursor-pointer transition-all ${
             settings.ai.provider === 'local'
               ? 'bg-sky-50/70 border-sky-500 ring-2 ring-sky-500/20 shadow-sm'
@@ -255,7 +244,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
             </span>
           </div>
           <p className="text-[11px] text-slate-500 leading-relaxed">
-            Connect Google Gemini or OpenAI GPT-4o for high-end cloud reasoning.
+            Experimental setting only. Cloud reasoning is not connected yet; a paid API key is not necessary for built-in or local commands.
           </p>
         </div>
       </div>
@@ -266,9 +255,9 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
           <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className={`w-2.5 h-2.5 rounded-full ${testResult?.success ? 'bg-emerald-500' : 'bg-slate-300'}`} />
                 <span className="text-xs font-bold text-slate-900">
-                  Active Local Brain: <span className="font-mono text-sky-700">{settings.ai.model || 'llama3.2:1b'}</span>
+                  Selected local model: <span className="font-mono text-sky-700">{settings.ai.model || 'No model selected'}</span>
                 </span>
               </div>
               <button
@@ -277,7 +266,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-all"
               >
                 <RefreshCw className={`w-3 h-3 ${testingConnection ? 'animate-spin' : ''}`} />
-                <span>Recheck Ollama</span>
+                <span>Check Connection</span>
               </button>
             </div>
 
@@ -295,6 +284,39 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
                 <span>{testResult.message}</span>
               </div>
             )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+              <label className="text-[11px] font-bold text-slate-600 space-y-1.5">
+                <span className="block">Local server URL (Ollama / LM Studio)</span>
+                <input
+                  type="text"
+                  value={settings.ai.localEndpoint || DEFAULT_LOCAL_ENDPOINT}
+                  onChange={(e) => onUpdateSettings({ ai: { ...settings.ai, localEndpoint: e.target.value } })}
+                  placeholder="http://127.0.0.1:11434/v1"
+                  spellCheck={false}
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono focus:outline-none focus:border-sky-500"
+                />
+              </label>
+              <label className="text-[11px] font-bold text-slate-600 space-y-1.5">
+                <span className="block">Model name</span>
+                <input
+                  type="text"
+                  list="companio-local-models"
+                  value={settings.ai.model || ''}
+                  onChange={(e) => onUpdateSettings({ ai: { ...settings.ai, model: e.target.value } })}
+                  placeholder="Choose a model or enter its ID"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono focus:outline-none focus:border-sky-500"
+                />
+                <datalist id="companio-local-models">
+                  {detectedLocalModels.map((model) => <option key={model} value={model} />)}
+                </datalist>
+              </label>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Ollama: http://127.0.0.1:11434/v1 · LM Studio: http://127.0.0.1:1234/v1.
+              Start the server and load a model first. Only local addresses are accepted.
+              Built-in Windows commands do not need an AI model.
+            </p>
 
             {/* Quick Live Test Chat Box */}
             <div className="pt-2 border-t border-slate-100 space-y-2">
@@ -334,6 +356,9 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
       {/* Cloud API Key (only if cloud selected) */}
       {(settings.ai.provider === 'gemini' || settings.ai.provider === 'openai') && (
         <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3 shadow-sm">
+          <p role="status" className="text-xs text-amber-700">
+            Cloud AI is not currently wired to the assistant. Do not enter production API keys; stored settings are not a secure key vault.
+          </p>
           <div className="flex items-center gap-2">
             <Key className="w-4 h-4 text-sky-600" />
             <h3 className="text-xs font-bold text-slate-900">
