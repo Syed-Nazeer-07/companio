@@ -41,7 +41,7 @@ class DbService {
         );
       `);
       this.initialized = true;
-      console.log('[SQLite] Local database initialized successfully');
+      console.log('[SQLite] In-memory database initialized; persisted records use localStorage.');
     } catch (e) {
       console.warn('[SQLite] Fallback to in-memory/localStorage:', e);
       this.initialized = true;
@@ -52,7 +52,12 @@ class DbService {
   loadSettings(): Partial<AppSettings> {
     try {
       const data = localStorage.getItem('companio_settings') || localStorage.getItem('aura_settings');
-      if (data) return JSON.parse(data);
+      if (data) {
+        const parsed: unknown = JSON.parse(data);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return parsed as Partial<AppSettings>;
+        }
+      }
     } catch (e) {}
     return {};
   }
@@ -84,7 +89,18 @@ class DbService {
   getMessages(): ChatMessage[] {
     try {
       const data = localStorage.getItem('companio_chat_history') || localStorage.getItem('aura_chat_history');
-      if (data) return JSON.parse(data);
+      if (data) {
+        const parsed: unknown = JSON.parse(data);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((message): message is ChatMessage =>
+            !!message && typeof message === 'object'
+            && typeof message.id === 'string'
+            && typeof message.sender === 'string'
+            && typeof message.content === 'string'
+            && Number.isFinite(message.timestamp)
+          );
+        }
+      }
     } catch (e) {}
     return [];
   }
@@ -127,7 +143,21 @@ class DbService {
   getLogs(): AutomationLogRecord[] {
     try {
       const data = localStorage.getItem('companio_automation_logs') || localStorage.getItem('aura_automation_logs');
-      if (data) return JSON.parse(data);
+      if (data) {
+        const parsed: unknown = JSON.parse(data);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((log): log is AutomationLogRecord =>
+            !!log && typeof log === 'object'
+            && typeof log.id === 'string'
+            && typeof log.tool === 'string'
+            && typeof log.params === 'string'
+            && typeof log.result === 'string'
+            && typeof log.verified === 'boolean'
+            && Number.isFinite(log.timestamp)
+            && Number.isFinite(log.durationMs)
+          );
+        }
+      }
     } catch (e) {}
     return [];
   }
@@ -144,7 +174,9 @@ class DbService {
   getNotes(): string[] {
     try {
       const data = localStorage.getItem('companio_notes');
-      return data ? JSON.parse(data) : [];
+      if (!data) return [];
+      const parsed: unknown = JSON.parse(data);
+      return Array.isArray(parsed) ? parsed.filter((note): note is string => typeof note === 'string') : [];
     } catch (e) {
       return [];
     }
