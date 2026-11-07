@@ -10,7 +10,7 @@ if (!fs.existsSync(binary)) {
 }
 const child = spawn(binary, ['--companio-smoke'], {
   cwd: root,
-  env: { ...process.env, NODE_ENV: 'production' },
+  env: { ...process.env, NODE_ENV: 'production', COMPANIO_SMOKE_TEST: '1' },
   windowsHide: true,
   stdio: ['ignore', 'pipe', 'pipe']
 });

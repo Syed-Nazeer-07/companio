@@ -16,7 +16,7 @@ let dashboardWindow = null;
 let tray = null;
 let currentShortcut = 'CommandOrControl+Shift+Space';
 let overlayPreferences = { alwaysOnTop: true, snapToEdge: true };
-const SMOKE_TEST = process.argv.includes('--companio-smoke');
+const SMOKE_TEST = process.env.COMPANIO_SMOKE_TEST === '1' || process.argv.includes('--companio-smoke');
 if (SMOKE_TEST) app.disableHardwareAcceleration();
 
 // Position storage file
@@ -599,6 +599,7 @@ app.whenReady().then(async () => {
   if (typeof saved.alwaysOnTop === 'boolean') overlayPreferences.alwaysOnTop = saved.alwaysOnTop;
   if (typeof saved.snapToEdge === 'boolean') overlayPreferences.snapToEdge = saved.snapToEdge;
   if (SMOKE_TEST) {
+    console.log('COMPANIO_SMOKE_START: loading packaged Windows app');
     const timer = setTimeout(() => {
       console.error('COMPANIO_SMOKE_FAIL: App did not load within 30 seconds.');
       app.exit(1);
