@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useLayoutEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { AppSettings, CharacterState, TaskPlan } from '../../types';
 import { CharacterRenderer } from '../characters/CharacterRenderer';
@@ -53,7 +53,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
   };
 
   // Bind only once: a global key must not get lost during state transitions.
-  useEffect(() => {
+  useLayoutEffect(() => {
     const unbindToggle = desktopBridge.onShortcutToggle(() => shortcutActionsRef.current.toggle());
     const unbindDismiss = desktopBridge.onShortcutDismiss?.(() => shortcutActionsRef.current.dismiss());
     const unbindWake = isNativeDesktop()
