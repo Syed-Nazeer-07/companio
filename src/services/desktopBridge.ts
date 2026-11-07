@@ -37,6 +37,21 @@ interface CompanioDesktopAPI {
       notes: string[];
     };
   }>;
+  loadHistoryStore?: () => Promise<{
+    success: boolean;
+    exists?: boolean;
+    error?: string;
+    backup?: {
+      conversations: Array<{id: string; sender: string; content: string; timestamp: number; status?: string}>;
+      automationLogs: Array<{id: string; timestamp: number; tool: string; params: string; result: string; verified: boolean; durationMs: number}>;
+      notes: string[];
+    };
+  }>;
+  mutateHistoryStore?: (operation: {
+    kind: 'add-message' | 'add-log' | 'add-note' | 'clear-messages' | 'clear-logs' | 'clear-notes' | 'replace';
+    record?: unknown;
+    backup?: unknown;
+  }) => Promise<{success: boolean; error?: string}>;
   getModelsStatus?: () => Promise<any[]>;
   downloadModel?: (modelId: string) => Promise<any>;
   cancelModelDownload?: () => Promise<any>;
@@ -269,6 +284,33 @@ export const desktopBridge = {
     return api?.validateHistoryImport
       ? api.validateHistoryImport(content)
       : { success: false, error: 'Secure backup import requires the installed desktop application.' };
+  },
+
+  async loadHistoryStore(): Promise<{
+    success: boolean;
+    exists?: boolean;
+    error?: string;
+    backup?: {
+      conversations: Array<{id: string; sender: string; content: string; timestamp: number; status?: string}>;
+      automationLogs: Array<{id: string; timestamp: number; tool: string; params: string; result: string; verified: boolean; durationMs: number}>;
+      notes: string[];
+    };
+  }> {
+    const api = getDesktopAPI();
+    return api?.loadHistoryStore
+      ? api.loadHistoryStore()
+      : { success: false, error: 'Native disk history is unavailable in web preview.' };
+  },
+
+  async mutateHistoryStore(operation: {
+    kind: 'add-message' | 'add-log' | 'add-note' | 'clear-messages' | 'clear-logs' | 'clear-notes' | 'replace';
+    record?: unknown;
+    backup?: unknown;
+  }): Promise<{ success: boolean; error?: string }> {
+    const api = getDesktopAPI();
+    return api?.mutateHistoryStore
+      ? api.mutateHistoryStore(operation)
+      : { success: false, error: 'Native disk history requires the installed desktop app.' };
   },
 
   async getModelsStatus(): Promise<any[]> {

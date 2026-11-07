@@ -53,6 +53,8 @@ const desktopAPI = {
 
   // Local history backup import is validated by the trusted main process.
   validateHistoryImport: (content) => ipcRenderer.invoke('history-validate-import', content),
+  loadHistoryStore: () => ipcRenderer.invoke('history-store-load'),
+  mutateHistoryStore: (operation) => ipcRenderer.invoke('history-store-mutate', operation),
 
   // Model Downloader
   getModelsStatus: () => ipcRenderer.invoke('get-models-status'),

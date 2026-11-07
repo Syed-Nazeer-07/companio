@@ -13,6 +13,7 @@ const nativeSpeech = require('./automation/nativeSpeech.cjs');
 const localAiController = require('./automation/localAiController.cjs');
 const localActionPlanner = require('./automation/localActionPlanner.cjs');
 const historyBackupController = require('./automation/historyBackupController.cjs');
+const { NativeHistoryStore } = require('./automation/nativeHistoryStore.cjs');
 
 let overlayWindow = null;
 let dashboardWindow = null;
@@ -24,6 +25,7 @@ if (SMOKE_TEST) app.disableHardwareAcceleration();
 
 // Position storage file
 const CONFIG_PATH = path.join(app.getPath('userData'), 'companio_window_config.json');
+const nativeHistoryStore = new NativeHistoryStore(path.join(app.getPath('userData'), 'companio_history_v1.json'));
 
 function loadSavedPosition() {
   try {
@@ -485,6 +487,8 @@ secureHandle('local-ai-chat', async (_, options) => localAiController.chat(optio
 secureHandle('local-ai-plan', async (_, options) => localActionPlanner.proposeActions(options));
 secureHandle('offline-sequence', async (_, options) => localActionPlanner.planOfflineSequence(options));
 secureHandle('history-validate-import', async (_, content) => historyBackupController.validateHistoryBackup(content));
+secureHandle('history-store-load', async () => nativeHistoryStore.load());
+secureHandle('history-store-mutate', async (_, operation) => nativeHistoryStore.mutate(operation));
 
 // Model Downloader IPC handlers
 secureHandle('get-models-status', async () => {
