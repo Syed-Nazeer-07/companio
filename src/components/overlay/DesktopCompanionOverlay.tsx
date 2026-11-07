@@ -226,6 +226,35 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         return;
       }
 
+      // Never execute AI-suggested native actions automatically. The dialog
+      // lists the real validated tool parameters, not model-written promises.
+      if (plan.intent === 'local_ai_actions') {
+        const preview = plan.steps.map((step, index) =>
+          (index + 1) + '. ' + step.description +
+          '\n   ' + step.tool + ' ' + JSON.stringify(step.params)
+        ).join('\n\n');
+        const approved = window.confirm(
+          'Companio suggests these actions. Nothing has run yet.\n\n' +
+          preview + '\n\nRun these actions in order?'
+        );
+        if (!approved) {
+          plan.status = 'cancelled';
+          plan.steps.forEach((step) => { step.status = 'cancelled'; });
+          setActivePlan({ ...plan });
+          setCharacterState('idle');
+          setBubbleText('Action plan cancelled. Nothing was executed.');
+          dbService.addMessage({
+            id: 'msg_' + crypto.randomUUID(),
+            sender: 'companio',
+            content: 'Action plan cancelled by user; no actions executed.',
+            timestamp: Date.now(),
+            taskPlan: plan,
+            status: 'info'
+          });
+          return;
+        }
+      }
+
       // 2. Execute plan
       const finalPlan = await agentEngine.executePlan(plan, (updated) => {
         setActivePlan({ ...updated });
