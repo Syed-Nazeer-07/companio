@@ -5,6 +5,8 @@ import {
   Camera, 
   Terminal, 
   CheckCircle2, 
+  AlertCircle,
+  Info,
   Activity, 
   Cpu, 
   ExternalLink,
@@ -16,7 +18,7 @@ import {
 } from 'lucide-react';
 import { AppSettings } from '../../types';
 import { CharacterRenderer } from '../characters/CharacterRenderer';
-import { desktopBridge } from '../../services/desktopBridge';
+import { desktopBridge, isNativeDesktop } from '../../services/desktopBridge';
 
 interface Props {
   settings: AppSettings;
@@ -25,21 +27,35 @@ interface Props {
 }
 
 export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverlay }) => {
-  const [actionStatus, setActionStatus] = useState<string | null>(null);
+  const [actionStatus, setActionStatus] = useState<{
+    message: string;
+    kind: 'running' | 'success' | 'unverified' | 'error';
+  } | null>(null);
 
   const runQuickAction = async (tool: string, params: any = {}, label: string) => {
-    setActionStatus(`Executing: ${label}...`);
+    setActionStatus({ message: `Executing: ${label}...`, kind: 'running' });
     try {
       const res = await desktopBridge.executeTool(tool, params);
-      if (res && res.success !== false) {
-        setActionStatus(`✓ ${label} executed! ✨`);
+      if (res?.success === true && res?.verified === true) {
+        setActionStatus({ message: `${label}: confirmed.`, kind: 'success' });
+      } else if (res?.success === true) {
+        setActionStatus({
+          message: `${label}: attempted, but not verified. ${res?.error || ''}`.trim(),
+          kind: 'unverified'
+        });
       } else {
-        setActionStatus(`Failed: ${res?.error || 'Execution issue'}`);
+        setActionStatus({
+          message: `${label}: ${res?.error || 'The action did not complete.'}`,
+          kind: 'error'
+        });
       }
-    } catch (err: any) {
-      setActionStatus(`Error: ${err.message}`);
+    } catch (err: unknown) {
+      setActionStatus({
+        message: `${label}: ${err instanceof Error ? err.message : 'An unexpected error occurred.'}`,
+        kind: 'error'
+      });
     }
-    setTimeout(() => setActionStatus(null), 4000);
+    setTimeout(() => setActionStatus(null), 5000);
   };
 
   return (
@@ -57,17 +73,17 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-bold text-slate-900">{settings.characterName || 'Companio'}</h2>
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Active on Desktop
+              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${isNativeDesktop() ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${isNativeDesktop() ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                {isNativeDesktop() ? 'Desktop connected' : 'Web preview'}
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium">
-              Hotkey: <kbd className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700 font-mono text-[11px] font-bold">Ctrl+Shift+Space</kbd> to toggle or hide anytime.
+              Hotkey: <kbd className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700 font-mono text-[11px] font-bold">{settings.activationShortcut}</kbd> to toggle or hide anytime.
             </p>
             <p className="text-xs text-slate-500 font-medium flex items-center gap-1.5 pt-0.5">
               <Cpu className="w-3.5 h-3.5 text-sky-600" />
-              <span>AI Brain: <strong className="text-slate-800">{settings.ai.provider === 'local' ? `Local LLM (${settings.ai.model || 'llama3.2:1b'})` : 'Built-in Engine'}</strong></span>
+              <span>AI Brain: <strong className="text-slate-800">{settings.ai.provider === 'local' ? `Local model selected (${settings.ai.model || 'llama3.2:1b'})` : 'Built-in Engine'}</strong></span>
             </p>
           </div>
         </div>
@@ -91,12 +107,17 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
 
       {/* Action Notification */}
       {actionStatus && (
-        <div className="p-3.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-800 text-xs font-semibold flex items-center justify-between shadow-sm animate-in fade-in duration-150">
-          <div className="flex items-center gap-2">
-            <Activity className="w-3.5 h-3.5 animate-spin text-sky-600" />
-            <span>{actionStatus}</span>
-          </div>
-          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+        <div role="status" className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center gap-2 shadow-sm animate-in fade-in duration-150 ${
+          actionStatus.kind === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+            : actionStatus.kind === 'error' ? 'bg-rose-50 border-rose-200 text-rose-800'
+            : actionStatus.kind === 'unverified' ? 'bg-amber-50 border-amber-200 text-amber-800'
+            : 'bg-sky-50 border-sky-200 text-sky-800'
+        }`}>
+          {actionStatus.kind === 'running' ? <Activity className="w-4 h-4 shrink-0 animate-spin" />
+            : actionStatus.kind === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" />
+            : actionStatus.kind === 'unverified' ? <Info className="w-4 h-4 shrink-0" />
+            : <AlertCircle className="w-4 h-4 shrink-0" />}
+          <span>{actionStatus.message}</span>
         </div>
       )}
 
