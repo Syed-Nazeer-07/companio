@@ -255,7 +255,16 @@ export const desktopBridge = {
       : { success: false, recognized: true, steps: [], error: 'Multi-step automation requires the installed Companio desktop app.' };
   },
 
-  async validateHistoryImport(content: string) {
+  async validateHistoryImport(content: string): Promise<{
+    success: boolean;
+    error?: string;
+    counts?: { conversations: number; automationLogs: number; notes: number };
+    backup?: {
+      conversations: Array<{id: string; sender: string; content: string; timestamp: number; status: string}>;
+      automationLogs: Array<{id: string; timestamp: number; tool: string; params: string; result: string; verified: boolean; durationMs: number}>;
+      notes: string[];
+    };
+  }> {
     const api = getDesktopAPI();
     return api?.validateHistoryImport
       ? api.validateHistoryImport(content)
