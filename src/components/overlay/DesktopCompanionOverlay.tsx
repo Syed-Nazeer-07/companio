@@ -31,6 +31,13 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
   const [isPetted, setIsPetted] = useState<boolean>(false);
 
   const resetTimerRef = useRef<any>(null);
+  // Keep native shortcut handlers registered once. Ref callbacks always use the
+  // latest component state, without dropping key events during React re-renders.
+  const shortcutActionsRef = useRef({
+    toggle: () => {},
+    dismiss: () => {},
+    wake: () => {}
+  });
 
   const handleDismiss = () => {
     setIsInputOpen(false);
@@ -45,35 +52,24 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     desktopBridge.hideOverlay();
   };
 
-  // Global hotkey toggle listener: press once to open/wake, press again to dismiss/close!
+  // Bind only once: a global key must not get lost during state transitions.
   useEffect(() => {
-    const unbindToggle = desktopBridge.onShortcutToggle(() => {
-      if (isInputOpen) {
-        handleDismiss();
-      } else {
-        handleWakeAndActivate();
-      }
-    });
-
-    const unbindDismiss = desktopBridge.onShortcutDismiss?.(() => {
-      handleDismiss();
-    });
-    const unbindWake = isNativeDesktop() ? desktopBridge.onShortcut(() => handleWakeAndActivate()) : () => {};
-
+    const unbindToggle = desktopBridge.onShortcutToggle(() => shortcutActionsRef.current.toggle());
+    const unbindDismiss = desktopBridge.onShortcutDismiss?.(() => shortcutActionsRef.current.dismiss());
+    const unbindWake = isNativeDesktop()
+      ? desktopBridge.onShortcut(() => shortcutActionsRef.current.wake())
+      : () => {};
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        handleDismiss();
-      }
+      if (e.key === 'Escape') shortcutActionsRef.current.dismiss();
     };
     window.addEventListener('keydown', handleKeyDown);
-
     return () => {
       unbindToggle();
       unbindWake();
       if (unbindDismiss) unbindDismiss();
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isInputOpen, bubbleText, isListeningVoice, isSleeping]);
+  }, []);
 
   const handleWakeAndActivate = () => {
     if (isSleeping) setIsSleeping(false);
@@ -328,6 +324,12 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       setCharacterState('idle');
       setBubbleText("I'm awake and ready!");
     }
+  };
+
+  shortcutActionsRef.current = {
+    toggle: () => { if (isInputOpen) handleDismiss(); else handleWakeAndActivate(); },
+    dismiss: handleDismiss,
+    wake: handleWakeAndActivate
   };
 
   return (
