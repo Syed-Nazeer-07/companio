@@ -62,11 +62,25 @@ const DEFAULT_SETTINGS: AppSettings = {
   }
 };
 
+// Merge nested preferences so older, partial, or malformed saved settings
+// cannot replace an entire settings section with null or missing fields.
+const mergeSettings = (saved: Partial<AppSettings> = {}): AppSettings => {
+  const validSection = (value: unknown): Record<string, unknown> =>
+    value !== null && typeof value === 'object' && !Array.isArray(value)
+      ? value as Record<string, unknown> : {};
+
+  return {
+    ...DEFAULT_SETTINGS,
+    ...saved,
+    character: { ...DEFAULT_SETTINGS.character, ...validSection(saved.character) },
+    ai: { ...DEFAULT_SETTINGS.ai, ...validSection(saved.ai) },
+    voice: { ...DEFAULT_SETTINGS.voice, ...validSection(saved.voice) },
+    overlay: { ...DEFAULT_SETTINGS.overlay, ...validSection(saved.overlay) }
+  };
+};
+
 export const App: React.FC = () => {
-  const [settings, setSettings] = useState<AppSettings>(() => {
-    const saved = dbService.loadSettings();
-    return { ...DEFAULT_SETTINGS, ...saved };
-  });
+  const [settings, setSettings] = useState<AppSettings>(() => mergeSettings(dbService.loadSettings()));
 
   const [currentTab, setCurrentTab] = useState<DashboardTab>('home');
   const [viewMode, setViewMode] = useState<'overlay' | 'dashboard'>('overlay');
@@ -93,7 +107,7 @@ export const App: React.FC = () => {
     // Listen for live cross-window state updates (e.g. character selection from Control Center to Overlay)
     const unbind = desktopBridge.onStateUpdate((updatedSettings) => {
       if (updatedSettings) {
-        setSettings((prev) => ({ ...prev, ...updatedSettings }));
+        setSettings((prev) => mergeSettings({ ...prev, ...updatedSettings }));
       }
     });
 
@@ -101,7 +115,9 @@ export const App: React.FC = () => {
       if ((e.key === 'companio_settings' || e.key === 'aura_settings') && e.newValue) {
         try {
           const parsed = JSON.parse(e.newValue);
-          setSettings((prev) => ({ ...prev, ...parsed }));
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            setSettings((prev) => mergeSettings({ ...prev, ...parsed }));
+          }
         } catch {}
       }
     };
@@ -115,7 +131,7 @@ export const App: React.FC = () => {
 
   const handleUpdateSettings = (newSettings: Partial<AppSettings>) => {
     setSettings((prev) => {
-      const updated = { ...prev, ...newSettings };
+      const updated = mergeSettings({ ...prev, ...newSettings });
       dbService.saveSettings(updated);
       desktopBridge.sendStateUpdate(updated);
       return updated;
