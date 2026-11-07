@@ -208,7 +208,34 @@ npm start
 
 The production frontend is generated in `dist/`, and Electron runs the transparent overlay and tray integration. On first launch, use the control center to select your character and configure preferences.
 
-### 4. Development Mode
+### 4. Package Windows Installers (.exe)
+
+You can build standalone NSIS installers and portable `.exe` binaries locally with:
+
+```powershell
+# Build for your current architecture
+npm run dist
+
+# Or target specific architectures
+npm run dist:x64       # Standard Intel/AMD 64-bit Windows
+npm run dist:arm64     # Snapdragon X Elite / Copilot+ ARM64 Windows
+npm run dist:portable  # Standalone single-file executable (no installation required)
+```
+
+The output executables are packaged into the `release/` directory:
+- `Companio Setup 1.0.0.exe` (Full NSIS Windows installer with Desktop & Start Menu shortcuts)
+- `Companio 1.0.0.exe` (Portable executable)
+
+### 5. Automated GitHub Releases
+
+Companio includes a GitHub Actions CI/CD workflow (`.github/workflows/release.yml`). Pushing a git tag automatically builds both `x64` and `arm64` Windows installers and attaches them to a GitHub Release:
+
+```powershell
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+### 6. Development Mode
 
 The Vite interface can be previewed with:
 

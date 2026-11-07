@@ -10,7 +10,12 @@
     "preview": "vite preview",
     "start": "electron .",
     "dev:all": "concurrently -k \"vite\" \"electron .\"",
-    "test:tools": "node test/test-automation.cjs"
+    "test:tools": "node test/test-automation.cjs",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder --win",
+    "dist:x64": "npm run build && electron-builder --win --x64",
+    "dist:arm64": "npm run build && electron-builder --win --arm64",
+    "dist:portable": "npm run build && electron-builder --win portable"
   },
   "keywords": [
     "ai",
@@ -45,9 +50,54 @@
     "autoprefixer": "^10.4.20",
     "concurrently": "^9.1.2",
     "electron": "^34.2.0",
+    "electron-builder": "^26.18.0",
     "postcss": "^8.5.2",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.3",
     "vite": "^6.1.0"
+  },
+  "build": {
+    "appId": "com.companio.desktop",
+    "productName": "Companio",
+    "copyright": "Copyright © 2026 Companio Team",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "build/icon.ico",
+      "build/icon.png",
+      "package.json"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Companio",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
+    }
   }
 }
