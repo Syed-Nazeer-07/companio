@@ -483,6 +483,7 @@ secureHandle('set-overlay-preferences', async (_, options) => {
 // Local inference uses the Node main process to avoid file:// CORS issues.
 // All requests are validated by localAiController and restricted to loopback.
 secureHandle('local-ai-models', async (_, options) => localAiController.listModels(options));
+secureHandle('local-ai-discover', async (_, options) => localAiController.discoverLocalAi(options));
 secureHandle('local-ai-chat', async (_, options) => localAiController.chat(options));
 secureHandle('local-ai-plan', async (_, options) => localActionPlanner.proposeActions(options));
 secureHandle('offline-sequence', async (_, options) => localActionPlanner.planOfflineSequence(options));
