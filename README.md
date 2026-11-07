@@ -1,130 +1,339 @@
-# Companio — Personal AI Desktop Companion
+<div align="center">
 
-> **A living, animated, intelligent AI desktop companion for Windows 11 (ARM64 Snapdragon X Elite & x64).**
+# ✨ Companio
 
-Companio is not a chatbot website. It lives directly on your Windows desktop as a transparent, frameless, animated interactive companion that can be summoned with a global hotkey, speaks naturally, and executes real computer operations across native Windows applications and the web.
+### Your desktop, with a personality.
 
----
+**A customizable, animated desktop companion that listens, responds, and helps you control Windows applications and the web.**
 
-## 1. Features & Capabilities
+Built for Windows 11 with a floating character overlay, voice and text commands, and a dedicated control center.
 
-### 🌟 Desktop Companion & Animation Engine
-- **Transparent Desktop Overlay**: Borderless, transparent, always-on-top desktop companion with intelligent hit-testing and edge-snapping.
-- **6 Original Characters with Full Animation States**:
-  1. **Sparky**: Cute animated cybernetic robot with digital visor, thruster flame, and expressive gestures.
-  2. **Pixel**: Authentic 16-bit retro arcade cyber-fox mascot with pixel-perfect animation.
-  3. **Mochi**: Stylized 3D squishy mascot with soft lighting and glossy reflections.
-  4. **Cloudie**: Fluffy pastel dream cloud with rainbow aura and happy animations.
-  5. **Kiko**: Chibi kitten with twitching ears, swishing tail, and blush cheeks.
-  6. **Boba**: Adorable boba bear with animated straw, bubble tea cup, and sweet reactions.
-- **Dynamic Character Expressions**:
-  - `idle`: Breathing, blinking, floating oscillation
-  - `listening`: Alert posture, ears/sensors reacting, audio visualizer bars
-  - `thinking`: Processing animation (glowing pulse, head tilt, spinning elements)
-  - `talking`: Real-time lip-sync/mouth animation driven by speech synthesis amplitude
-  - `success`: Celebration bounce, victory sparkle, confetti burst
-  - `confused`: Tilted head, question mark indicator, honest error explanation
-  - `sleeping`: Dimmed breathing glow, Zzz particles
+[![Electron](https://img.shields.io/badge/Electron-47848F?style=for-the-badge&logo=electron&logoColor=white)](https://www.electronjs.org/)
+[![React](https://img.shields.io/badge/React_19-149ECA?style=for-the-badge&logo=react&logoColor=white)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![Windows](https://img.shields.io/badge/Windows_11-0078D4?style=for-the-badge&logo=windows11&logoColor=white)](https://www.microsoft.com/windows)
 
-### ⚡ Real Computer Control (Action System)
-Companio utilizes a strict pipeline: **User Request → Intent Interpretation → Tool Selection → Native Execution → Verification → Result**. It never falsely reports "Done" without real verification.
-- **Browser Automation (Playwright + Native Microsoft Edge)**:
-  - YouTube search and playback: Navigates to YouTube, finds specific creators (e.g. CarryMinati, Bro Code), selects the newest regular upload, starts playback, and verifies `video.paused === false`.
-  - YouTube playback controls: Pause, resume, fullscreen (`f`), mute (`m`).
-  - Google search: Live web searches with verified result display.
-  - Multi-tab management: Opens research tab sets and closes active tabs.
-- **Windows Desktop Applications**:
-  - Launch, verify, and close Calculator (`calc.exe` / `CalculatorApp`).
-  - File Explorer navigation: Opens Downloads, Documents, Pictures, or specific project folders.
-  - Visual Studio Code: Launches VS Code and opens project directories.
-  - Spotify integration: Launches client, searches/plays specific songs (e.g. "Graffitia by Green Day"), and controls media playback (Play, Pause, Next, Prev).
-  - Window management: Minimizes foreground windows.
-  - Screen capture: Takes high-resolution screenshots and saves to `Pictures/Companio_Captures`.
-- **System Audio (Windows CoreAudio COM Integration)**:
-  - Exact master volume scalar control (0–100%) via native Windows `IAudioEndpointVolume`.
-  - Mute and unmute toggle with immediate hardware verification.
+[Overview](#-overview) · [Features](#-features) · [Tech Stack](#-technology-stack) · [Getting Started](#-getting-started) · [Architecture](#-architecture) · [Roadmap](#-roadmap)
 
-### 🎙️ Natural Voice & Audio Engine
-- **Push-to-Talk**: Instant speech recognition via Spacebar or compact mic button.
-- **Wake-Word Support**: Configurable "Hey Companio" wake detection.
-- **Text-to-Speech**: Natural voices with rate, pitch, and volume adjustments.
-- **Audio Chimes**: Web Audio synthesized notification sounds (activation chime, success chord, error tone).
-
-### 🖥️ Windows 11 Fluent Control Center (Dashboard)
-8 dedicated pages:
-1. **Home**: Status overview, live character preview, and quick test actions.
-2. **Character Studio**: Character gallery, personality customization, scaling, animation tester, and custom SVG/PNG asset importer.
-3. **Automation**: Full tool catalog with status badges, permission toggles, and direct test triggers.
-4. **AI Configuration**: Provider switching (Built-in Instant Engine, Local LLMs via Ollama & LM Studio, Google Gemini, OpenAI, Claude) with secure API key storage.
-5. **Voice Settings**: Mic device, speech engine, TTS voices, rate/pitch sliders, and mute toggle.
-6. **History**: Searchable conversation and execution logs stored in local SQLite database.
-7. **Settings**: Global activation shortcut (Ctrl+Shift+Space), startup behavior, theme, and desktop snapping.
-8. **Help & Docs**: Setup guidance, interactive onboarding tour, and command reference.
+</div>
 
 ---
 
-## 2. Architecture & Tech Stack
+> **🚧 Project status — local developer build.** Companio has an Electron desktop shell, a character interface, and native automation handlers. It is **not yet a packaged, broadly verified Windows release**. Native computer control requires running the Electron app on Windows; the ordinary web preview uses simulated fallbacks for some commands. Features that depend on external apps, browser layouts, microphone support, or hardware need testing on the target machine.
 
+## 📌 Overview
+
+Companio is a personal desktop companion designed to make everyday computer interactions feel more natural. Instead of switching between application windows for every small task, you can summon an animated character, type or speak a supported command, and let Companio attempt the action through its desktop integration.
+
+The experience combines three ideas: **an expressive on-screen character**, **practical Windows and browser shortcuts**, and **a simple control center** for preferences, commands, and activity history.
+
+Companio is a **Windows desktop project**, not just a chatbot webpage. A working application installer and unrestricted autonomous computer-use agent are not part of the current release.
+
+## 🎯 The Idea
+
+Traditional assistants often live inside a separate tab or chat window. Companio explores what happens when the assistant is part of the desktop itself: visible when you need it, quiet when you do not, and able to carry out a defined set of computer actions.
+
+The goal is an assistant that feels personal **without making routine actions complicated**. Character customization and animation make the interface approachable; an explicit command-to-tool pipeline makes its capabilities understandable.
+
+## ✨ Features
+
+### 🧸 Six Animated Companions
+
+Choose a character in **Character Studio**, adjust its presentation, and preview different expressions.
+
+| Character | Personality and design |
+| --- | --- |
+| **Sparky** | Expressive, futuristic robot |
+| **Pixel** | Retro pixel-art fox |
+| **Mochi** | Soft, squishy 3D-style mascot |
+| **Cloudie** | Dreamy pastel cloud |
+| **Kiko** | Playful chibi kitten |
+| **Boba** | Bubble-tea-inspired bear |
+
+The character interface includes states such as idle, listening, thinking, talking, success, and sleep. The studio also provides a local SVG/PNG image import option; custom-image handling should be treated as an experimental feature.
+
+### 🖥️ Floating Desktop Companion
+
+- Transparent, frameless Electron overlay that stays above regular windows
+- Default global activation shortcut: **Ctrl + Shift + Space**
+- Character interaction, compact command input, and speech bubbles
+- Movable overlay with saved window position
+- Separate control center and system-tray access
+
+### ⚡ Windows and Browser Actions
+
+Companio maps recognized commands to a catalog of specific tools.
+
+| Category | Examples |
+| --- | --- |
+| **Windows apps** | Open Calculator, File Explorer, VS Code, or supported system utilities |
+| **Browser** | Open websites, search Google, manage tabs |
+| **YouTube** | Search for videos, open a result, and attempt playback controls |
+| **Media** | Launch Spotify and send basic media commands |
+| **System** | Adjust master volume, mute or unmute audio, capture screenshots |
+| **Workflow** | Execute recognized multi-step requests and allow cancellation |
+
+Browser automation uses Playwright with Microsoft Edge when available. **YouTube result selection follows the implemented search logic; it does not guarantee the latest upload from a specific creator.** App- and site-specific behavior can change.
+
+### 🎙️ Voice and Text Interaction
+
+- Type a command or use the microphone control
+- Speech recognition through the browser/Electron Web Speech interface, where supported
+- Spoken responses through speech synthesis
+- Adjustable voice, rate, pitch, and output volume
+- Sound effects and reactive character animations
+
+**Voice support depends on the runtime and available speech services.** The current “wake phrase” setting is not a continuously listening, system-wide hotword detector. Mouth animation uses an approximate activity signal rather than true phoneme-level lip synchronization.
+
+### 🧠 Flexible Assistant Modes
+
+Companio supports a **built-in command engine without requiring a paid API key**. It interprets predefined phrases and responds to common conversational prompts.
+
+There is also an experimental **local-LLM conversational path** using an Ollama-compatible endpoint. Settings include detection for Ollama and LM Studio, but the current response implementation sends requests to an Ollama-style endpoint on **localhost:11434**; LM Studio compatibility is not fully wired end to end.
+
+The interface exposes Gemini and OpenAI provider settings, **but cloud-provider selection is not yet a complete cloud reasoning integration**. The built-in engine is rule-based, not a general-purpose LLM.
+
+### 🛠️ Eight-Section Control Center
+
+| Section | Purpose |
+| --- | --- |
+| **Home** | Companion overview and quick actions |
+| **Character Studio** | Select, customize, and preview characters |
+| **Automation** | Explore supported tools and test actions |
+| **AI Configuration** | Choose built-in or experimental model options |
+| **Voice Settings** | Configure microphone and spoken output |
+| **History** | Review conversations and automation activity |
+| **Settings** | Personalize desktop behavior and preferences |
+| **Help & Docs** | Explore setup guidance and commands |
+
+## 💬 Example Commands
+
+Try supported requests such as:
+
+> “Open YouTube.”
+
+> “Search Google for Python tutorials.”
+
+> “Open Calculator.”
+
+> “Open my Downloads folder.”
+
+> “Set the volume to 60%.”
+
+> “Take a screenshot.”
+
+> “Play a video from CarryMinati on YouTube.”
+
+These examples illustrate the **implemented command patterns**. They do not imply Companio can control every Windows app or understand arbitrary natural-language instructions.
+
+## 🧰 Technology Stack
+
+| Layer | Technologies | Purpose |
+| --- | --- | --- |
+| **Desktop shell** | Electron | Overlay, system tray, shortcuts, native IPC |
+| **Interface** | React 19, TypeScript, Vite | Character UI and control center |
+| **Styling and animation** | Tailwind CSS, Framer Motion, CSS/SVG | Companion visuals and transitions |
+| **Browser automation** | Playwright Core, Microsoft Edge | Supported web actions |
+| **Windows integration** | Node.js, PowerShell, Windows APIs | Applications, audio, and screenshots |
+| **Voice** | Web Speech APIs | Speech recognition and synthesis |
+| **Local data** | localStorage, sql.js | Settings, history, and in-memory SQL structures |
+| **Alternative shell experiment** | Tauri 2 / Rust source | Optional prototype, not the main documented runtime |
+
+## 🏗️ Architecture
+
+```text
+                     User
+                      │
+            Voice or text input
+                      │
+                      ▼
+          React companion overlay
+                      │
+                      ▼
+          Rule-based task planner ───► Optional local LLM conversation
+                      │
+                      ▼
+             Desktop bridge
+                      │
+                      ▼
+             Electron IPC
+               ┌──────┼────────┐
+               ▼      ▼        ▼
+            Browser  Windows   System
+           Playwright  apps     audio
+               │      │        │
+               └──────┼────────┘
+                      ▼
+             Result / feedback
+                      │
+                      ▼
+          History and preferences
+              (localStorage)
 ```
-React 19 + TypeScript + Vite + Tailwind CSS (UI Layer)
-       │
-       ▼
-Desktop Shell Bridge (Electron ARM64)
-       │
-       ├── Browser Controller (Playwright-core + Microsoft Edge ARM64)
-       ├── Windows CoreAudio Controller (IAudioEndpointVolume COM interface)
-       ├── Windows Application & Process Controller (Native Win32 & PowerShell)
-       ├── Agent Execution Engine (Modular Planner, Verifier, Guardrails)
-       └── SQLite Database (Local settings, history, and automation logs)
-```
 
-- **Target OS**: Windows 11 on ARM64 (Snapdragon X Elite) and x64.
-- **Zero Heavyweight Local Weights**: Lightweight, low-memory footprint, efficient idle CPU usage.
+**Important distinction:** In a regular browser preview, the desktop bridge cannot access native Electron functionality and can return simulated success results. For meaningful automation testing, run the **Electron desktop application** on Windows.
 
----
-
-## 3. Quick Start
+## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js v18+ (tested on Node.js v24 ARM64)
-- Windows 11
 
-### Installation & Launch
-```bash
-# Clone or navigate to the directory
+- **Windows 11** (Electron is the primary supported path)
+- Recent supported **Node.js LTS** and npm
+- **Microsoft Edge** for the preferred Playwright browser path
+- Git for cloning the repository
+- A microphone if you want voice input
+
+The project targets Windows x64 and Windows on ARM64, including Snapdragon-based laptops. Device-specific compatibility and performance have not been fully certified.
+
+### 1. Clone the Repository
+
+```powershell
 git clone https://github.com/Syed-Nazeer-07/companio.git
 cd companio
+```
 
-# Install dependencies
+### 2. Install Dependencies
+
+```powershell
 npm install
+```
 
-# Build production bundle
+### 3. Build and Launch the Desktop App
+
+```powershell
 npm run build
-
-# Launch the desktop companion overlay and system tray
 npm start
 ```
 
-### Running Automated Acceptance Tests
-Verify all 13 native automation capabilities end-to-end:
-```bash
+The production frontend is generated in `dist/`, and Electron runs the transparent overlay and tray integration. On first launch, use the control center to select your character and configure preferences.
+
+### 4. Development Mode
+
+The Vite interface can be previewed with:
+
+```powershell
+npm run dev
+```
+
+For desktop development, start Vite in one terminal and Electron in another:
+
+```powershell
+npm start
+```
+
+Alternatively, `npm run dev:all` starts both processes. **Web-only preview is not equivalent to native desktop automation.**
+
+### 5. Optional Local LLM
+
+Install and start [Ollama](https://ollama.com/), download a compatible model, and choose **Local LLM** in the AI settings. For example:
+
+```powershell
+ollama run llama3.2
+```
+
+The app currently sends local conversational requests to `http://localhost:11434/v1/chat/completions`. No API key is necessary for the built-in command engine. Local-model use is optional and may require substantial RAM or processing power.
+
+## 📁 Project Structure
+
+```text
+companio/
+├── electron/
+│   ├── main.cjs                    # Desktop windows, tray, shortcuts and IPC
+│   ├── preload.cjs                 # Scoped renderer-to-desktop bridge
+│   └── automation/                 # Browser, Windows app and audio handlers
+├── src/
+│   ├── components/
+│   │   ├── characters/             # Animated companion visuals
+│   │   ├── dashboard/              # Control center sections
+│   │   ├── onboarding/             # Initial setup experience
+│   │   └── overlay/                # Floating character and input UI
+│   ├── services/                   # Planner, bridge, speech and local data
+│   ├── types/
+│   └── App.tsx
+├── src-tauri/                      # Experimental alternative desktop shell
+├── test/
+│   └── test-automation.cjs         # Native automation scenarios
+├── package.json
+└── README.md
+```
+
+## 🔒 Privacy, Permissions & Safety
+
+Companio works with desktop applications, so **review commands before relying on them**.
+
+- **No paid API key is needed** to use the built-in command parser.
+- Settings, recent conversations, and automation logs are currently stored in the local web storage for the app. Although `sql.js` tables are initialized, **the SQL database is not currently exported to a durable SQLite file**.
+- AI provider API key fields are exposed by the interface. **Do not treat their current local settings storage as a secure credential vault.**
+- Browser automation may open websites and interact with content in a separate browser context.
+- Desktop execution and permissions are controlled by the local application; this is **not a hardened security sandbox**.
+- The Electron runtime includes permissive media permission handling. Review it before distributing the software to others.
+
+Do not submit sensitive credentials, confidential files, or irreversible requests unless you understand how the relevant tool behaves.
+
+## 🧪 Testing & Verification
+
+Build the frontend:
+
+```powershell
+npm run build
+```
+
+Run the included native automation scenarios:
+
+```powershell
 npm run test:tools
 ```
 
+**Before running the automation suite:** it can open Microsoft Edge, YouTube, Calculator, File Explorer, and other apps; change/mute your system volume; and create a screenshot. Run it interactively on a Windows test machine.
+
+The test suite contains checks for several native automation paths; **its presence is not proof that all functions passed on every device**. Browser DOM changes, operating system settings, dependencies, and microphone support may affect behavior. The source repository does not currently establish an independently verified public release.
+
+## ⚠️ Current Limitations
+
+- The built-in command engine recognizes predefined patterns rather than arbitrary open-ended computer tasks.
+- Cloud AI provider options appear in the interface, but full cloud-model response integration remains unfinished.
+- Local model conversations use a fixed Ollama-compatible endpoint, despite broader model options in settings.
+- Browser preview includes simulated desktop actions and should not be used to verify native features.
+- Voice availability depends on the system and Web Speech support; continuous hotword detection is not implemented.
+- YouTube interactions rely on changing site selectors and do not reliably identify a creator's newest published upload.
+- Local history uses browser storage with finite capacity and is not yet a durable, portable database.
+- No signed Windows installer or verified automatic-update workflow is provided.
+
+## 🗺️ Roadmap
+
+- [ ] Strengthen tool-result verification, error reporting, and permission controls
+- [ ] Expand natural-language command coverage without false success messages
+- [ ] Finish Ollama / LM Studio configuration and optional cloud-provider integrations
+- [ ] Persist the local database reliably, with export and import
+- [ ] Improve speech recognition, wake-word handling, and expression synchronization
+- [ ] Harden Windows application integrations and browser automation
+- [ ] Package and test Windows x64 / ARM64 installers
+- [ ] Add repeatable CI tests, accessibility checks, and broader device validation
+
+## 💡 Design Principles
+
+**Simple on the surface. Capable underneath.** The character should be delightful without distracting from the task.
+
+**Local-first where possible.** Basic command execution should not require recurring API payments.
+
+**Visible execution.** A useful assistant should explain what it attempted and be transparent about failures and uncertainty.
+
+**Personal by design.** Characters, voices, appearance, and desktop behavior should be customizable.
+
+## 👨‍💻 Author
+
+**Syed Nazeer S**
+
+- GitHub: [@Syed-Nazeer-07](https://github.com/Syed-Nazeer-07)
+- Repository: [Companio](https://github.com/Syed-Nazeer-07/companio)
+
 ---
 
-## 4. Acceptance Test Results
-All 13 acceptance scenarios are demonstrably functional and verified:
-1. [✓] ARM64 platform compatibility verified on Snapdragon X Elite.
-2. [✓] Desktop overlay character selection with 6 original cute characters.
-3. [✓] Global shortcut activation (`Ctrl+Shift+Space`).
-4. [✓] Typed command input & wake mode.
-5. [✓] Speech recognition & text-to-speech with lip-sync.
-6. [✓] Browser launch & YouTube homepage verification.
-7. [✓] YouTube search & play for creator's newest video.
-8. [✓] Windows apps: Calculator launch & process termination.
-9. [✓] File Explorer folder navigation.
-10. [✓] Windows CoreAudio master volume adjustment (60%) & mute.
-11. [✓] Task cancellation support during execution.
-12. [✓] Persistence of character, position, and preferences in local SQLite database.
-13. [✓] Honest failure reporting: Unexecutable actions report error instead of false success.
+<div align="center">
+
+**✨ A little personality for your desktop.**
+
+*Built with curiosity, code, and a love for making everyday computing more intuitive.*
+
+</div>
