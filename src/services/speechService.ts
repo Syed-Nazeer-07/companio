@@ -33,6 +33,9 @@ export class SpeechService {
   private mouthAnimInterval: any = null;
   private micStream: MediaStream | null = null;
   private micInterval: any = null;
+  private micAudioCtx: AudioContext | null = null;
+  private listenToken = 0;
+  private activeSpeechFinish: (() => void) | null = null;
 
   constructor() {
     this.initRecognition();
@@ -48,127 +51,124 @@ export class SpeechService {
     }
   }
 
-  // Push-to-Talk / Voice Start
+  // One listening session at a time, even when a recognizer returns late.
+  // Native Windows speech is explicitly one-shot and does not provide a
+  // continuous offline wake-word detector.
   async startListening(
     onInterim: (text: string) => void,
     onFinal: (text: string) => void,
     onError: (err: string) => void,
-    onAudioLevel?: (level: number) => void
-  ) {
-    if (this.isListening) {
+    onAudioLevel?: (level: number) => void,
+    onStop?: () => void
+  ): Promise<void> {
+    this.stopListening();
+    const token = ++this.listenToken;
+    this.isListening = true;
+    const active = () => this.isListening && token === this.listenToken;
+    const complete = (kind: 'result' | 'silence' | 'error', detail?: string) => {
+      if (!active()) return;
       this.stopListening();
-    }
+      if (kind === 'result' && detail?.trim()) onFinal(detail.trim());
+      else if (kind === 'error') onError(detail || 'Speech recognition did not start.');
+      else onStop?.();
+    };
 
     this.playChime('activate');
-    this.isListening = true;
+    onInterim('Listening…');
 
-    // Live microphone volume reactivity via Web Audio API
+    if (isNativeDesktop()) {
+      try {
+        const res = await desktopBridge.startNativeSpeech(6);
+        if (!active()) return; // Discard transcripts from cancelled sessions.
+        if (res.success && res.text?.trim()) complete('result', res.text);
+        else if (res.silence || res.cancelled) complete('silence');
+        else complete('error', res.error || 'Windows speech recognition was unavailable. Use text input.');
+      } catch (error) {
+        complete('error', error instanceof Error ? error.message : 'Windows microphone recognition failed.');
+      }
+      return;
+    }
+
+    if (!this.recognition) {
+      complete('error', 'Voice recognition is unavailable in this browser. You can type your command.');
+      return;
+    }
+
+    // An audio meter is optional. Never allow a late mic permission response
+    // to keep recording after the user has stopped the speech session.
     if (onAudioLevel && navigator.mediaDevices?.getUserMedia) {
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+        if (!active()) {
+          stream.getTracks().forEach(track => track.stop());
+          return;
+        }
         this.micStream = stream;
         try {
-          const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-          const source = audioCtx.createMediaStreamSource(stream);
-          const analyser = audioCtx.createAnalyser();
+          const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+          if (!Ctx) return;
+          this.micAudioCtx = new Ctx();
+          const source = this.micAudioCtx!.createMediaStreamSource(stream);
+          const analyser = this.micAudioCtx!.createAnalyser();
           analyser.fftSize = 64;
           source.connect(analyser);
           const data = new Uint8Array(analyser.frequencyBinCount);
           this.micInterval = setInterval(() => {
+            if (!active()) return;
             analyser.getByteFrequencyData(data);
-            let sum = 0;
-            for (let i = 0; i < data.length; i++) sum += data[i];
-            const avg = sum / data.length;
-            const norm = Math.min(1, Math.max(0, (avg - 10) / 70));
-            onAudioLevel(norm);
-          }, 50);
-        } catch (e) {}
+            const average = data.reduce((total, value) => total + value, 0) / data.length;
+            onAudioLevel(Math.min(1, Math.max(0, (average - 10) / 70)));
+          }, 80);
+        } catch {
+          // Browser speech recognition remains usable without a meter.
+        }
       }).catch(() => {});
     }
 
-    // On native Windows desktop: Use Windows' built-in offline Speech Recognition Engine!
-    if (isNativeDesktop()) {
-      onInterim("Listening to your voice... Speak now!");
-      try {
-        const res = await desktopBridge.startNativeSpeech(6);
-        this.stopListening();
-        if (res.success && res.text) {
-          onFinal(res.text);
-          return;
-        } else if (res.silence) {
-          onInterim("");
-          return;
-        } else if (res.error) {
-          onError("Could not hear speech clearly. Click mic or type below!");
-          return;
-        }
-      } catch (e: any) {
-        this.stopListening();
-        onError("Click mic to speak or type your request below!");
-        return;
-      }
-    }
-
-    // Web Fallback: webkitSpeechRecognition
-    if (!this.recognition) {
-      this.stopListening();
-      onError('Speech recognition ready. Click mic or type below!');
-      return;
-    }
-
     this.recognition.onresult = (event: any) => {
+      if (!active()) return;
       let interim = '';
       let final = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          final += event.results[i][0].transcript;
-        } else {
-          interim += event.results[i][0].transcript;
-        }
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) final += result[0].transcript;
+        else interim += result[0].transcript;
       }
       if (interim) onInterim(interim);
-      if (final) {
-        this.stopListening();
-        onFinal(final.trim());
-      }
+      if (final.trim()) complete('result', final);
     };
-
     this.recognition.onerror = (event: any) => {
-      this.stopListening();
-      if (event.error === 'no-speech' || event.error === 'aborted') {
-        return;
-      }
-      onError('Listening paused. Click mic to speak or type your request.');
+      if (!active()) return;
+      if (['no-speech', 'aborted'].includes(event.error)) complete('silence');
+      else complete('error', 'Microphone recognition failed (' + (event.error || 'unknown') + ').');
     };
-
-    this.recognition.onend = () => {
-      this.stopListening();
-    };
-
+    this.recognition.onend = () => complete('silence');
     try {
       this.recognition.start();
-    } catch (e: any) {
-      this.stopListening();
-      onError('Click mic to speak or type your request below.');
+    } catch (error) {
+      complete('error', error instanceof Error ? error.message : 'Speech recognition could not start.');
     }
   }
 
-  stopListening() {
+  stopListening(): void {
+    this.listenToken++;
     this.isListening = false;
     if (isNativeDesktop()) {
-      desktopBridge.cancelNativeSpeech();
+      void desktopBridge.cancelNativeSpeech().catch(() => {});
     }
     if (this.micInterval) {
       clearInterval(this.micInterval);
       this.micInterval = null;
     }
     if (this.micStream) {
-      this.micStream.getTracks().forEach((t) => t.stop());
+      this.micStream.getTracks().forEach(track => track.stop());
       this.micStream = null;
     }
+    if (this.micAudioCtx) {
+      void this.micAudioCtx.close().catch(() => {});
+      this.micAudioCtx = null;
+    }
     if (this.recognition) {
-      try {
-        this.recognition.stop();
-      } catch (e) {}
+      try { this.recognition.stop(); } catch {}
     }
   }
 
@@ -187,15 +187,18 @@ export class SpeechService {
       onAudioLevel?: (level: number) => void;
     } = {}
   ) {
-    if (options.muted || !('speechSynthesis' in window)) {
-      if (options.onStart) options.onStart();
-      if (options.onEnd) setTimeout(options.onEnd, 1000);
+    this.stopSpeaking();
+    if (options.muted || !('speechSynthesis' in window) || !text.trim()) {
+      options.onAudioLevel?.(0);
+      options.onEnd?.();
       return;
     }
 
     const profile = options.characterId ? getCharacterVoiceProfile(options.characterId) : null;
-    const finalRate = options.rate ?? profile?.rate ?? 1.0;
-    const finalPitch = options.pitch ?? profile?.pitch ?? 1.1;
+    // User sliders are relative modifiers. The voice profiles remain effective
+    // even when preferences have their ordinary default values.
+    const finalRate = Math.min(10, Math.max(0.1, (profile?.rate ?? 1) * (options.rate ?? 1)));
+    const finalPitch = Math.min(2, Math.max(0, (profile?.pitch ?? 1) * (options.pitch ?? 1)));
 
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
@@ -220,9 +223,17 @@ export class SpeechService {
       if (preferred) utterance.voice = preferred;
     }
 
-    if (options.pitch === undefined) {
-      utterance.pitch = 1.08;
-    }
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      if (this.activeSpeechFinish === finish) this.activeSpeechFinish = null;
+      clearInterval(this.mouthAnimInterval);
+      this.mouthAnimInterval = null;
+      options.onAudioLevel?.(0);
+      options.onEnd?.();
+    };
+    this.activeSpeechFinish = finish;
 
     utterance.onstart = () => {
       if (options.onStart) options.onStart();
@@ -236,26 +247,23 @@ export class SpeechService {
       }
     };
 
-    utterance.onend = () => {
-      clearInterval(this.mouthAnimInterval);
-      if (options.onAudioLevel) options.onAudioLevel(0);
-      if (options.onEnd) options.onEnd();
-    };
+    utterance.onend = finish;
+    utterance.onerror = finish;
 
-    utterance.onerror = () => {
-      clearInterval(this.mouthAnimInterval);
-      if (options.onAudioLevel) options.onAudioLevel(0);
-      if (options.onEnd) options.onEnd();
-    };
-
-    window.speechSynthesis.speak(utterance);
+    try {
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      finish();
+    }
   }
 
   stopSpeaking() {
+    if (this.activeSpeechFinish) this.activeSpeechFinish();
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
     clearInterval(this.mouthAnimInterval);
+    this.mouthAnimInterval = null;
   }
 
   getAvailableVoices(): SpeechSynthesisVoice[] {
