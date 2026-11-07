@@ -144,7 +144,7 @@ function offlineClause(raw) {
     .replace(/^please\s+/i, '')
     .replace(/^(?:can|could|would)\s+you\s+/i, '')
     .replace(/^please\s+/i, '')
-    .replace(/[.!]$/, '').trim();
+    .replace(/[.!?]$/, '').trim();
   let m;
   if (/^(?:open|launch|start)\s+(?:(?:the|windows)\s+)?calculator$/i.test(text))
     return { tool: 'win.calculator.launch', params: {} };
