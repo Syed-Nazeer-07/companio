@@ -219,7 +219,12 @@ export const desktopBridge = {
       : { success: false, error: 'Local inference requires the Companio desktop app.' };
   },
 
-  async planLocalActions(options: { endpoint?: string; model: string; query: string }) {
+  async planLocalActions(options: { endpoint?: string; model: string; query: string }): Promise<{
+    success: boolean;
+    steps?: Array<{ tool: string; params: Record<string, any>; description: string }>;
+    requiresConfirmation?: boolean;
+    error?: string;
+  }> {
     const api = getDesktopAPI();
     return api?.planLocalActions
       ? api.planLocalActions(options)
