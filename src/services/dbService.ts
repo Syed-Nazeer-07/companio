@@ -171,6 +171,75 @@ class DbService {
     } catch (e) {}
   }
 
+  // Apply an Electron-validated history backup as a complete replacement.
+  // Keep existing values and roll back every write if the storage quota or
+  // browser permissions prevent any section from being saved.
+  restoreHistory(backup: {
+    conversations: ChatMessage[];
+    automationLogs: AutomationLogRecord[];
+    notes: string[];
+  }): { success: boolean; error?: string } {
+    if (!backup || !Array.isArray(backup.conversations) ||
+        !Array.isArray(backup.automationLogs) || !Array.isArray(backup.notes) ||
+        backup.conversations.length > 100 || backup.automationLogs.length > 150 || backup.notes.length > 200) {
+      return { success: false, error: 'History backup was not validated.' };
+    }
+    const keys = ['companio_chat_history', 'companio_automation_logs', 'companio_notes'];
+    const payloads = [
+      JSON.stringify(backup.conversations),
+      JSON.stringify(backup.automationLogs),
+      JSON.stringify(backup.notes)
+    ];
+    const previous: (string | null)[] = [];
+    try {
+      for (const key of keys) previous.push(localStorage.getItem(key));
+    } catch {
+      return { success: false, error: 'Cannot read local storage to prepare a safe restore.' };
+    }
+    try {
+      keys.forEach((key, index) => localStorage.setItem(key, payloads[index]));
+    } catch {
+      let rollbackFailed = false;
+      keys.forEach((key, index) => {
+        try {
+          if (previous[index] === null) localStorage.removeItem(key);
+          else localStorage.setItem(key, previous[index] as string);
+        } catch {
+          rollbackFailed = true;
+        }
+      });
+      return {
+        success: false,
+        error: rollbackFailed
+          ? 'Restore failed and existing history could not be fully recovered. Check local storage before retrying.'
+          : 'Restore failed. Previous history has been preserved.'
+      };
+    }
+
+    // SQL.js is currently an in-memory cache. Local storage is authoritative.
+    // Rebuilding this cache is best-effort and never overrides a valid restore.
+    if (this.db) {
+      try {
+        this.db.run('DELETE FROM conversation_history; DELETE FROM automation_logs;');
+        for (const msg of backup.conversations) {
+          this.db.run(
+            'INSERT INTO conversation_history (id, sender, content, timestamp, status) VALUES (?, ?, ?, ?, ?)',
+            [msg.id, msg.sender, msg.content, msg.timestamp, msg.status || 'info']
+          );
+        }
+        for (const log of backup.automationLogs) {
+          this.db.run(
+            'INSERT INTO automation_logs (id, timestamp, tool, params, result, verified, durationMs) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [log.id, log.timestamp, log.tool, log.params, log.result, log.verified ? 1 : 0, log.durationMs]
+          );
+        }
+      } catch (error) {
+        console.warn('[Companio] In-memory SQL history cache could not be refreshed:', error);
+      }
+    }
+    return { success: true };
+  }
+
   // Quick Notes persistence
   getNotes(): string[] {
     try {
