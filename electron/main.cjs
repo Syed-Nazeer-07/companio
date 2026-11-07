@@ -488,6 +488,27 @@ secureHandle('local-ai-plan', async (_, options) => localActionPlanner.proposeAc
 secureHandle('offline-sequence', async (_, options) => localActionPlanner.planOfflineSequence(options));
 secureHandle('history-validate-import', async (_, content) => historyBackupController.validateHistoryBackup(content));
 secureHandle('history-store-load', async () => nativeHistoryStore.load());
+secureHandle('desktop-diagnostics', async () => {
+  // Read-only diagnostics: no microphone capture, no filesystem paths, no keys.
+  const history = nativeHistoryStore.load();
+  const audio = await volumeController.getVolume();
+  return {
+    success: true,
+    platform: process.platform,
+    architecture: process.arch,
+    appVersion: app.getVersion(),
+    shortcut: currentShortcut,
+    shortcutRegistered: globalShortcut.isRegistered(currentShortcut),
+    history: {
+      available: history.success && history.exists === true,
+      error: history.success ? (history.exists ? undefined : 'No history snapshot exists yet.') : history.error
+    },
+    audio: {
+      available: audio.success === true && audio.verified === true,
+      error: audio.success && audio.verified ? undefined : (audio.error || 'System audio could not be read.')
+    }
+  };
+});
 secureHandle('history-store-mutate', async (_, operation) => nativeHistoryStore.mutate(operation));
 
 // Model Downloader IPC handlers

@@ -52,6 +52,17 @@ interface CompanioDesktopAPI {
     record?: unknown;
     backup?: unknown;
   }) => Promise<{success: boolean; error?: string}>;
+  getDesktopDiagnostics?: () => Promise<{
+    success: boolean;
+    platform?: string;
+    architecture?: string;
+    appVersion?: string;
+    shortcut?: string;
+    shortcutRegistered?: boolean;
+    history?: { available: boolean; error?: string };
+    audio?: { available: boolean; error?: string };
+    error?: string;
+  }>;
   getModelsStatus?: () => Promise<any[]>;
   downloadModel?: (modelId: string) => Promise<any>;
   cancelModelDownload?: () => Promise<any>;
@@ -311,6 +322,23 @@ export const desktopBridge = {
     return api?.mutateHistoryStore
       ? api.mutateHistoryStore(operation)
       : { success: false, error: 'Native disk history requires the installed desktop app.' };
+  },
+
+  async getDesktopDiagnostics(): Promise<{
+    success: boolean;
+    platform?: string;
+    architecture?: string;
+    appVersion?: string;
+    shortcut?: string;
+    shortcutRegistered?: boolean;
+    history?: { available: boolean; error?: string };
+    audio?: { available: boolean; error?: string };
+    error?: string;
+  }> {
+    const api = getDesktopAPI();
+    return api?.getDesktopDiagnostics
+      ? api.getDesktopDiagnostics()
+      : { success: false, error: 'Device diagnostics require the installed desktop app.' };
   },
 
   async getModelsStatus(): Promise<any[]> {
