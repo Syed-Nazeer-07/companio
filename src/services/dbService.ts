@@ -1,6 +1,7 @@
 import initSqlJs, { Database } from 'sql.js';
 import sqliteWasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
 import { AppSettings, ChatMessage } from '../types';
+import { desktopBridge, isNativeDesktop } from './desktopBridge';
 
 export interface AutomationLogRecord {
   id: string;
@@ -15,6 +16,80 @@ export interface AutomationLogRecord {
 class DbService {
   private db: Database | null = null;
   private initialized: boolean = false;
+  private pendingNativeWrite: Promise<void> = Promise.resolve();
+  private nativeHistoryError: string | null = null;
+
+  getHistoryPersistenceError(): string | null {
+    return this.nativeHistoryError;
+  }
+
+  private reportNativeWriteError(message: string): void {
+    this.nativeHistoryError = message;
+    console.warn('[Companio] Native history storage:', message);
+  }
+
+  private enqueueNativeChange(operation: {
+    kind: 'add-message' | 'add-log' | 'add-note' | 'clear-messages' | 'clear-logs' | 'clear-notes';
+    record?: unknown;
+  }): void {
+    if (!isNativeDesktop()) return;
+    this.pendingNativeWrite = this.pendingNativeWrite.then(async () => {
+      const result = await desktopBridge.mutateHistoryStore(operation);
+      if (!result.success) {
+        this.reportNativeWriteError(result.error || 'Cannot save history to disk.');
+      } else {
+        this.nativeHistoryError = null;
+      }
+    }).catch((error) => {
+      this.reportNativeWriteError(error instanceof Error ? error.message : 'Native history save failed.');
+    });
+  }
+
+  private async hydrateNativeHistory(): Promise<void> {
+    if (!isNativeDesktop()) return;
+    try {
+      let result = await desktopBridge.loadHistoryStore();
+      if (!result.success) {
+        this.reportNativeWriteError(result.error || 'Cannot load saved native history.');
+        return;
+      }
+      if (!result.exists) {
+        // Migrate pre-rc.7 browser history only if the on-disk file is absent.
+        // The native seed operation prevents concurrent windows overwriting
+        // each other's first successful migration.
+        const seed = await desktopBridge.mutateHistoryStore({
+          kind: 'seed',
+          backup: {
+            conversations: this.getMessages().slice(-100),
+            automationLogs: this.getLogs().slice(0, 150),
+            notes: this.getNotes().slice(-200)
+          }
+        });
+        if (!seed.success) {
+          this.reportNativeWriteError(seed.error || 'Existing history could not be migrated to disk.');
+          return;
+        }
+        result = await desktopBridge.loadHistoryStore();
+      }
+      if (!result.success || !result.backup) {
+        this.reportNativeWriteError(result.error || 'Cannot read native history snapshot.');
+        return;
+      }
+      // Only trusted, schema-validated data from the main process reaches
+      // localStorage. It remains the synchronous cache for existing views.
+      const keys = ['companio_chat_history', 'companio_automation_logs', 'companio_notes'];
+      const values = [
+        JSON.stringify(result.backup.conversations),
+        JSON.stringify(result.backup.automationLogs),
+        JSON.stringify(result.backup.notes)
+      ];
+      keys.forEach((key, index) => localStorage.setItem(key, values[index]));
+      this.nativeHistoryError = null;
+    } catch (error) {
+      this.reportNativeWriteError(error instanceof Error ? error.message : 'Native history hydration failed.');
+    }
+  }
+
 
   async init() {
     if (this.initialized) return;
@@ -47,6 +122,7 @@ class DbService {
       console.warn('[SQLite] Fallback to in-memory/localStorage:', e);
       this.initialized = true;
     }
+    await this.hydrateNativeHistory();
   }
 
   // Settings persistence
@@ -77,6 +153,7 @@ class DbService {
       // Keep last 100 messages
       if (history.length > 100) history.shift();
       localStorage.setItem('companio_chat_history', JSON.stringify(history));
+      this.enqueueNativeChange({ kind: 'add-message', record: msg });
 
       if (this.db) {
         this.db.run(
@@ -110,6 +187,7 @@ class DbService {
     try {
       localStorage.removeItem('companio_chat_history');
       localStorage.removeItem('aura_chat_history');
+      this.enqueueNativeChange({ kind: 'clear-messages' });
       if (this.db) this.db.run('DELETE FROM conversation_history');
     } catch (e) {}
   }
@@ -131,6 +209,7 @@ class DbService {
       logs.unshift(record);
       if (logs.length > 150) logs.pop();
       localStorage.setItem('companio_automation_logs', JSON.stringify(logs));
+      this.enqueueNativeChange({ kind: 'add-log', record });
 
       if (this.db) {
         this.db.run(
@@ -167,6 +246,7 @@ class DbService {
     try {
       localStorage.removeItem('companio_automation_logs');
       localStorage.removeItem('aura_automation_logs');
+      this.enqueueNativeChange({ kind: 'clear-logs' });
       if (this.db) this.db.run('DELETE FROM automation_logs');
     } catch (e) {}
   }
@@ -174,11 +254,11 @@ class DbService {
   // Apply an Electron-validated history backup as a complete replacement.
   // Keep existing values and roll back every write if the storage quota or
   // browser permissions prevent any section from being saved.
-  restoreHistory(backup: {
+  async restoreHistory(backup: {
     conversations: ChatMessage[];
     automationLogs: AutomationLogRecord[];
     notes: string[];
-  }): { success: boolean; error?: string } {
+  }): Promise<{ success: boolean; error?: string }> {
     if (!backup || !Array.isArray(backup.conversations) ||
         !Array.isArray(backup.automationLogs) || !Array.isArray(backup.notes) ||
         backup.conversations.length > 100 || backup.automationLogs.length > 150 || backup.notes.length > 200) {
@@ -214,6 +294,34 @@ class DbService {
           ? 'Restore failed and existing history could not be fully recovered. Check local storage before retrying.'
           : 'Restore failed. Previous history has been preserved.'
       };
+    }
+    if (isNativeDesktop()) {
+      // Serialize behind earlier message/log writes so restore never races
+      // a still-pending append from this window.
+      await this.pendingNativeWrite;
+      try {
+        const result = await desktopBridge.mutateHistoryStore({ kind: 'replace', backup });
+        if (!result.success) throw new Error(result.error || 'Native history file could not be saved.');
+        this.nativeHistoryError = null;
+      } catch (error) {
+        let rollbackFailed = false;
+        keys.forEach((key, index) => {
+          try {
+            if (previous[index] === null) localStorage.removeItem(key);
+            else localStorage.setItem(key, previous[index] as string);
+          } catch {
+            rollbackFailed = true;
+          }
+        });
+        const detail = error instanceof Error ? error.message : 'Native history save failed.';
+        this.reportNativeWriteError(detail);
+        return {
+          success: false,
+          error: rollbackFailed
+            ? 'Restore failed and local history rollback also failed: ' + detail
+            : 'Restore cancelled: the disk copy could not be saved. Existing history was preserved. ' + detail
+        };
+      }
     }
 
     // SQL.js is currently an in-memory cache. Local storage is authoritative.
@@ -255,8 +363,10 @@ class DbService {
   addNote(text: string): string[] {
     const notes = this.getNotes();
     notes.push(text);
+    if (notes.length > 200) notes.splice(0, notes.length - 200);
     try {
       localStorage.setItem('companio_notes', JSON.stringify(notes));
+      this.enqueueNativeChange({ kind: 'add-note', record: text });
     } catch (e) {}
     return notes;
   }
@@ -264,6 +374,7 @@ class DbService {
   clearNotes(): void {
     try {
       localStorage.removeItem('companio_notes');
+      this.enqueueNativeChange({ kind: 'clear-notes' });
     } catch (e) {}
   }
 }
