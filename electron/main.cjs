@@ -11,6 +11,7 @@ const volumeController = require('./automation/volumeController.cjs');
 const modelDownloader = require('./automation/modelDownloader.cjs');
 const nativeSpeech = require('./automation/nativeSpeech.cjs');
 const localAiController = require('./automation/localAiController.cjs');
+const localActionPlanner = require('./automation/localActionPlanner.cjs');
 
 let overlayWindow = null;
 let dashboardWindow = null;
@@ -480,6 +481,7 @@ secureHandle('set-overlay-preferences', async (_, options) => {
 // All requests are validated by localAiController and restricted to loopback.
 secureHandle('local-ai-models', async (_, options) => localAiController.listModels(options));
 secureHandle('local-ai-chat', async (_, options) => localAiController.chat(options));
+secureHandle('local-ai-plan', async (_, options) => localActionPlanner.proposeActions(options));
 
 // Model Downloader IPC handlers
 secureHandle('get-models-status', async () => {

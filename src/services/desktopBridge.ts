@@ -25,6 +25,7 @@ interface CompanioDesktopAPI {
   sendStateUpdate: (state: any) => void;
   listLocalAiModels?: (options: { endpoint?: string }) => Promise<{ success: boolean; models: string[]; error?: string }>;
   chatLocalAi?: (options: { endpoint?: string; model: string; prompt: string; systemPrompt?: string; temperature?: number }) => Promise<{ success: boolean; reply?: string; error?: string }>;
+  planLocalActions?: (options: { endpoint?: string; model: string; query: string }) => Promise<{ success: boolean; steps?: Array<{tool: string; params: Record<string, any>; description: string}>; requiresConfirmation?: boolean; error?: string }>;
   getModelsStatus?: () => Promise<any[]>;
   downloadModel?: (modelId: string) => Promise<any>;
   cancelModelDownload?: () => Promise<any>;
@@ -216,6 +217,13 @@ export const desktopBridge = {
     return api?.chatLocalAi
       ? api.chatLocalAi(options)
       : { success: false, error: 'Local inference requires the Companio desktop app.' };
+  },
+
+  async planLocalActions(options: { endpoint?: string; model: string; query: string }) {
+    const api = getDesktopAPI();
+    return api?.planLocalActions
+      ? api.planLocalActions(options)
+      : { success: false, steps: [], error: 'AI action planning requires the Companio desktop app.' };
   },
 
   async getModelsStatus(): Promise<any[]> {
