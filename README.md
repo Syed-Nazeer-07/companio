@@ -100,7 +100,7 @@ Companio has eight primary sections: **Home**, **Character Studio**, **Automatio
 | Mode | API key required? | Current behavior |
 | --- | --- | --- |
 | **Built-in Instant Engine** | **No** | Rule-based command recognition and supported automation tools |
-| **Local LLM (experimental)** | **No paid cloud key** | Optional conversational requests to an Ollama-compatible server running locally |
+| **Local LLM (experimental)** | **No paid cloud key** | Conversations through a locally running Ollama or LM Studio server, with an explicit connection check and error reporting |
 | **OpenAI / Gemini options** | Provider key would be needed | Settings UI exists; complete cloud-model response integration is **not implemented** |
 
 **Built-in does not mean a general-purpose LLM.** Basic local commands do not need an AI subscription, although web searches and browser interactions still require connectivity.
@@ -111,7 +111,14 @@ For optional local conversations, run [Ollama](https://ollama.com/) and install 
 ollama run llama3.2
 ```
 
-Then select the local provider under **AI Configuration**. The current conversational implementation targets `http://localhost:11434/v1/chat/completions`; LM Studio detection is present in the settings, but conversations are not fully wired to its configurable endpoint.
+Then open **AI Configuration → Local Offline LLM**, enter the local server URL and model name, select **Check Connection**, and try the live prompt. Companio uses the same connection for the test and for ordinary assistant conversations:
+
+- **Ollama:** `http://127.0.0.1:11434/v1` (default).
+- **LM Studio:** `http://127.0.0.1:1234/v1` (start its local server and load a model first).
+
+The local requests run through validated Electron IPC, not browser CORS, and only HTTP loopback endpoints are allowed. A failed connection produces a visible error rather than a fake reply. **This adds conversational reasoning, not free-form Windows computer control:** desktop actions still use the predefined, validated command planner. The local server and model must be installed and running independently. When selected, local inference does not require a cloud API key.
+
+The SQLite WebAssembly runtime is now bundled with the desktop assets rather than fetched from a CDN. Conversation history remains stored in local storage; SQLite is still an in-memory prototype.
 
 The app also includes an **in-app GGUF model downloader**. Downloaded files are **not activated** without a separate inference runtime. New downloads check expected byte counts and write a completion marker; models downloaded with older builds may need downloading again to be recognized. Cryptographic signature validation is not yet available.
 
@@ -258,7 +265,7 @@ companio/
 Companio runs locally for its built-in command processing, but it can interact with your desktop, browser, microphone, and local files. Treat automation as **powerful software with real permissions**.
 
 - **No mandatory paid AI API key:** the predefined command planner does not require one.
-- **Local history:** preferences, conversation messages, notes, and tool logs are stored using browser/Electron local storage. The current `sql.js` database is initialized in memory, **not saved as a durable SQLite file**. The History page can export conversations, automation logs, and notes to JSON without including the API-key settings; import is not yet supported. Exported logs may still contain personal information.
+- **Local history:** preferences, conversation messages, notes, and tool logs are stored using browser/Electron local storage. The bundled `sql.js` database is initialized in memory, **not saved as a durable SQLite file**. The History page can export conversations, automation logs, and notes to JSON without including the API-key settings; import is not yet supported. Exported logs may still contain personal information.
 - **API key caution:** provider-key fields currently use local application settings. They are **not a secure secrets vault**; avoid entering sensitive production keys.
 - **Permissions:** IPC is restricted to trusted app windows; microphone requests are audio-only, while camera/USB/accessibility permissions are not auto-granted. Real-device permission testing is still required.
 - **Tool effects:** commands can change system settings, open websites, capture screenshots, or act on existing windows. Run them only on a device you control.
@@ -298,7 +305,7 @@ The `main` branch now includes trusted-window IPC guards, validated tool inputs,
 
 Shortcut changes are applied to the native global hotkey, always-on-top and edge snapping are wired to Electron, and resetting preferences keeps saved notes and history. Unsupported fullscreen-game auto-hide is labeled accordingly.
 
-The prior state is preserved in [`rollback/pre-phase1-2026-11-07`](https://github.com/Syed-Nazeer-07/companio/tree/rollback/pre-phase1-2026-11-07).
+The prior state is preserved in [`rollback/pre-phase1-2026-11-07`](https://github.com/Syed-Nazeer-07/companio/tree/rollback/pre-phase1-2026-11-07). The pre-local-AI baseline is additionally saved as [`rollback/pre-local-ai-2026-11-08`](https://github.com/Syed-Nazeer-07/companio/tree/rollback/pre-local-ai-2026-11-08).
 
 **Not yet verified:** real-device microphone permission behavior, YouTube site changes, interactive Windows automation, model downloads, and ARM64 installer runtime compatibility.
 
@@ -308,7 +315,7 @@ The prior state is preserved in [`rollback/pre-phase1-2026-11-07`](https://githu
 - YouTube and other browser workflows depend on external page structures and may break.
 - Browser-only preview cannot verify Windows tools or YouTube playback and no longer claims simulated success.
 - Voice input and speech output depend on runtime/device support; there is no true always-listening hotword service.
-- Local-model endpoint configuration is incomplete; downloaded GGUF files are not integrated with a bundled inference engine.
+- Ollama/LM Studio connection and conversation are integrated, but a separate local server and loaded model are required. Downloaded GGUF files are not integrated with a bundled inference engine.
 - OpenAI/Gemini settings exist, but end-to-end cloud reasoning is unfinished.
 - History can be exported as local JSON, but import/restore and a durable SQLite database are not yet supported.
 - Installer targets and a release workflow exist, but code signing, auto-updates, and device-wide acceptance testing are outstanding.
@@ -317,7 +324,8 @@ The prior state is preserved in [`rollback/pre-phase1-2026-11-07`](https://githu
 
 - [ ] Verify actual tool outcomes and improve failure feedback
 - [ ] Expand robust, natural-language command handling and multi-step execution
-- [ ] Complete local LLM configuration and integrate downloaded models with inference
+- [x] Integrate validated local chat/model discovery for Ollama and LM Studio
+- [ ] Bundle an inference runtime and activate downloaded GGUF files safely
 - [ ] Finish optional cloud-provider integrations with secure key handling
 - [ ] Strengthen browser automation, permissions, and sensitive-action safeguards
 - [ ] Add durable SQLite storage and JSON import/restore (history export is available)
