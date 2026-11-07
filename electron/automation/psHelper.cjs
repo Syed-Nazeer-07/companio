@@ -1,17 +1,17 @@
 const { spawn } = require('child_process');
 
-function runPowerShell(script, timeoutMs = 30000) {
+function runPowerShell(script, timeoutMs = 30000, spawnCommand = spawn) {
   return new Promise((resolve, reject) => {
     // UTF-16LE encoding for PowerShell -EncodedCommand
     const buffer = Buffer.from(script, 'utf16le');
     const base64Script = buffer.toString('base64');
 
-    const ps = spawn('powershell.exe', [
+    const ps = spawnCommand('powershell.exe', [
       '-NoProfile',
       '-NonInteractive',
       '-ExecutionPolicy', 'Bypass',
       '-EncodedCommand', base64Script
-    ]);
+    ], { windowsHide: true });
 
     let stdout = '';
     let stderr = '';
