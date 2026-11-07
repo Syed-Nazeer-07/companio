@@ -124,7 +124,7 @@ The SQLite WebAssembly runtime is now bundled with the desktop assets rather tha
 
 The app also includes an **in-app GGUF model downloader**. Downloaded files are **not activated** without a separate inference runtime. New downloads check expected byte counts and write a completion marker; models downloaded with older builds may need downloading again to be recognized. Cryptographic signature validation is not yet available.
 
-### 🧪 Local AI preview status (v1.1.0-rc.7)
+### Local AI integration status
 
 This preview adds a **single validated local AI path** for Ollama and LM Studio, local server/model selection, a test prompt, explicit connection failures, and conversation/error history. The app bundles SQLite's WebAssembly asset instead of fetching it from a CDN. The incomplete cloud-provider option is disabled rather than collecting new API keys.
 
@@ -139,7 +139,7 @@ This preview adds a **single validated local AI path** for Ollama and LM Studio,
 | **Design** | Tailwind CSS, Framer Motion, SVG/CSS | Styling, character rendering, animations |
 | **Web tools** | Playwright Core, Microsoft Edge | Browser navigation and supported web actions |
 | **System tools** | Node.js, PowerShell, Windows APIs | Application launching, system controls, screenshots |
-| **Speech** | Web Speech APIs | Voice input and spoken output |
+| **Speech** | Windows System.Speech + Web Speech APIs | One-shot native STT, browser fallback in web preview, system text-to-speech |
 | **Storage** | Electron user-data JSON, localStorage, sql.js | Atomic native history file, browser cache, and experimental in-memory SQL |
 | **Alternative prototype** | Tauri / Rust source | Experimental shell, not the main release path |
 
@@ -308,11 +308,38 @@ Automated Windows CI covers TypeScript compilation, native-input and permission 
 - **Tested:** security and shortcut unit suites, TypeScript build, and packaged Windows x64 app smoke checks. Windows x64 and ARM64 packages build successfully in CI.
 - **Not tested:** real user desktop sessions, sustained voice input, arbitrary app control, actual browser/media playback, or code signing. Avoid entering production cloud API keys.
 
-### ✨ v1.1.0-rc.7: approval-first desktop workflows
+### Approval-first desktop workflows
 
 This candidate adds strict model-generated 1–3 action proposals, **offline multi-step phrases without an LLM**, trusted Electron validation, and confirmation with the exact command parameters before execution. A packaged smoke test verifies a benign plan and rejection of a destructive plan without triggering either action. Quick Controls no longer equate attempted actions with verified success, and the Control Center can restore a previously hidden overlay.
 
 **Preview caveat:** supported tool launchers still require verification on an interactive Windows device. An AI plan is not autonomous unrestricted PC control; a separate Ollama/LM Studio runtime is needed for model-guided planning.
+
+## 🎙️ Voice reliability, safer commands and local action approval
+
+Companio now handles speech and automation more conservatively:
+
+- **Windows voice:** one spoken request at a time, with bounded recognition duration, cancellation, hidden PowerShell process and explicit missing-microphone/engine errors. Cancelling or dismissing the overlay discards any late transcript. This still depends on the **installed Windows speech engine** and its available language support; it is **not** an always-on wake-word system.
+- **Browser preview:** speech input can use browser recognition, which may use the browser vendor's network service. Companio does not claim this mode is fully offline.
+- **Spoken replies:** selecting a companion changes the base voice profile; user settings fine-tune the pitch and speed. Muting and stopping speaking settle the UI instead of simulating a successful audio start.
+- **Command intent:** casual remarks and informational questions about apps no longer launch them just because their names are mentioned. Relative volume requests use measured changes instead of silently guessing a fixed number; unclear volume amounts fail safely.
+- **Review before actions:** local model proposals and supported multi-step commands display each validated tool and argument in a compact dialog. Run is a separate button; Escape, Close or Cancel execute **zero** actions.
+- **YouTube latest:** a newest-video request attempts to match the actual creator channel and select YouTube's Latest uploads tab. If identity/sort/playback cannot be verified, it reports a failure rather than playing an unrelated search result. Real YouTube DOM and account-specific behavior still need testing.
+- **Settings → Device diagnostics:** read-only reports for Windows architecture, shortcut registration, native history availability and system audio state. It never records audio or sends desktop commands.
+
+### Windows ARM64 acceptance checklist
+
+These are **manual tests required on a real Windows ARM64 machine**, not claims about CI:
+
+1. Install the latest unsigned ARM64 preview. Open **Settings → Device diagnostics**, verify `arm64`, the global shortcut and the history snapshot.
+2. Open **Voice Settings → Test Mic**, stop it, and confirm Windows no longer indicates recording. Test spoken replies; try the voice button and confirm silence/cancellation exits listening state.
+3. Say or type `Open Notepad`; confirm the intended app opens. Ask `What is Notepad?` and confirm it does **not** launch an app.
+4. Request `Open Notepad and set volume to 45%`; inspect the proposed tools, press **Cancel**, and confirm no action is executed. Repeat with **Run** only if you want those changes.
+5. Add notes and messages, restart Companio, and confirm history persists. Export history, restore it, and confirm settings are unaffected.
+6. Try `Play the latest video from CarryMinati`. If channel lookup or playback fails, report the actual error; do not interpret a first search hit as a newest upload.
+7. Configure a running Ollama or LM Studio model, select it in AI Settings, and test a conversational question plus a supported AI-planned action.
+8. Repeat the essential tests on Windows x64. Check startup time, crashes, memory usage and microphone behavior across several launches.
+
+**Production blockers:** an easy bundled local inference runtime, sustained ARM64 speech/browser reliability, signed installers, updates and actual unattended/crash-recovery testing are still pending. Passing CI is not a production readiness certification.
 
 ## 🧩 Phase 3: Bounded, approval-first workflows
 
@@ -327,13 +354,13 @@ Both paths support **at most three actions**, require an explicit user confirmat
 
 The Phase 3 baseline is protected by [`rollback/pre-phase3-2026-11-08`](https://github.com/Syed-Nazeer-07/companio/tree/rollback/pre-phase3-2026-11-08).
 
-### 🧪 v1.1.0-rc.7 — native verification preview
+### Windows action verification
 
 This Windows preview addresses false-success reporting in volume/mute controls, process launches, File Explorer folders, clipboard clear, screenshot PNG creation, network/system checks, and browser navigation. It also runs the PowerShell command helper without displaying a separate foreground console. New regression tests cover unavailable system services, unsupported actions, and wrong website destinations.
 
 **Known constraints:** a running process does not prove a window gained focus; HTTP navigation verification does not prove the requested content was displayed or interacted with; and some operating-system URI handlers remain unverified. The current media control and active-window minimize limitations are described below. Windows ARM64 builds are CI-packaged but not hardware acceptance tested.
 
-### 🧪 v1.1.0-rc.7 — Native history preview
+### Native history recovery
 
 This candidate introduces on-disk Windows history snapshots, one-time migration from older browser storage, schema-validated backup import, and rollback when restore cannot be completed. The bundled SQL.js database remains in-memory; the new persistent history format is **JSON, not SQLite**. Secure import and disk hydration are covered by unit tests and packaged Electron smoke checks.
 
@@ -395,11 +422,14 @@ The prior state is preserved in [`rollback/pre-phase1-2026-11-07`](https://githu
 - [x] Integrate validated local chat/model discovery for Ollama and LM Studio
 - [ ] Bundle an inference runtime and activate downloaded GGUF files safely
 - [ ] Finish optional cloud-provider integrations with secure key handling
-- [ ] Strengthen browser automation, permissions, and sensitive-action safeguards
+- [x] Add explicit multi-action approval UI and a command-versus-question safety guard
+- [ ] Expand browser automation coverage and validate YouTube latest-creator behavior on real sites
 - [x] Add native JSON history persistence, localStorage migration, and validated export/restore
 - [ ] Evaluate durable SQLite and optional encrypted history storage; test crash recovery on real devices
-- [ ] Improve speech recognition, activation, and character synchronization
-- [ ] Test Windows x64 and ARM64 installers; add code signing and update support
+- [x] Fix cancellable one-shot native speech, mic cleanup and animated TTS completion
+- [ ] Validate microphone recognition on real ARM64 hardware and improve voice activation
+- [x] Add packaged Electron smoke coverage and a read-only Device Diagnostics panel
+- [ ] Test Windows x64 and ARM64 installers on physical devices; add code signing and updates
 - [ ] Introduce CI quality gates, automated UI coverage, and accessibility checks
 
 ## 🎯 Design Philosophy
