@@ -11,6 +11,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { AppSettings } from '../../types';
+import { isNativeDesktop } from '../../services/desktopBridge';
 
 export type DashboardTab = 
   | 'home' 
@@ -99,10 +100,10 @@ export const DashboardLayout: React.FC<Props> = ({
           </button>
 
           <div className="px-2 pt-1 flex items-center justify-between text-[11px] text-slate-400">
-            <span>Windows 11 (x64 / ARM64)</span>
-            <span className="text-emerald-600 flex items-center gap-1 font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Active
+            <span>{isNativeDesktop() ? 'Windows desktop app' : 'Browser preview'}</span>
+            <span className={`flex items-center gap-1 font-medium ${isNativeDesktop() ? 'text-emerald-700' : 'text-slate-500'}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${isNativeDesktop() ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+              {isNativeDesktop() ? 'Connected' : 'Limited'}
             </span>
           </div>
         </div>
