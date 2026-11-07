@@ -228,13 +228,13 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
 
       // Never execute AI-suggested native actions automatically. The dialog
       // lists the real validated tool parameters, not model-written promises.
-      if (plan.intent === 'local_ai_actions') {
+      if (plan.intent === 'local_ai_actions' || plan.intent === 'builtin_sequence') {
         const preview = plan.steps.map((step, index) =>
           (index + 1) + '. ' + step.description +
           '\n   ' + step.tool + ' ' + JSON.stringify(step.params)
         ).join('\n\n');
         const approved = window.confirm(
-          'Companio suggests these actions. Nothing has run yet.\n\n' +
+          'Review these actions before execution. Nothing has run yet.\n\n' +
           preview + '\n\nRun these actions in order?'
         );
         if (!approved) {
