@@ -320,7 +320,7 @@ secureHandle('execute-tool', async (event, payload) => {
     case 'browser.youtube.open':
       return await browserController.openYouTube();
     case 'browser.youtube.search_and_play':
-      return await browserController.searchAndPlayYouTube(params.creator, params.topic);
+      return await browserController.searchAndPlayYouTube(params.creator, params.topic, params.latest === true);
     case 'browser.youtube.control':
       return await browserController.controlYouTube(params.action);
     case 'browser.open_url':

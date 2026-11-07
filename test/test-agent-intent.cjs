@@ -75,3 +75,12 @@ test('conjunctions inside a search term are not mistaken for multi-step commands
   await engine.planTask('Search Google for Tom and Jerry');
   assert.equal(offlineCalls,0);
 });
+
+test('a latest-video command requests creator-channel verification', async () => {
+  const latest=await engine.planTask('Play the latest video from Veritasium');
+  assert.equal(latest.steps[0].tool,'browser.youtube.search_and_play');
+  assert.equal(latest.steps[0].params.creator,'Veritasium');
+  assert.equal(latest.steps[0].params.latest,true);
+  const carry=await engine.planTask('Play CarryMinati new video');
+  assert.equal(carry.steps[0].params.latest,true);
+});

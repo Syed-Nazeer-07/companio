@@ -49,6 +49,7 @@ function validateToolRequest(payload) {
   if (toolName === 'browser.open_url') allowed.add('url');
   if (toolName === 'browser.open_tabs') allowed.add('urls');
   if (toolName === 'win.volume.mute') allowed.add('mute');
+  if (toolName === 'browser.youtube.search_and_play') allowed.add('latest');
   const params = {};
   try {
     for (const [key, value] of Object.entries(input)) {
@@ -63,6 +64,9 @@ function validateToolRequest(payload) {
       } else if (Object.hasOwn(choices[toolName] || {}, key)) {
         if (!choices[toolName][key].includes(value)) return error('Invalid action: ' + key);
         params[key] = value;
+      } else if (key === 'latest') {
+        if (typeof value !== 'boolean') return error('Latest must be true or false');
+        params.latest = value;
       } else if (key === 'mute') {
         if (typeof value !== 'boolean') return error('Mute must be true or false');
         params[key] = value;

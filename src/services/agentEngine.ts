@@ -138,13 +138,25 @@ export class AgentEngine {
     }
 
     // 2. YouTube specific commands
-    else if (q.includes('carryminati')) {
-      intent = 'browser.youtube.carryminati';
+    else if (/^(?:please\s+)?(?:play|watch|find|open)\s+(?:the\s+)?(?:latest|newest|new)\s+(?:youtube\s+)?video\s+(?:from|by|of)\s+.{2,100}$/i.test(query.trim())) {
+      const creator = query.trim().replace(/^(?:please\s+)?(?:play|watch|find|open)\s+(?:the\s+)?(?:latest|newest|new)\s+(?:youtube\s+)?video\s+(?:from|by|of)\s+/i, '').trim();
+      intent = 'browser.youtube.creator_latest';
       steps.push({
         id: 'step_1',
         tool: 'browser.youtube.search_and_play',
-        description: "Search for CarryMinati's channel and start the newest uploaded video",
-        params: { creator: 'CarryMinati' },
+        description: `Find the latest upload on ${creator}'s verified YouTube channel and play it`,
+        params: { creator, latest: true },
+        status: 'pending',
+        verification: 'Exact creator matched, newest channel video and playback checked'
+      });
+    } else if (q.includes('carryminati')) {
+      intent = 'browser.youtube.carryminati';
+      const newest = /\b(?:latest|newest|new video|most recent)\b/.test(q);
+      steps.push({
+        id: 'step_1',
+        tool: 'browser.youtube.search_and_play',
+        description: newest ? "Find CarryMinati's latest channel upload and play it" : 'Search and play a CarryMinati video',
+        params: { creator: 'CarryMinati', latest: newest },
         status: 'pending',
         verification: 'Video element playing and URL contains watch?v='
       });

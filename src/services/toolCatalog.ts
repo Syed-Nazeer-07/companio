@@ -28,11 +28,12 @@ export const TOOL_CATALOG: ToolSchema[] = [
     id: 'browser.youtube.search_and_play',
     name: 'YouTube Search & Play',
     category: 'Browser',
-    description: 'Finds a specific creator or topic on YouTube, locates the newest video/tutorial, and starts playback.',
+    description: 'Searches for a creator or topic and checks playback; latest mode verifies an exact creator-channel match before selecting an upload.',
     permissionsRequired: ['Browser Control', 'DOM Interaction'],
     parameters: [
       { name: 'creator', type: 'string', required: true, description: 'Creator or channel name (e.g. CarryMinati, Bro Code)' },
-      { name: 'topic', type: 'string', required: false, description: 'Specific video topic or tutorial name' }
+      { name: 'topic', type: 'string', required: false, description: 'Specific video topic or tutorial name' },
+      { name: 'latest', type: 'boolean', required: false, description: 'Use verified creator channel and latest uploads instead of search ranking' }
     ],
     samplePrompts: [
       "Search for CarryMinati's newest video and play it",

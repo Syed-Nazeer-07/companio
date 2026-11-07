@@ -24,3 +24,8 @@ test('hotkeys require safe chords', () => {
   assert.equal(validateShortcut('Space').success,false);
   assert.equal(validateShortcut('Ctrl+Alt+K+L').success,false);
 });
+
+test('latest YouTube option must be boolean', () => {
+  assert.equal(validateToolRequest({toolName:'browser.youtube.search_and_play',params:{creator:'Veritasium',latest:true}}).success,true);
+  assert.equal(validateToolRequest({toolName:'browser.youtube.search_and_play',params:{creator:'Veritasium',latest:'true'}}).success,false);
+});
