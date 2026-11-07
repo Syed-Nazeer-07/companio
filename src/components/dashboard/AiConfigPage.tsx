@@ -1,10 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppSettings, AiProvider } from '../../types';
-import { Cpu, Key, CheckCircle2, AlertCircle, Sparkles, RefreshCw, Zap, Server } from 'lucide-react';
+import { Cpu, Key, CheckCircle2, AlertCircle, Sparkles, RefreshCw, Zap, Server, Download, HardDrive, X, Check } from 'lucide-react';
+import { desktopBridge } from '../../services/desktopBridge';
 
 interface Props {
   settings: AppSettings;
   onUpdateSettings: (newSettings: Partial<AppSettings>) => void;
+}
+
+interface LocalModelStatus {
+  id: string;
+  name: string;
+  desc?: string;
+  sizeDisplay: string;
+  installed: boolean;
+  fileSize: number;
+  filePath?: string;
+  isDownloading?: boolean;
 }
 
 export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) => {
@@ -12,18 +24,102 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
   const [detectedLocalModels, setDetectedLocalModels] = useState<string[]>([]);
   const [testResult, setTestResult] = useState<{ success?: boolean; message?: string } | null>(null);
 
+  // 1-Click built-in model download state
+  const [modelsList, setModelsList] = useState<LocalModelStatus[]>([]);
+  const [activeDownloadId, setActiveDownloadId] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<{
+    percent: number;
+    speedMbps: string;
+    receivedBytes: number;
+    totalBytes: number;
+  } | null>(null);
+
+  useEffect(() => {
+    loadModelsList();
+
+    const unsub = desktopBridge.onModelDownloadProgress((progress) => {
+      if (progress.status === 'downloading') {
+        setActiveDownloadId(progress.modelId);
+        setDownloadProgress({
+          percent: progress.percent,
+          speedMbps: progress.speedMbps,
+          receivedBytes: progress.receivedBytes,
+          totalBytes: progress.totalBytes
+        });
+      } else if (progress.status === 'completed') {
+        setActiveDownloadId(null);
+        setDownloadProgress(null);
+        loadModelsList();
+      }
+    });
+
+    return () => {
+      unsub();
+    };
+  }, []);
+
+  const loadModelsList = async () => {
+    try {
+      const list = await desktopBridge.getModelsStatus();
+      if (Array.isArray(list)) {
+        setModelsList(list);
+      }
+    } catch (e) {}
+  };
+
+  const handleStartDownload = async (modelId: string) => {
+    setActiveDownloadId(modelId);
+    setDownloadProgress({ percent: 0, speedMbps: '0', receivedBytes: 0, totalBytes: 0 });
+
+    try {
+      const res = await desktopBridge.downloadModel(modelId);
+      if (res && res.success) {
+        setTestResult({
+          success: true,
+          message: `Model downloaded successfully! Activated ${modelId}.`
+        });
+        await loadModelsList();
+        onUpdateSettings({
+          ai: { ...settings.ai, provider: 'local', model: modelId }
+        });
+      } else if (res && res.error) {
+        setTestResult({
+          success: false,
+          message: `Download failed: ${res.error}`
+        });
+      }
+    } catch (err: any) {
+      setTestResult({
+        success: false,
+        message: `Download error: ${err.message}`
+      });
+    } finally {
+      setActiveDownloadId(null);
+      setDownloadProgress(null);
+    }
+  };
+
+  const handleCancelDownload = async () => {
+    try {
+      await desktopBridge.cancelModelDownload();
+      setActiveDownloadId(null);
+      setDownloadProgress(null);
+      await loadModelsList();
+    } catch (e) {}
+  };
+
   const providers: { id: AiProvider; name: string; description: string; badge: string }[] = [
     {
       id: 'mock',
       name: 'Built-in Instant Engine',
       description: 'Zero setup, 0ms latency, zero API limits. Works 100% offline and controls apps & browsers immediately.',
-      badge: 'Recommended'
+      badge: 'Fast & Instant'
     },
     {
       id: 'local',
-      name: 'Local LLM (Ollama / LM Studio)',
-      description: 'Run small local models (Llama 3.2, Qwen 2.5, Phi-3) on your Snapdragon X Elite PC without any API keys or internet.',
-      badge: 'Private & Local'
+      name: 'Local Offline LLM',
+      description: '1-click in-app model download or Ollama / LM Studio. Run smart Llama & SmolLM models 100% offline and private.',
+      badge: 'Private & Offline'
     },
     {
       id: 'gemini',
@@ -98,7 +194,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
     setTestingConnection(false);
     setTestResult({
       success: false,
-      message: 'Could not connect to Ollama (port 11434) or LM Studio (port 1234). Make sure Ollama or LM Studio is running on your PC, or use the Built-in Instant Engine.'
+      message: 'Could not connect to Ollama (port 11434) or LM Studio (port 1234). Use the 1-Click Built-in Downloader below to get a model directly!'
     });
   };
 
@@ -153,77 +249,163 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
 
       {/* Local LLM Setup Panel */}
       {settings.ai.provider === 'local' && (
-        <div className="acrylic-card rounded-2xl p-6 border border-sky-200 bg-sky-50/30 space-y-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Server className="w-4 h-4 text-sky-600" />
-                <span>Local LLM Setup (Ollama / LM Studio)</span>
-              </h3>
-              <p className="text-xs text-slate-600 mt-1">
-                Zero API keys, 100% private. Run small fast models like Llama 3.2 3B or Qwen 2.5 3B locally on your Snapdragon X Elite.
-              </p>
+        <div className="space-y-6">
+          {/* 1-Click In-App Model Downloader */}
+          <div className="acrylic-card rounded-2xl p-6 border border-sky-200 bg-sky-50/40 space-y-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Download className="w-4 h-4 text-sky-600" />
+                  <span>1-Click Built-in Offline Models (No Terminal or Ollama Needed)</span>
+                </h3>
+                <p className="text-xs text-slate-600 mt-1">
+                  Download lightweight AI models directly inside Companio. Runs 100% locally and privately on your Windows PC.
+                </p>
+              </div>
+              <button
+                onClick={loadModelsList}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold shadow-sm transition-all"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                <span>Refresh</span>
+              </button>
             </div>
-            <button
-              onClick={handleCheckLocalLLM}
-              disabled={testingConnection}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold shadow-md shadow-sky-500/20 transition-all disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${testingConnection ? 'animate-spin' : ''}`} />
-              <span>Detect Local Models</span>
-            </button>
-          </div>
 
-          <div className="p-3.5 rounded-xl bg-white border border-slate-200 text-xs text-slate-700 space-y-2">
-            <p className="font-bold text-slate-800">Recommended Lightweight Models (Fast & Low RAM):</p>
-            <div className="space-y-1.5 font-mono text-[11px]">
-              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200">
-                <span>ollama run llama3.2:1b</span>
-                <span className="text-emerald-600 font-bold font-sans text-[10px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">1.3 GB • Fastest</span>
-              </div>
-              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200">
-                <span>ollama run qwen2.5:1.5b</span>
-                <span className="text-sky-600 font-bold font-sans text-[10px] bg-sky-50 px-2 py-0.5 rounded border border-sky-200">0.9 GB • Sharp</span>
-              </div>
-              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200">
-                <span>ollama run llama3.2</span>
-                <span className="text-slate-600 font-bold font-sans text-[10px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200">2.0 GB • Balanced</span>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {modelsList.map((m) => {
+                const isDownloadingThis = activeDownloadId === m.id;
+                const isCurrentModel = settings.ai.model === m.id || (m.id === 'llama3.2-1b' && (!settings.ai.model || settings.ai.model.includes('llama3.2')));
+
+                return (
+                  <div
+                    key={m.id}
+                    className={`p-4 rounded-xl border flex flex-col justify-between transition-all ${
+                      isCurrentModel
+                        ? 'bg-white border-sky-500 ring-2 ring-sky-500/20 shadow-md'
+                        : 'bg-white/80 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold text-slate-900 line-clamp-1">{m.name}</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 shrink-0">
+                          {m.sizeDisplay}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-tight mb-3">
+                        {m.id === 'llama3.2-1b' && 'Smartest meta model for intent & natural speech.'}
+                        {m.id === 'smollm2-360m' && 'Ultra-lightweight. Near zero RAM footprint.'}
+                        {m.id === 'qwen2.5-0.5b' && 'Excellent reasoning and quick command accuracy.'}
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100">
+                      {isDownloadingThis && downloadProgress ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-[10px] font-semibold text-sky-800">
+                            <span>Downloading... {downloadProgress.percent}%</span>
+                            <span>{downloadProgress.speedMbps} MB/s</span>
+                          </div>
+                          <div className="w-full bg-sky-100 rounded-full h-2 overflow-hidden">
+                            <div
+                              className="bg-sky-500 h-full rounded-full transition-all duration-200"
+                              style={{ width: `${downloadProgress.percent}%` }}
+                            />
+                          </div>
+                          <button
+                            onClick={handleCancelDownload}
+                            className="w-full flex items-center justify-center gap-1 py-1 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 text-[10px] font-bold"
+                          >
+                            <X className="w-3 h-3" />
+                            <span>Cancel</span>
+                          </button>
+                        </div>
+                      ) : m.installed ? (
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Installed</span>
+                          </span>
+                          <button
+                            onClick={() => onUpdateSettings({ ai: { ...settings.ai, provider: 'local', model: m.id } })}
+                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                              isCurrentModel
+                                ? 'bg-emerald-500 text-white shadow-sm'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                            }`}
+                          >
+                            {isCurrentModel ? 'Active' : 'Select'}
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleStartDownload(m.id)}
+                          disabled={activeDownloadId !== null}
+                          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold shadow-sm transition-all disabled:opacity-50"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>1-Click Download</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <p className="text-slate-500 text-[11px] pt-1">
-              Supports <strong>Ollama</strong> (<span className="font-mono text-sky-700">http://localhost:11434</span>) and <strong>LM Studio</strong> (<span className="font-mono text-sky-700">http://localhost:1234/v1</span>). Once running, Companio communicates with it automatically!
-            </p>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Local Model Name (e.g. llama3.2:1b, qwen2.5:1.5b):
-            </label>
-            <input
-              type="text"
-              value={settings.ai.model || 'llama3.2:1b'}
-              onChange={(e) => onUpdateSettings({ ai: { ...settings.ai, model: e.target.value } })}
-              placeholder="e.g. llama3.2:1b, qwen2.5:1.5b"
-              className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-mono font-bold focus:outline-none focus:border-sky-500 shadow-sm"
-            />
-          </div>
+          {/* External Ollama / LM Studio (For Advanced Users) */}
+          <div className="acrylic-card rounded-2xl p-6 border border-slate-200 bg-white/60 space-y-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Server className="w-4 h-4 text-indigo-600" />
+                  <span>External Server (Ollama / LM Studio)</span>
+                </h3>
+                <p className="text-xs text-slate-600 mt-1">
+                  Already have Ollama or LM Studio installed? Connect directly via localhost.
+                </p>
+              </div>
+              <button
+                onClick={handleCheckLocalLLM}
+                disabled={testingConnection}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold shadow-md shadow-indigo-500/20 transition-all disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${testingConnection ? 'animate-spin' : ''}`} />
+                <span>Detect Local Models</span>
+              </button>
+            </div>
 
-          {detectedLocalModels.length > 0 && (
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                Active Local Model:
+                Local Model Tag (e.g. llama3.2:1b, qwen2.5:1.5b):
               </label>
-              <select
-                value={settings.ai.model}
+              <input
+                type="text"
+                value={settings.ai.model || 'llama3.2:1b'}
                 onChange={(e) => onUpdateSettings({ ai: { ...settings.ai, model: e.target.value } })}
-                className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-bold focus:outline-none focus:border-sky-500"
-              >
-                {detectedLocalModels.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
+                placeholder="e.g. llama3.2:1b, qwen2.5:1.5b"
+                className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-mono font-bold focus:outline-none focus:border-indigo-500 shadow-sm"
+              />
             </div>
-          )}
+
+            {detectedLocalModels.length > 0 && (
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Detected Models:
+                </label>
+                <select
+                  value={settings.ai.model}
+                  onChange={(e) => onUpdateSettings({ ai: { ...settings.ai, model: e.target.value } })}
+                  className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-bold focus:outline-none focus:border-indigo-500"
+                >
+                  {detectedLocalModels.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

@@ -34,6 +34,16 @@ const desktopAPI = {
     return () => ipcRenderer.removeListener('shortcut-toggle', handler);
   },
 
+  // Model Downloader
+  getModelsStatus: () => ipcRenderer.invoke('get-models-status'),
+  downloadModel: (modelId) => ipcRenderer.invoke('download-model', { modelId }),
+  cancelModelDownload: () => ipcRenderer.invoke('cancel-model-download'),
+  onModelDownloadProgress: (callback) => {
+    const handler = (_, progress) => callback(progress);
+    ipcRenderer.on('download-model-progress', handler);
+    return () => ipcRenderer.removeListener('download-model-progress', handler);
+  },
+
   // State sync between overlay and dashboard
   onStateUpdate: (callback) => {
     const handler = (_, state) => callback(state);

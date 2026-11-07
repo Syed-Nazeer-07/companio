@@ -564,5 +564,94 @@ export const TOOL_CATALOG: ToolSchema[] = [
     permissionsRequired: ['Browser Control'],
     parameters: [],
     samplePrompts: ['Open Google Translate', 'Translate text']
+  },
+  {
+    id: 'win.brightness.set',
+    name: 'Set Brightness',
+    category: 'System',
+    description: 'Adjusts monitor display brightness percentage directly (10% to 100%).',
+    permissionsRequired: ['System Settings'],
+    parameters: [
+      { name: 'level', type: 'number', required: true, description: 'Brightness level from 10 to 100' }
+    ],
+    samplePrompts: ['Set brightness to 80%', 'Screen brightness 50%', 'Dim brightness to 30%']
+  },
+  {
+    id: 'win.brightness.change',
+    name: 'Adjust Brightness Relative',
+    category: 'System',
+    description: 'Increases or decreases display brightness by a relative delta (e.g. +15%, -15%).',
+    permissionsRequired: ['System Settings'],
+    parameters: [
+      { name: 'delta', type: 'number', required: true, description: 'Relative delta percentage e.g. +15 or -15' }
+    ],
+    samplePrompts: ['Make screen brighter', 'Make screen darker', 'Dim display', 'Increase brightness']
+  },
+  {
+    id: 'win.clipboard.read',
+    name: 'Read Clipboard',
+    category: 'System',
+    description: 'Reads current text from the Windows system clipboard.',
+    permissionsRequired: ['Clipboard'],
+    parameters: [],
+    samplePrompts: ['What is on my clipboard', 'Read clipboard', 'Show clipboard text']
+  },
+  {
+    id: 'win.clipboard.clear',
+    name: 'Clear Clipboard',
+    category: 'System',
+    description: 'Empties the Windows system clipboard.',
+    permissionsRequired: ['Clipboard'],
+    parameters: [],
+    samplePrompts: ['Clear clipboard', 'Empty clipboard']
+  },
+  {
+    id: 'win.network.ip',
+    name: 'Network Status & IP',
+    category: 'System',
+    description: 'Retrieves current local IP address and Wi-Fi/Ethernet network name.',
+    permissionsRequired: ['Network Info'],
+    parameters: [],
+    samplePrompts: ['What is my IP address', 'Check network connection', 'Wi-Fi status']
+  },
+  {
+    id: 'utility.pomodoro.start',
+    name: 'Start Focus / Pomodoro Mode',
+    category: 'System',
+    description: 'Starts a 25-minute Pomodoro focus session with timer alerts.',
+    permissionsRequired: [],
+    parameters: [
+      { name: 'minutes', type: 'number', required: false, description: 'Duration in minutes (default 25)' }
+    ],
+    samplePrompts: ['Start pomodoro', 'Start focus mode', 'Set study timer for 25 minutes']
+  },
+  {
+    id: 'utility.notes.add',
+    name: 'Quick Note',
+    category: 'System',
+    description: 'Saves a quick note or reminder to Companio scratchpad.',
+    permissionsRequired: [],
+    parameters: [
+      { name: 'note', type: 'string', required: true, description: 'The text content to save' }
+    ],
+    samplePrompts: ['Take a note: Buy groceries', 'Remember to email Sarah tomorrow']
+  },
+  {
+    id: 'utility.notes.read',
+    name: 'Read Notes',
+    category: 'System',
+    description: 'Retrieves all saved scratchpad notes.',
+    permissionsRequired: [],
+    parameters: [],
+    samplePrompts: ['Read my notes', 'Show my notes', 'What are my notes']
+  },
+  {
+    id: 'utility.notes.clear',
+    name: 'Clear Notes',
+    category: 'System',
+    description: 'Clears all saved scratchpad notes.',
+    permissionsRequired: [],
+    parameters: [],
+    samplePrompts: ['Clear notes', 'Delete all notes']
   }
 ];

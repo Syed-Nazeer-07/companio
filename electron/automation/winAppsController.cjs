@@ -462,6 +462,106 @@ $os = (Get-CimInstance Win32_OperatingSystem).Caption.Trim()
       return { success: false, error: err.message, verified: false };
     }
   }
+
+  // Set Monitor Brightness
+  async setBrightness(level) {
+    try {
+      const clamped = Math.max(10, Math.min(100, Math.round(level)));
+      const script = `
+$m = Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods -ErrorAction SilentlyContinue
+if ($m) {
+  $m.WmiSetBrightness(1, ${clamped})
+  Write-Output "ok"
+} else {
+  Write-Output "unsupported"
+}
+`;
+      const { stdout } = await runPowerShell(script);
+      const ok = stdout.trim() === 'ok';
+      return {
+        success: true,
+        message: ok ? `Screen brightness set to ${clamped}%` : `Brightness adjustment not supported on this display`,
+        level: clamped,
+        verified: true
+      };
+    } catch (err) {
+      return { success: false, error: err.message, verified: false };
+    }
+  }
+
+  // Change Monitor Brightness
+  async changeBrightness(delta) {
+    try {
+      const script = `
+$cur = Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightness -ErrorAction SilentlyContinue
+$lvl = if ($cur) { $cur.CurrentBrightness } else { 70 }
+$target = [math]::Max(10, [math]::Min(100, $lvl + ${delta}))
+$m = Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods -ErrorAction SilentlyContinue
+if ($m) {
+  $m.WmiSetBrightness(1, $target)
+  "$target"
+} else {
+  "unsupported"
+}
+`;
+      const { stdout } = await runPowerShell(script);
+      const res = stdout.trim();
+      return {
+        success: true,
+        message: res !== 'unsupported' ? `Brightness changed to ${res}%` : 'Brightness adjustment not supported on this display',
+        verified: true
+      };
+    } catch (err) {
+      return { success: false, error: err.message, verified: false };
+    }
+  }
+
+  // Get Clipboard Content
+  async getClipboardText() {
+    try {
+      const { stdout } = await runPowerShell('Get-Clipboard -ErrorAction SilentlyContinue');
+      const text = stdout.trim();
+      return {
+        success: true,
+        message: text ? `Clipboard: "${text.substring(0, 100)}${text.length > 100 ? '...' : ''}"` : 'Clipboard is empty',
+        clipboard: text,
+        verified: true
+      };
+    } catch (err) {
+      return { success: false, error: err.message, verified: false };
+    }
+  }
+
+  // Clear Clipboard Content
+  async clearClipboard() {
+    try {
+      await runPowerShell('Set-Clipboard -Value $null -ErrorAction SilentlyContinue');
+      return { success: true, message: 'Clipboard cleared', verified: true };
+    } catch (err) {
+      return { success: false, error: err.message, verified: false };
+    }
+  }
+
+  // Check Local IP and Network info
+  async getNetworkIp() {
+    try {
+      const script = `
+$ip = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias "Wi-Fi*","Ethernet*" -ErrorAction SilentlyContinue | Select-Object -First 1).IPAddress
+$conn = (Get-NetConnectionProfile -ErrorAction SilentlyContinue | Select-Object -First 1).Name
+"$ip on $conn"
+`;
+      const { stdout } = await runPowerShell(script);
+      const netInfo = stdout.trim() || 'Connected';
+      return {
+        success: true,
+        message: `Network: ${netInfo}`,
+        network: netInfo,
+        verified: true
+      };
+    } catch (err) {
+      return { success: false, error: err.message, verified: false };
+    }
+  }
 }
 
 module.exports = new WinAppsController();

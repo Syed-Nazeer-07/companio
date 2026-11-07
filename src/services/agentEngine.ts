@@ -585,6 +585,108 @@ export class AgentEngine {
       });
     }
 
+    // 6.6 Brightness, Clipboard, Network & Productivity Tools
+    else if (q.includes('brightness') || q.includes('dim screen') || q.includes('screen dimmer') || q.includes('screen brighter')) {
+      const pctMatch = q.match(/(\d{1,3})\s*%/);
+      if (pctMatch) {
+        const level = parseInt(pctMatch[1], 10);
+        intent = 'win.brightness.set';
+        steps.push({
+          id: 'step_1',
+          tool: 'win.brightness.set',
+          description: `Set display brightness to ${level}%`,
+          params: { level },
+          status: 'pending'
+        });
+      } else if (q.includes('dim') || q.includes('darker') || q.includes('decrease') || q.includes('lower') || q.includes('down')) {
+        intent = 'win.brightness.change';
+        steps.push({
+          id: 'step_1',
+          tool: 'win.brightness.change',
+          description: 'Decrease display brightness by 15%',
+          params: { delta: -15 },
+          status: 'pending'
+        });
+      } else {
+        intent = 'win.brightness.change';
+        steps.push({
+          id: 'step_1',
+          tool: 'win.brightness.change',
+          description: 'Increase display brightness by +15%',
+          params: { delta: 15 },
+          status: 'pending'
+        });
+      }
+    } else if (q.includes('clipboard')) {
+      if (q.includes('clear') || q.includes('empty')) {
+        intent = 'win.clipboard.clear';
+        steps.push({
+          id: 'step_1',
+          tool: 'win.clipboard.clear',
+          description: 'Clear Windows clipboard content',
+          params: {},
+          status: 'pending'
+        });
+      } else {
+        intent = 'win.clipboard.read';
+        steps.push({
+          id: 'step_1',
+          tool: 'win.clipboard.read',
+          description: 'Read current clipboard content',
+          params: {},
+          status: 'pending'
+        });
+      }
+    } else if (q.includes('my ip') || q.includes('ip address') || q.includes('network status') || q.includes('wifi status')) {
+      intent = 'win.network.ip';
+      steps.push({
+        id: 'step_1',
+        tool: 'win.network.ip',
+        description: 'Get local IP address and network status',
+        params: {},
+        status: 'pending'
+      });
+    } else if (q.includes('pomodoro') || q.includes('focus mode') || q.includes('study timer')) {
+      intent = 'utility.pomodoro.start';
+      const minsMatch = q.match(/(\d+)\s*(?:min|minute)/);
+      const minutes = minsMatch ? parseInt(minsMatch[1], 10) : 25;
+      steps.push({
+        id: 'step_1',
+        tool: 'utility.pomodoro.start',
+        description: `Start ${minutes}-minute Pomodoro focus session`,
+        params: { minutes },
+        status: 'pending'
+      });
+    } else if (q.includes('take a note') || q.includes('add note') || q.includes('remember that') || q.startsWith('note:') || q.includes('save note')) {
+      intent = 'utility.notes.add';
+      const noteContent = query.replace(/^take a note:?|^add note:?|^remember that:?|^note:?|^save note:?/i, '').trim();
+      steps.push({
+        id: 'step_1',
+        tool: 'utility.notes.add',
+        description: `Save note: "${noteContent || 'Quick note'}"`,
+        params: { note: noteContent || 'Quick note' },
+        status: 'pending'
+      });
+    } else if (q.includes('my notes') || q.includes('read notes') || q.includes('show notes') || q.includes('get notes')) {
+      intent = 'utility.notes.read';
+      steps.push({
+        id: 'step_1',
+        tool: 'utility.notes.read',
+        description: 'Retrieve saved quick notes',
+        params: {},
+        status: 'pending'
+      });
+    } else if (q.includes('clear notes') || q.includes('delete notes') || q.includes('empty notes')) {
+      intent = 'utility.notes.clear';
+      steps.push({
+        id: 'step_1',
+        tool: 'utility.notes.clear',
+        description: 'Clear all saved quick notes',
+        params: {},
+        status: 'pending'
+      });
+    }
+
     // 7. Browser & Web Search
     else if (q.includes('wikipedia') || (q.includes('who is') && q.includes('on wiki'))) {
       intent = 'browser.wikipedia.search';
@@ -720,7 +822,55 @@ export class AgentEngine {
   private async generateConversationalResponse(query: string, aiConfig?: AiConfig): Promise<string> {
     const q = query.toLowerCase().trim();
 
-    // 1. Time & Date direct queries
+    // 1. Math Calculation Solver (Instant 0ms calculation)
+    if (q.includes('calculate') || q.includes('what is') || q.includes("what's") || q.includes('solve')) {
+      // Percentage check e.g. "what is 15% of 800" or "calculate 20% of 1500"
+      const pctMatch = q.match(/(\d+(?:\.\d+)?)\s*%\s*of\s*(\d+(?:\.\d+)?)/);
+      if (pctMatch) {
+        const pct = parseFloat(pctMatch[1]);
+        const val = parseFloat(pctMatch[2]);
+        const ans = (pct / 100) * val;
+        return `${pct}% of ${val} is ${ans} 🧮`;
+      }
+
+      // Square root check
+      const sqrtMatch = q.match(/(?:square root of|sqrt of|sqrt)\s*(\d+(?:\.\d+)?)/);
+      if (sqrtMatch) {
+        const val = parseFloat(sqrtMatch[1]);
+        return `The square root of ${val} is ${Math.sqrt(val)} 🧮`;
+      }
+
+      // Basic arithmetic expressions
+      let expr = q
+        .replace(/what is|what's|calculate|solve|\?/g, '')
+        .replace(/\bplus\b/g, '+')
+        .replace(/\bminus\b/g, '-')
+        .replace(/\btimes\b|\bmultiplied by\b/g, '*')
+        .replace(/\bdivided by\b/g, '/')
+        .trim();
+
+      if (/^[\d\s\+\-\*\/\.\(\)]+$/.test(expr) && /[\+\-\*\/]/.test(expr)) {
+        try {
+          const sanitized = expr.replace(/[^\d\+\-\*\/\.\(\)\s]/g, '');
+          const result = Function(`"use strict"; return (${sanitized})`)();
+          if (typeof result === 'number' && !isNaN(result) && isFinite(result)) {
+            return `${sanitized.trim()} = ${result} 🧮`;
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 2. Coin Flip & Dice Roll
+    if (q.includes('flip a coin') || q.includes('toss a coin')) {
+      const outcome = Math.random() > 0.5 ? 'Heads' : 'Tails';
+      return `🪙 It's ${outcome}!`;
+    }
+    if (q.includes('roll a dice') || q.includes('roll a die') || q.includes('roll dice')) {
+      const val = Math.floor(Math.random() * 6) + 1;
+      return `🎲 You rolled a ${val}!`;
+    }
+
+    // 3. Time & Date direct queries
     if (q.includes('what time') || q.includes('current time') || q.includes('tell me the time')) {
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       return `The current time is ${timeStr}! ⏰ Anything else you need?`;
@@ -941,6 +1091,24 @@ export class AgentEngine {
           return "Closed the tab for you! ✨";
         case 'win.window.minimize':
           return "Minimized active window! 🪟";
+        case 'win.brightness.set':
+          return `Display brightness set to ${p.level}%! ☀️`;
+        case 'win.brightness.change':
+          return `${step.result?.message || 'Display brightness adjusted!'} ☀️`;
+        case 'win.clipboard.read':
+          return `${step.result?.message || 'Read clipboard!'} 📋`;
+        case 'win.clipboard.clear':
+          return "Clipboard cleared! 📋🧹";
+        case 'win.network.ip':
+          return `${step.result?.message || 'Network status retrieved!'} 🌐`;
+        case 'utility.pomodoro.start':
+          return `${step.result?.message || 'Pomodoro started!'} 🍅`;
+        case 'utility.notes.add':
+          return `${step.result?.message || 'Note saved!'} 📝`;
+        case 'utility.notes.read':
+          return `${step.result?.message || 'Notes retrieved!'} 📝`;
+        case 'utility.notes.clear':
+          return "All notes cleared! 🧹";
         default:
           return `${step.description} finished successfully! ✨`;
       }
@@ -984,7 +1152,50 @@ export class AgentEngine {
 
       const startTime = Date.now();
       try {
-        const result = await desktopBridge.executeTool(step.tool, step.params);
+        let result: any;
+        if (step.tool === 'utility.pomodoro.start') {
+          const mins = step.params?.minutes || 25;
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            setTimeout(() => {
+              new Notification('Companio Focus Mode Completed! 🍅', {
+                body: `Great job! Your ${mins}-minute focus session has ended. Time for a well-deserved stretch break!`
+              });
+            }, mins * 60 * 1000);
+          }
+          result = {
+            success: true,
+            message: `Focus session started for ${mins} minutes! Time to shine 🍅`,
+            verified: true
+          };
+        } else if (step.tool === 'utility.notes.add') {
+          const note = step.params?.note || '';
+          const notes = dbService.addNote(note);
+          result = {
+            success: true,
+            message: `Saved note: "${note}" (${notes.length} total note${notes.length === 1 ? '' : 's'}) 📝`,
+            verified: true
+          };
+        } else if (step.tool === 'utility.notes.read') {
+          const notes = dbService.getNotes();
+          const msg = notes.length > 0
+            ? `Here are your notes:\n` + notes.map((n, idx) => `${idx + 1}. ${n}`).join('\n')
+            : `Your notes are currently empty! Tell me "take a note: ..." to save one anytime 📝`;
+          result = {
+            success: true,
+            message: msg,
+            verified: true
+          };
+        } else if (step.tool === 'utility.notes.clear') {
+          dbService.clearNotes();
+          result = {
+            success: true,
+            message: 'All notes cleared! 🧹',
+            verified: true
+          };
+        } else {
+          result = await desktopBridge.executeTool(step.tool, step.params);
+        }
+
         const duration = Date.now() - startTime;
 
         if (signal.aborted) {

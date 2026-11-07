@@ -139,6 +139,31 @@ class DbService {
       if (this.db) this.db.run('DELETE FROM automation_logs');
     } catch (e) {}
   }
+
+  // Quick Notes persistence
+  getNotes(): string[] {
+    try {
+      const data = localStorage.getItem('companio_notes');
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  addNote(text: string): string[] {
+    const notes = this.getNotes();
+    notes.push(text);
+    try {
+      localStorage.setItem('companio_notes', JSON.stringify(notes));
+    } catch (e) {}
+    return notes;
+  }
+
+  clearNotes(): void {
+    try {
+      localStorage.removeItem('companio_notes');
+    } catch (e) {}
+  }
 }
 
 export const dbService = new DbService();

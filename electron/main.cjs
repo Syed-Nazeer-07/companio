@@ -5,6 +5,7 @@ const fs = require('fs');
 const browserController = require('./automation/browserController.cjs');
 const winAppsController = require('./automation/winAppsController.cjs');
 const volumeController = require('./automation/volumeController.cjs');
+const modelDownloader = require('./automation/modelDownloader.cjs');
 
 let overlayWindow = null;
 let dashboardWindow = null;
@@ -342,9 +343,50 @@ ipcMain.handle('execute-tool', async (_, { toolName, params }) => {
     case 'win.volume.mute':
       return await volumeController.setMute(params.mute);
 
+    // Brightness tools
+    case 'win.brightness.set':
+      return await winAppsController.setBrightness(params.level);
+    case 'win.brightness.change':
+      return await winAppsController.changeBrightness(params.delta);
+
+    // Clipboard tools
+    case 'win.clipboard.read':
+      return await winAppsController.getClipboardText();
+    case 'win.clipboard.clear':
+      return await winAppsController.clearClipboard();
+
+    // Network tools
+    case 'win.network.ip':
+      return await winAppsController.getNetworkIp();
+
     default:
       return { success: false, error: `Unknown tool: ${toolName}`, verified: false };
   }
+});
+
+// Model Downloader IPC handlers
+ipcMain.handle('get-models-status', async () => {
+  try {
+    return modelDownloader.listModels();
+  } catch (err) {
+    return [];
+  }
+});
+
+ipcMain.handle('download-model', async (event, { modelId }) => {
+  try {
+    return await modelDownloader.downloadModel(modelId, (progress) => {
+      try {
+        event.sender.send('download-model-progress', progress);
+      } catch (e) {}
+    });
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('cancel-model-download', async () => {
+  return modelDownloader.cancelDownload();
 });
 
 ipcMain.handle('get-volume', async () => await volumeController.getVolume());

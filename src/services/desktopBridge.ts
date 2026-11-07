@@ -18,6 +18,10 @@ interface CompanioDesktopAPI {
   onGlobalShortcutToggle?: (callback: () => void) => () => void;
   onStateUpdate: (callback: (state: any) => void) => () => void;
   sendStateUpdate: (state: any) => void;
+  getModelsStatus?: () => Promise<any[]>;
+  downloadModel?: (modelId: string) => Promise<any>;
+  cancelModelDownload?: () => Promise<any>;
+  onModelDownloadProgress?: (callback: (progress: any) => void) => () => void;
 }
 
 type AuraDesktopAPI = CompanioDesktopAPI;
@@ -166,6 +170,63 @@ export const desktopBridge = {
     const api = getDesktopAPI();
     if (api?.onStateUpdate) {
       return api.onStateUpdate(callback);
+    }
+    return () => {};
+  },
+
+  async getModelsStatus(): Promise<any[]> {
+    const api = getDesktopAPI();
+    if (api?.getModelsStatus) {
+      return await api.getModelsStatus();
+    }
+    return [
+      {
+        id: 'llama3.2-1b',
+        name: 'Llama 3.2 1B Instruct (Recommended)',
+        sizeDisplay: '808 MB',
+        installed: false,
+        fileSize: 0,
+        isDownloading: false
+      },
+      {
+        id: 'smollm2-360m',
+        name: 'SmolLM2 360M Instruct (Instant Download)',
+        sizeDisplay: '229 MB',
+        installed: false,
+        fileSize: 0,
+        isDownloading: false
+      },
+      {
+        id: 'qwen2.5-0.5b',
+        name: 'Qwen 2.5 0.5B Instruct (Fast & Sharp)',
+        sizeDisplay: '398 MB',
+        installed: false,
+        fileSize: 0,
+        isDownloading: false
+      }
+    ];
+  },
+
+  async downloadModel(modelId: string): Promise<any> {
+    const api = getDesktopAPI();
+    if (api?.downloadModel) {
+      return await api.downloadModel(modelId);
+    }
+    return { success: false, message: 'Model downloading requires desktop Electron mode.' };
+  },
+
+  async cancelModelDownload(): Promise<any> {
+    const api = getDesktopAPI();
+    if (api?.cancelModelDownload) {
+      return await api.cancelModelDownload();
+    }
+    return { success: true };
+  },
+
+  onModelDownloadProgress(callback: (progress: any) => void): () => void {
+    const api = getDesktopAPI();
+    if (api?.onModelDownloadProgress) {
+      return api.onModelDownloadProgress(callback);
     }
     return () => {};
   }
