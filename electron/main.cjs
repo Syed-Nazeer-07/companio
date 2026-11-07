@@ -723,6 +723,48 @@ app.whenReady().then(async () => {
         throw new Error('History import validator did not reject a settings/API-key injection');
       }
       smokeReport({ stage: 'native-history-verified' });
+
+      // End-to-end safety: send a harmless *proposal*, inspect the UI, and
+      // cancel. No Windows action is approved or executed in the CI runner.
+      const approvalFound = await win.webContents.executeJavaScript(
+        `(async () => {
+          const input = document.querySelector('input[placeholder="Ask Companio..."]');
+          if (!input) return false;
+          const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+          setter.call(input, 'Open Notepad and set volume to 45%');
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          await new Promise(resolve => setTimeout(resolve, 80));
+          input.closest('form')?.requestSubmit();
+          for (let attempts = 0; attempts < 70; attempts++) {
+            const dialog = document.querySelector('[role="dialog"][aria-labelledby="companio-approval-title"]');
+            if (dialog) return dialog.textContent.includes('win.notepad.launch')
+              && dialog.textContent.includes('win.volume.set');
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          return false;
+        })()`
+      );
+      if (!approvalFound) throw new Error('The safe two-step action review dialog did not appear');
+      smokeReport({ stage: 'approval-dialog-visible' });
+      const cancelledDialog = await win.webContents.executeJavaScript(
+        `(() => {
+          const dialog = document.querySelector('[role="dialog"][aria-labelledby="companio-approval-title"]');
+          const cancelButton = [...dialog.querySelectorAll('button')].find(button => button.textContent.trim() === 'Cancel');
+          if (!cancelButton) return false;
+          cancelButton.click();
+          return true;
+        })()`
+      );
+      if (!cancelledDialog) throw new Error('The approval dialog did not offer a working Cancel action');
+      const historyAfterCancel = await win.webContents.executeJavaScript(
+        "window.companioDesktop.loadHistoryStore()"
+      );
+      if (!historyAfterCancel?.success ||
+          historyAfterCancel.backup?.automationLogs?.some(log =>
+            ['win.notepad.launch','win.volume.set'].includes(log.tool))) {
+        throw new Error('A native action executed even though the user cancelled the approval.');
+      }
+      smokeReport({ stage: 'approval-cancelled-safely' });
       clearTimeout(timer);
       smokeReport({ ok: true, rendered: details.rendered, bridge: details.bridge, inputVisible: awakened });
       console.log('COMPANIO_SMOKE_OK: React, Electron preload, hotkey UI and negative IPC verified');
