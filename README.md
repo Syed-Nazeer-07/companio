@@ -326,6 +326,21 @@ Both paths support **at most three actions**, require an explicit user confirmat
 
 The Phase 3 baseline is protected by [`rollback/pre-phase3-2026-11-08`](https://github.com/Syed-Nazeer-07/companio/tree/rollback/pre-phase3-2026-11-08).
 
+## 🛡️ Native outcome verification
+
+Companio distinguishes **command attempted**, **process/page observed**, and **verified result**. A successful PowerShell launch or Playwright navigation is not treated as proof that the requested app or page is ready.
+
+- **Windows audio:** readback verifies volume and mute; an unavailable audio endpoint is reported as an error, never as an invented 50% reading.
+- **Apps:** Notepad, Paint, Task Manager, Command Prompt, PowerShell, Edge, and Chrome are checked for the expected running process. VS Code and Spotify include separate process checks. A running process is **not** proof that a window gained focus.
+- **File Explorer:** named folders must exist, and Companio attempts to confirm the actual Explorer window location. Opening Explorer without a specified folder no longer silently opens Downloads.
+- **System tools:** screenshot output must exist and have a PNG signature; clipboard-clear uses a readback; network status requires a reported IPv4 address; missing battery information is not interpreted as charging.
+- **Browser:** navigation requires a successful HTTP response and an expected destination; redirects and wrong-page outcomes are reported instead of hidden.
+- **Background execution:** the native PowerShell helper hides its console window, reducing interruption to the active app.
+
+**Deliberate limitations:** generic Windows media play/pause buttons are toggles, so Companio refuses to claim they can force a specific state without readable media-session state. A media-key press does not prove playback changed. The old Alt+N minimize shortcut was disabled because it could send keys to the wrong application. Some Windows protocol launches and UI state changes still cannot be independently verified. These require actual interactive Windows testing before a production claim.
+
+Rollback point: [`rollback/pre-native-verification-2026-11-08`](https://github.com/Syed-Nazeer-07/companio/tree/rollback/pre-native-verification-2026-11-08).
+
 ## 🛠️ Phase 1 Hardening
 
 The `main` branch now includes trusted-window IPC guards, validated tool inputs, safer PowerShell handling, narrower Electron permissions, and confirmation before Recycle Bin deletion. Browser preview no longer fabricates native successes; YouTube and tab actions have stricter verification.
@@ -340,6 +355,7 @@ The prior state is preserved in [`rollback/pre-phase1-2026-11-07`](https://githu
 
 - Supported commands include limited offline sequences and local AI proposals (up to three actions, always approved). Arbitrary multi-application computer use is not supported.
 - YouTube and other browser workflows depend on external page structures and may break.
+- Several native app protocols and global media/window controls still lack reliable end-state verification; unsupported play/pause and active-window minimization fail rather than falsely reporting success.
 - Browser-only preview cannot verify Windows tools or YouTube playback and no longer claims simulated success.
 - Voice input and speech output depend on runtime/device support; there is no true always-listening hotword service.
 - Ollama/LM Studio connection and conversation are integrated, but a separate local server and loaded model are required. Downloaded GGUF files are not integrated with a bundled inference engine.
@@ -349,7 +365,8 @@ The prior state is preserved in [`rollback/pre-phase1-2026-11-07`](https://githu
 
 ## 🗺️ Roadmap
 
-- [ ] Verify actual tool outcomes and improve failure feedback
+- [x] Add verified Windows audio, app-process, File Explorer, screenshot, clipboard and browser checks
+- [ ] Continue validating unverified native actions and improve failure feedback on real devices
 - [x] Add allowlisted, confirmation-first local AI proposals and basic offline command chains
 - [ ] Expand natural-language coverage and independently verify additional native actions on Windows devices
 - [x] Integrate validated local chat/model discovery for Ollama and LM Studio
