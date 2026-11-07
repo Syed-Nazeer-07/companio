@@ -88,8 +88,10 @@ Companio uses available **Web Speech APIs** for speech recognition and synthesis
 | “Set the volume to 60%” | Change Windows master volume |
 | “Take a screenshot” | Capture a desktop screenshot |
 | “Open VS Code” | Launch Visual Studio Code, if installed |
+| “Open Notepad and set volume to 45%” | Offline two-step workflow; requires approval |
+| “Open YouTube and search Google for Python tutorials” | Offline browser workflow; requires approval |
 
-**Scope matters:** the built-in planner recognizes specific patterns, not every possible natural-language request. YouTube search results may not be the creator's newest upload; site layouts and browser state can affect automation.
+**Scope matters:** the built-in planner recognizes specific patterns and a small set of two- and three-step workflows, not every possible natural-language request. YouTube search results may not be the creator's newest upload; site layouts and browser state can affect automation.
 
 ### 🎛️ Control Center
 
@@ -99,8 +101,8 @@ Companio has eight primary sections: **Home**, **Character Studio**, **Automatio
 
 | Mode | API key required? | Current behavior |
 | --- | --- | --- |
-| **Built-in Instant Engine** | **No** | Rule-based command recognition and supported automation tools |
-| **Local LLM (experimental)** | **No paid cloud key** | Conversations through a locally running Ollama or LM Studio server, with an explicit connection check and error reporting |
+| **Built-in Instant Engine** | **No** | Rule-based commands and a limited set of offline multi-step workflows |
+| **Local LLM (experimental)** | **No paid cloud key** | Conversations and proposals for up to three allowlisted desktop/browser actions through a separately running Ollama or LM Studio server |
 | **OpenAI / Gemini options** | Not applicable yet | Unfinished and disabled in the UI; previously saved keys can be removed from AI Settings |
 
 **Built-in does not mean a general-purpose LLM.** Basic local commands do not need an AI subscription, although web searches and browser interactions still require connectivity.
@@ -305,6 +307,19 @@ Automated Windows CI covers TypeScript compilation, native-input and permission 
 - **Tested:** security and shortcut unit suites, TypeScript build, and packaged Windows x64 app smoke checks. Windows x64 and ARM64 packages build successfully in CI.
 - **Not tested:** real user desktop sessions, sustained voice input, arbitrary app control, actual browser/media playback, or code signing. Avoid entering production cloud API keys.
 
+## 🧩 Phase 3: Bounded, approval-first workflows
+
+Two styles of multi-step planning are available in the **installed desktop app**:
+
+1. **Offline built-in chaining:** fixed, familiar phrases such as `Open Notepad and set volume to 45%` are parsed without a local AI runtime or cloud key.
+2. **Local AI action proposals:** when local inference is configured, unrecognized explicitly requested actions can be proposed by the model. The Electron main process rejects malformed steps, unsupported tools, unexpected parameters, and dangerous capabilities.
+
+Both paths support **at most three actions**, require an explicit user confirmation that displays each tool and its arguments, and execute steps through the existing native validation layer. If a step fails or its outcome cannot be verified, subsequent steps do not execute. Canceling a proposal runs **zero actions**.
+
+**Not supported:** autonomous screen-reading agents, arbitrary shell commands, unrestricted filesystem access, sending messages, automatic interaction with unrelated apps, or assurance that every Windows/media action is independently verifiable. The model is not allowed to invent executable tools. Desktop commands still require real-machine acceptance testing.
+
+The Phase 3 baseline is protected by [`rollback/pre-phase3-2026-11-08`](https://github.com/Syed-Nazeer-07/companio/tree/rollback/pre-phase3-2026-11-08).
+
 ## 🛠️ Phase 1 Hardening
 
 The `main` branch now includes trusted-window IPC guards, validated tool inputs, safer PowerShell handling, narrower Electron permissions, and confirmation before Recycle Bin deletion. Browser preview no longer fabricates native successes; YouTube and tab actions have stricter verification.
@@ -317,7 +332,7 @@ The prior state is preserved in [`rollback/pre-phase1-2026-11-07`](https://githu
 
 ## ⚠️ Known Limitations
 
-- Commands are pattern-matched; arbitrary multi-application computer use is not supported.
+- Supported commands include limited offline sequences and local AI proposals (up to three actions, always approved). Arbitrary multi-application computer use is not supported.
 - YouTube and other browser workflows depend on external page structures and may break.
 - Browser-only preview cannot verify Windows tools or YouTube playback and no longer claims simulated success.
 - Voice input and speech output depend on runtime/device support; there is no true always-listening hotword service.
@@ -329,7 +344,8 @@ The prior state is preserved in [`rollback/pre-phase1-2026-11-07`](https://githu
 ## 🗺️ Roadmap
 
 - [ ] Verify actual tool outcomes and improve failure feedback
-- [ ] Expand robust, natural-language command handling and multi-step execution
+- [x] Add allowlisted, confirmation-first local AI proposals and basic offline command chains
+- [ ] Expand natural-language coverage and independently verify additional native actions on Windows devices
 - [x] Integrate validated local chat/model discovery for Ollama and LM Studio
 - [ ] Bundle an inference runtime and activate downloaded GGUF files safely
 - [ ] Finish optional cloud-provider integrations with secure key handling
