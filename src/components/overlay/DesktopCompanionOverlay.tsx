@@ -199,7 +199,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
 
     // Record user message in DB
     dbService.addMessage({
-      id: 'msg_' + Date.now(),
+      id: 'msg_' + crypto.randomUUID(),
       sender: 'user',
       content: query,
       timestamp: Date.now()
@@ -216,6 +216,13 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         const reply = plan.finalMessage || 'Understood!';
         setBubbleText(reply);
         speakReply(reply);
+        dbService.addMessage({
+          id: 'msg_' + crypto.randomUUID(),
+          sender: 'companio',
+          content: reply,
+          timestamp: Date.now(),
+          status: 'info'
+        });
         return;
       }
 
@@ -243,7 +250,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
 
         // Record assistant response in DB
         dbService.addMessage({
-          id: 'msg_' + Date.now(),
+          id: 'msg_' + crypto.randomUUID(),
           sender: 'companio',
           content: successMsg,
           timestamp: Date.now(),
@@ -272,7 +279,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         speakReply(errorMsg);
 
         dbService.addMessage({
-          id: 'msg_' + Date.now(),
+          id: 'msg_' + crypto.randomUUID(),
           sender: 'companio',
           content: errorMsg,
           timestamp: Date.now(),
@@ -285,10 +292,23 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
           setBubbleText('');
         }, 10000);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Could not process this request.';
+      const text = 'Error: ' + message;
       setCharacterState('confused');
-      setBubbleText(`Error: ${err.message}`);
-      speakReply(`Error: ${err.message}`);
+      setBubbleText(text);
+      speakReply(text);
+      dbService.addMessage({
+        id: 'msg_' + crypto.randomUUID(),
+        sender: 'companio',
+        content: text,
+        timestamp: Date.now(),
+        status: 'error'
+      });
+      resetTimerRef.current = setTimeout(() => {
+        setCharacterState('idle');
+        setBubbleText('');
+      }, 10000);
     }
   };
 
