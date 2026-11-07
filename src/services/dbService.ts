@@ -1,4 +1,5 @@
 import initSqlJs, { Database } from 'sql.js';
+import sqliteWasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
 import { AppSettings, ChatMessage } from '../types';
 
 export interface AutomationLogRecord {
@@ -19,7 +20,7 @@ class DbService {
     if (this.initialized) return;
     try {
       const SQL = await initSqlJs({
-        locateFile: (file) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/${file}`
+        locateFile: () => sqliteWasmUrl
       });
       this.db = new SQL.Database();
       this.db.run(`
