@@ -23,7 +23,7 @@ test('strict navigation verifies requested page path and query', () => {
 });
 
 test('non-strict navigation allows search result page redirects within the same website', () => {
-  assert.equal(
+  assert.deepEqual(
     verifyNavigation('https://www.google.com/maps/search/Paris', 'https://www.google.com/maps/place/Paris', 200),
     { success: true, verified: true, url: 'https://www.google.com/maps/place/Paris' }
   );
