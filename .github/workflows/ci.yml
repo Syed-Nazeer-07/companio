@@ -25,6 +25,9 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci
+      - name: Review dependency advisories
+        run: npm audit --audit-level=high
+        continue-on-error: true
       - name: Validate IPC and shortcut tests
         run: npm run test:unit
       - name: Typecheck and production bundle
