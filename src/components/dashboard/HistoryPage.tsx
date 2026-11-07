@@ -174,6 +174,18 @@ export const HistoryPage: React.FC = () => {
         <p role="alert" className="text-xs text-amber-700">
           Windows history disk storage needs attention: {nativeStorageWarning}
           {' '}Export your current history before restarting Companio.
+          <button
+            type="button"
+            className="ml-2 underline underline-offset-2 font-semibold"
+            onClick={async () => {
+              const result = await dbService.retryNativeHistorySave();
+              setExportStatus(result.success
+                ? 'The full history cache was resynchronized to the Windows app-data file.'
+                : 'Disk resync failed: ' + (result.error || 'Unable to save history.'));
+            }}
+          >
+            Retry disk sync
+          </button>
         </p>
       )}
 
