@@ -134,6 +134,14 @@ $rem = Get-Process -Name "CalculatorApp","Calculator","calc" -ErrorAction Silent
   // Control Spotify media (Play, Pause, Next, Previous)
   async controlMedia(action) {
     try {
+      // VK_MEDIA_PLAY_PAUSE is a toggle, NOT an idempotent play/pause
+      // operation. Never send it for a requested explicit media state.
+      if (action === 'play' || action === 'pause') {
+        return {
+          success: false, verified: false,
+          error: 'Windows global media control is a toggle. Cannot guarantee play or pause without a readable media session.'
+        };
+      }
       let vkCode = 179;
       let label = 'Play/Pause';
       if (action === 'next') { vkCode = 176; label = 'Next Track'; }
@@ -153,9 +161,10 @@ $type::keybd_event(${vkCode}, 0, 2, [UIntPtr]::Zero)
       await runPowerShell(script);
       return {
         success: true,
-        message: `Media command executed: ${label}`,
+        message: `Media key sent: ${label}; playback state is not independently verified.`,
+        error: 'Media key was sent, but Windows did not confirm a change in the active media session.',
         action,
-        verified: true
+        verified: false
       };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
@@ -183,20 +192,13 @@ $type::keybd_event(${vkCode}, 0, 2, [UIntPtr]::Zero)
 
   // Minimize active window
   async minimizeActiveWindow() {
-    try {
-      const script = `
-$wsh = New-Object -ComObject WScript.Shell
-$wsh.SendKeys("% n")
-`;
-      await runPowerShell(script);
-      return {
-        success: true,
-        message: 'Active window minimized',
-        verified: true
-      };
-    } catch (err) {
-      return { success: false, error: err.message, verified: false };
-    }
+    // The previous Alt+N SendKeys shortcut was context-dependent and could
+    // type into the user's active application or act on the wrong window.
+    return {
+      success: false,
+      verified: false,
+      error: 'Reliable active-window minimization is not yet available; no keyboard shortcut was sent.'
+    };
   }
 
   // Take Screenshot
@@ -284,7 +286,11 @@ Test-Path "${fullPath.replace(/\\/g, '\\\\')}"
   async lockWorkstation() {
     try {
       await runPowerShell('rundll32.exe user32.dll,LockWorkStation');
-      return { success: true, message: 'Computer locked', verified: true };
+      return {
+        success: true, verified: false,
+        message: 'Windows lock request was issued; the locked state was not observed.',
+        error: 'Lock request sent, but Windows did not return confirmation of the locked state.'
+      };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
     }
@@ -382,7 +388,11 @@ if (Test-Path $discordPath) {
   async showDesktop() {
     try {
       await runPowerShell('(New-Object -ComObject Shell.Application).MinimizeAll()');
-      return { success: true, message: 'Showing desktop (all windows minimized)', verified: true };
+      return {
+        success: true, verified: false,
+        message: 'Windows was asked to minimize open windows; resulting desktop visibility is not verified.',
+        error: 'Show Desktop was requested, but window state could not be independently checked.'
+      };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
     }
