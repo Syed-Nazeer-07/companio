@@ -26,6 +26,7 @@ interface CompanioDesktopAPI {
   listLocalAiModels?: (options: { endpoint?: string }) => Promise<{ success: boolean; models: string[]; error?: string }>;
   chatLocalAi?: (options: { endpoint?: string; model: string; prompt: string; systemPrompt?: string; temperature?: number }) => Promise<{ success: boolean; reply?: string; error?: string }>;
   planLocalActions?: (options: { endpoint?: string; model: string; query: string }) => Promise<{ success: boolean; steps?: Array<{tool: string; params: Record<string, any>; description: string}>; requiresConfirmation?: boolean; error?: string }>;
+  planOfflineSequence?: (options: {query: string}) => Promise<{success: boolean; recognized: boolean; steps?: Array<{tool: string; params: Record<string, any>; description: string}>; requiresConfirmation?: boolean; error?: string}>;
   getModelsStatus?: () => Promise<any[]>;
   downloadModel?: (modelId: string) => Promise<any>;
   cancelModelDownload?: () => Promise<any>;
@@ -229,6 +230,19 @@ export const desktopBridge = {
     return api?.planLocalActions
       ? api.planLocalActions(options)
       : { success: false, steps: [], error: 'AI action planning requires the Companio desktop app.' };
+  },
+
+  async planOfflineSequence(options: { query: string }): Promise<{
+    success: boolean;
+    recognized: boolean;
+    steps?: Array<{ tool: string; params: Record<string, any>; description: string }>;
+    requiresConfirmation?: boolean;
+    error?: string;
+  }> {
+    const api = getDesktopAPI();
+    return api?.planOfflineSequence
+      ? api.planOfflineSequence(options)
+      : { success: false, recognized: true, steps: [], error: 'Multi-step automation requires the installed Companio desktop app.' };
   },
 
   async getModelsStatus(): Promise<any[]> {

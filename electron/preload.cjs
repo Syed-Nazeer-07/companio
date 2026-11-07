@@ -49,6 +49,7 @@ const desktopAPI = {
   listLocalAiModels: (options) => ipcRenderer.invoke('local-ai-models', options),
   chatLocalAi: (options) => ipcRenderer.invoke('local-ai-chat', options),
   planLocalActions: (options) => ipcRenderer.invoke('local-ai-plan', options),
+  planOfflineSequence: (options) => ipcRenderer.invoke('offline-sequence', options),
 
   // Model Downloader
   getModelsStatus: () => ipcRenderer.invoke('get-models-status'),

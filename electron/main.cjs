@@ -482,6 +482,7 @@ secureHandle('set-overlay-preferences', async (_, options) => {
 secureHandle('local-ai-models', async (_, options) => localAiController.listModels(options));
 secureHandle('local-ai-chat', async (_, options) => localAiController.chat(options));
 secureHandle('local-ai-plan', async (_, options) => localActionPlanner.proposeActions(options));
+secureHandle('offline-sequence', async (_, options) => localActionPlanner.planOfflineSequence(options));
 
 // Model Downloader IPC handlers
 secureHandle('get-models-status', async () => {
