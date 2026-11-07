@@ -630,11 +630,23 @@ app.whenReady().then(async () => {
       );
       if (!awakened) throw new Error('Global shortcut did not open the companion text input');
       clearTimeout(timer);
+      if (process.env.COMPANIO_SMOKE_RESULT_PATH) {
+        fs.writeFileSync(process.env.COMPANIO_SMOKE_RESULT_PATH, JSON.stringify({
+          ok: true, rendered: details.rendered, bridge: details.bridge, inputVisible: awakened
+        }));
+      }
       console.log('COMPANIO_SMOKE_OK: React, Electron preload, hotkey UI and negative IPC verified');
       app.exit(0);
     } catch (err) {
       clearTimeout(timer);
       console.error('COMPANIO_SMOKE_FAIL:', err);
+      try {
+        if (process.env.COMPANIO_SMOKE_RESULT_PATH) {
+          fs.writeFileSync(process.env.COMPANIO_SMOKE_RESULT_PATH, JSON.stringify({
+            ok: false, error: String(err && err.message ? err.message : err)
+          }));
+        }
+      } catch {}
       app.exit(1);
     }
     return;
