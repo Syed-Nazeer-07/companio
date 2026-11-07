@@ -600,7 +600,18 @@ app.whenReady().then(async () => {
   if (typeof saved.snapToEdge === 'boolean') overlayPreferences.snapToEdge = saved.snapToEdge;
   if (SMOKE_TEST) {
     console.log('COMPANIO_SMOKE_START: loading packaged Windows app');
+    const smokeReport = (details) => {
+      try {
+        if (process.env.COMPANIO_SMOKE_RESULT_PATH) {
+          fs.writeFileSync(process.env.COMPANIO_SMOKE_RESULT_PATH, JSON.stringify(details));
+        }
+      } catch (error) {
+        console.error('Smoke result file unavailable:', error.message);
+      }
+    };
+    smokeReport({ stage: 'app-ready' });
     const timer = setTimeout(() => {
+      smokeReport({ ok: false, stage: 'timed-out', error: 'UI verification did not finish within 30 seconds.' });
       console.error('COMPANIO_SMOKE_FAIL: App did not load within 30 seconds.');
       app.exit(1);
     }, 30000);
@@ -608,20 +619,24 @@ app.whenReady().then(async () => {
       createOverlayWindow();
       const win = overlayWindow;
       if (!win) throw new Error('Overlay window not constructed');
+      smokeReport({ stage: 'overlay-created' });
       await new Promise((resolve, reject) => {
         win.webContents.once('did-finish-load', resolve);
         win.webContents.once('did-fail-load', (_event, code, message) => reject(new Error(`Load failed ${code}: ${message}`)));
       });
+      smokeReport({ stage: 'document-loaded' });
       const details = await win.webContents.executeJavaScript(
         "({ rendered: !!document.querySelector('#root > *'), bridge: typeof window.companioDesktop?.executeTool === 'function' })"
       );
       if (!details.rendered || !details.bridge) throw new Error('React UI or native preload bridge was not available');
+      smokeReport({ stage: 'react-and-preload-verified' });
       const negative = await win.webContents.executeJavaScript(
         "window.companioDesktop.executeTool('win.volume.set', { level: 'invalid' })"
       );
       if (negative.success !== false || negative.verified !== false) {
         throw new Error('Native tool validation did not reject the malformed request');
       }
+      smokeReport({ stage: 'negative-ipc-verified' });
       await new Promise((resolve) => setTimeout(resolve, 200));
       win.webContents.send('shortcut-toggle');
       await new Promise((resolve) => setTimeout(resolve, 450));
@@ -629,24 +644,15 @@ app.whenReady().then(async () => {
         "!!document.querySelector('input[placeholder=\"Ask Companio...\"]')"
       );
       if (!awakened) throw new Error('Global shortcut did not open the companion text input');
+      smokeReport({ stage: 'shortcut-input-visible' });
       clearTimeout(timer);
-      if (process.env.COMPANIO_SMOKE_RESULT_PATH) {
-        fs.writeFileSync(process.env.COMPANIO_SMOKE_RESULT_PATH, JSON.stringify({
-          ok: true, rendered: details.rendered, bridge: details.bridge, inputVisible: awakened
-        }));
-      }
+      smokeReport({ ok: true, rendered: details.rendered, bridge: details.bridge, inputVisible: awakened });
       console.log('COMPANIO_SMOKE_OK: React, Electron preload, hotkey UI and negative IPC verified');
       app.exit(0);
     } catch (err) {
       clearTimeout(timer);
       console.error('COMPANIO_SMOKE_FAIL:', err);
-      try {
-        if (process.env.COMPANIO_SMOKE_RESULT_PATH) {
-          fs.writeFileSync(process.env.COMPANIO_SMOKE_RESULT_PATH, JSON.stringify({
-            ok: false, error: String(err && err.message ? err.message : err)
-          }));
-        }
-      } catch {}
+      smokeReport({ ok: false, error: String(err && err.message ? err.message : err) });
       app.exit(1);
     }
     return;
