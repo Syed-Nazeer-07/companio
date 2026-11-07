@@ -643,15 +643,16 @@ app.whenReady().then(async () => {
         throw new Error('Native tool validation did not reject the malformed request');
       }
       smokeReport({ stage: 'negative-ipc-verified' });
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      // On headless Windows runners, the main-process timer occasionally stops
+      // progressing after IPC. Dispatch immediately and let the renderer itself
+      // wait for React to show the shortcut input.
       smokeReport({ stage: 'before-shortcut' });
       win.webContents.send('shortcut-toggle');
       smokeReport({ stage: 'shortcut-sent' });
-      await new Promise((resolve) => setTimeout(resolve, 450));
       smokeReport({ stage: 'checking-shortcut-input' });
       const awakened = await Promise.race([
         win.webContents.executeJavaScript(
-          "!!document.querySelector('input[placeholder=\"Ask Companio...\"]')"
+          "new Promise(resolve => { let attempts = 0; const check = () => { if (document.querySelector('input[placeholder=\"Ask Companio...\"]')) return resolve(true); if (++attempts >= 40) return resolve(false); setTimeout(check, 100); }; check(); })"
         ),
         new Promise((_, reject) => setTimeout(() => reject(new Error('Renderer did not answer shortcut input check within 10 seconds')), 10000))
       ]);
