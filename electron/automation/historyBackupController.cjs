@@ -3,7 +3,7 @@
 // Validate backup files in the trusted Electron main process before any
 // renderer writes. The schema intentionally does not include preferences,
 // provider keys, executable plans, or arbitrary object metadata.
-const MAX_BACKUP_BYTES = 2 * 1024 * 1024;
+const MAX_BACKUP_BYTES = 8 * 1024 * 1024;
 const MAX_MESSAGES = 100;
 const MAX_LOGS = 150;
 const MAX_NOTES = 200;
@@ -78,7 +78,7 @@ function validateLog(value, index) {
 function validateHistoryBackup(input) {
   try {
     if (typeof input !== 'string' || Buffer.byteLength(input, 'utf8') > MAX_BACKUP_BYTES) {
-      fail('file must be UTF-8 JSON no larger than 2 MiB.');
+      fail('file must be UTF-8 JSON no larger than 8 MiB.');
     }
     let parsed;
     try { parsed = JSON.parse(input); }

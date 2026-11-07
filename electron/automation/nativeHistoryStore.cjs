@@ -21,7 +21,7 @@ class NativeHistoryStore {
         return { success: true, exists: false, backup: emptyBackup() };
       }
       const stat = fs.statSync(this.filePath);
-      if (!stat.isFile() || stat.size > 2 * 1024 * 1024) {
+      if (!stat.isFile() || stat.size > 8 * 1024 * 1024) {
         throw new Error('On-disk history is not a valid, bounded file.');
       }
       const contents = fs.readFileSync(this.filePath, 'utf8');

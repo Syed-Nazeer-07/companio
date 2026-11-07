@@ -64,8 +64,8 @@ export const HistoryPage: React.FC = () => {
     setImporting(true);
     setExportStatus('');
     try {
-      if (file.size > 2 * 1024 * 1024) {
-        setExportStatus('Import refused: history backup must be smaller than 2 MiB.');
+      if (file.size > 8 * 1024 * 1024) {
+        setExportStatus('Import refused: history backup must be smaller than 8 MiB.');
         return;
       }
       const validated = await desktopBridge.validateHistoryImport(await file.text());
