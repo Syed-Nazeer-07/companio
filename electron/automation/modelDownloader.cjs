@@ -94,8 +94,14 @@ class ModelDownloader {
     return new Promise((resolve, reject) => {
       this.currentDownload = { modelId, progress: 0 };
       const fileStream = fs.createWriteStream(tempPath);
+      fileStream.on('error', (err) => {
+        this.currentDownload = null;
+        if (this.activeRequest) this.activeRequest.destroy();
+        reject(err);
+      });
       let receivedBytes = 0;
       let totalBytes = meta.sizeBytes;
+      let hasContentLength = false;
       let startTime = Date.now();
 
       const downloadFromUrl = (url, redirects = 0) => {
@@ -123,6 +129,7 @@ class ModelDownloader {
           const headerLen = parseInt(response.headers['content-length'], 10);
           if (!isNaN(headerLen) && headerLen > 0) {
             totalBytes = headerLen;
+            hasContentLength = true;
           }
 
           response.on('data', (chunk) => {
@@ -153,7 +160,7 @@ class ModelDownloader {
             fileStream.end(async () => {
               try {
                 const actualSize = fs.statSync(tempPath).size;
-                if (actualSize !== receivedBytes || (Number.isFinite(totalBytes) && receivedBytes !== totalBytes)) {
+                if (actualSize !== receivedBytes || (hasContentLength && receivedBytes !== totalBytes)) {
                   throw new Error('Incomplete download: byte count did not match the expected file size.');
                 }
                 if (receivedBytes < meta.sizeBytes * 0.75) {
@@ -203,7 +210,8 @@ class ModelDownloader {
           });
         });
 
-        this.activeRequest.setTimeout(60000, () => this.activeRequest?.destroy(new Error('Model download timed out')));
+        const request = this.activeRequest;
+        request.setTimeout(60000, () => request.destroy(new Error('Model download timed out')));
         this.activeRequest.on('error', (err) => {
           fileStream.close();
           try { fs.unlinkSync(tempPath); } catch (e) {}
