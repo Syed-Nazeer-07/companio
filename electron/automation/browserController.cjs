@@ -108,7 +108,9 @@ class BrowserController {
         // Explicitly select "Latest" rather than assuming the default tab is
         // chronologically sorted. If YouTube changes its UI, fail safely.
         const latestChip = page.getByText('Latest', { exact: true }).first();
-        if (!(await latestChip.isVisible().catch(() => false))) {
+        try {
+          await latestChip.waitFor({ state: 'visible', timeout: 7000 });
+        } catch {
           throw new Error('YouTube did not expose the Latest upload filter. Cannot guarantee newest-video selection.');
         }
         await latestChip.click();
@@ -152,7 +154,7 @@ class BrowserController {
         return !!video && !video.paused && !video.ended && video.readyState >= 2 && video.currentTime > 0;
       });
       const final = new URL(page.url());
-      const verified = !!confirmedPlaying && final.hostname.endsWith('youtube.com') &&
+      const verified = !!confirmedPlaying && ['youtube.com','www.youtube.com'].includes(final.hostname) &&
         final.pathname === '/watch' && !!final.searchParams.get('v') && creatorConfirmed;
       return {
         success: verified,
