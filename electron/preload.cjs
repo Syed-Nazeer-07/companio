@@ -47,6 +47,7 @@ const desktopAPI = {
 
   // Local inference (loopback-only, validated in Electron main process)
   listLocalAiModels: (options) => ipcRenderer.invoke('local-ai-models', options),
+  discoverLocalAi: (options) => ipcRenderer.invoke('local-ai-discover', options),
   chatLocalAi: (options) => ipcRenderer.invoke('local-ai-chat', options),
   planLocalActions: (options) => ipcRenderer.invoke('local-ai-plan', options),
   planOfflineSequence: (options) => ipcRenderer.invoke('offline-sequence', options),
