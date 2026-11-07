@@ -68,6 +68,9 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       unbindWake();
       if (unbindDismiss) unbindDismiss();
       window.removeEventListener('keydown', handleKeyDown);
+      clearTimeout(resetTimerRef.current);
+      speechService.stopListening();
+      speechService.stopSpeaking();
     };
   }, []);
 
@@ -79,7 +82,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     setIsInputOpen(true);
     speechService.playChime('activate');
 
-    if (settings.voice.wakePhraseEnabled) {
+    if (settings.voice.wakePhraseEnabled && !isListeningVoice) {
       handleVoiceToggle();
     }
   };
@@ -186,6 +189,12 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         },
         (lvl) => {
           setAudioLevel(lvl);
+        },
+        () => {
+          setIsListeningVoice(false);
+          setAudioLevel(0);
+          setCharacterState('idle');
+          setBubbleText('No speech detected. Try again or type your request.');
         }
       );
     }
@@ -368,6 +377,9 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       setCharacterState('sleeping');
       setBubbleText('Zzz...');
       setIsInputOpen(false);
+      speechService.stopListening();
+      setIsListeningVoice(false);
+      setAudioLevel(0);
     } else {
       setIsSleeping(false);
       setCharacterState('idle');
@@ -445,7 +457,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
               setBubbleText("What can I do for you?");
             }
           }}
-          title={isInputOpen ? "Close command bar" : "Ask Companio or speak (Ctrl+Shift+Space)"}
+          title={isInputOpen ? "Close command bar" : `Ask Companio (${settings.activationShortcut})`}
           className="absolute -right-4 bottom-8 w-9 h-9 rounded-full bg-white hover:bg-sky-50 text-sky-600 shadow-[0_8px_20px_rgba(14,165,233,0.35)] border border-sky-200 flex items-center justify-center transition-all hover:scale-115 active:scale-95 app-no-drag z-20 cursor-pointer"
         >
           {isInputOpen ? (
