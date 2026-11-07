@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { runPowerShell } = require('./psHelper.cjs');
+const quotePowerShell = (value) => "'" + String(value).replace(/'/g, "''") + "'";
 
 class WinAppsController {
   // Launch Windows Calculator
@@ -59,7 +60,7 @@ $rem = Get-Process -Name "CalculatorApp","Calculator","calc" -ErrorAction Silent
         resolvedPath = path.join(os.homedir(), 'aura');
       }
 
-      const script = `Start-Process explorer.exe -ArgumentList "${resolvedPath.replace(/\\/g, '\\\\')}"`;
+      const script = `Start-Process -FilePath 'explorer.exe' -ArgumentList ${quotePowerShell(resolvedPath)}`;
       await runPowerShell(script);
       return {
         success: true,
@@ -76,7 +77,7 @@ $rem = Get-Process -Name "CalculatorApp","Calculator","calc" -ErrorAction Silent
   async launchVSCode(projectPath = '') {
     try {
       const target = projectPath || path.join(os.homedir(), 'aura');
-      const script = `code "${target.replace(/\\/g, '\\\\')}"`;
+      const script = `& code ${quotePowerShell(target)}`;
       await runPowerShell(script);
       return {
         success: true,
@@ -466,6 +467,7 @@ $os = (Get-CimInstance Win32_OperatingSystem).Caption.Trim()
   // Set Monitor Brightness
   async setBrightness(level) {
     try {
+      if (typeof level !== 'number' || !Number.isFinite(level)) throw new Error('Invalid brightness level');
       const clamped = Math.max(10, Math.min(100, Math.round(level)));
       const script = `
 $m = Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods -ErrorAction SilentlyContinue
@@ -492,6 +494,7 @@ if ($m) {
   // Change Monitor Brightness
   async changeBrightness(delta) {
     try {
+      if (typeof delta !== 'number' || !Number.isFinite(delta) || Math.abs(delta) > 100) throw new Error('Invalid brightness adjustment');
       const script = `
 $cur = Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightness -ErrorAction SilentlyContinue
 $lvl = if ($cur) { $cur.CurrentBrightness } else { 70 }

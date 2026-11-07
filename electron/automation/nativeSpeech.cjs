@@ -7,6 +7,9 @@ class NativeSpeechRecognizer {
 
   // Recognize a single spoken utterance using Windows Speech Recognition Engine
   recognizeOnce(timeoutSec = 5) {
+    if (typeof timeoutSec !== 'number' || !Number.isFinite(timeoutSec) || timeoutSec < 1 || timeoutSec > 15) {
+      return Promise.resolve({ success: false, error: 'Invalid speech timeout' });
+    }
     return new Promise((resolve) => {
       const script = `
 Add-Type -AssemblyName System.Speech

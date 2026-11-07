@@ -1,6 +1,8 @@
-const { app, BrowserWindow, globalShortcut, ipcMain, screen, Tray, Menu, nativeImage, session } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, screen, Tray, Menu, nativeImage, session, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { fileURLToPath } = require('url');
+const { validateToolRequest, validateShortcut } = require('./automation/requestValidation.cjs');
 
 const browserController = require('./automation/browserController.cjs');
 const winAppsController = require('./automation/winAppsController.cjs');
@@ -12,6 +14,7 @@ let overlayWindow = null;
 let dashboardWindow = null;
 let tray = null;
 let currentShortcut = 'CommandOrControl+Shift+Space';
+let overlayPreferences = { alwaysOnTop: true };
 
 // Position storage file
 const CONFIG_PATH = path.join(app.getPath('userData'), 'companio_window_config.json');
@@ -26,10 +29,55 @@ function loadSavedPosition() {
   return null;
 }
 
-function savePosition(x, y) {
+function saveConfig(patch) {
   try {
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify({ x, y }), 'utf-8');
-  } catch (e) {}
+    fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify({ ...(loadSavedPosition() || {}), ...patch }), 'utf-8');
+    return true;
+  } catch (err) {
+    console.error('[Companio] Failed to persist settings:', err.message);
+    return false;
+  }
+}
+
+function savePosition(x, y) { return saveConfig({ x, y }); }
+
+function isTrustedAppURL(raw) {
+  try {
+    const url = new URL(raw);
+    if (url.protocol === 'file:') {
+      return path.normalize(fileURLToPath(url)) === path.normalize(path.join(__dirname, '../dist/index.html'));
+    }
+    return (process.env.NODE_ENV === 'development' || !!process.env.VITE_DEV_SERVER_URL)
+      && url.origin === 'http://localhost:5173' && url.pathname === '/';
+  } catch { return false; }
+}
+
+function isTrustedSender(event) {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  return !!win && (win === overlayWindow || win === dashboardWindow) && isTrustedAppURL(event.sender.getURL());
+}
+
+function secureHandle(channel, callback) {
+  ipcMain.handle(channel, (event, ...args) => {
+    if (!isTrustedSender(event)) throw new Error('Untrusted IPC sender');
+    return callback(event, ...args);
+  });
+}
+
+function protectWindow(win) {
+  win.webContents.on('will-navigate', (event, url) => {
+    if (!isTrustedAppURL(url)) event.preventDefault();
+  });
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const target = new URL(url);
+      if (['http:', 'https:'].includes(target.protocol)) {
+        shell.openExternal(target.toString()).catch((err) => console.error('[Companio] External link failed:', err.message));
+      }
+    } catch {}
+    return { action: 'deny' };
+  });
 }
 
 function createOverlayWindow() {
@@ -54,7 +102,7 @@ function createOverlayWindow() {
     y: posY,
     transparent: true,
     frame: false,
-    alwaysOnTop: true,
+    alwaysOnTop: overlayPreferences.alwaysOnTop,
     skipTaskbar: true,
     resizable: false,
     hasShadow: false,
@@ -62,8 +110,10 @@ function createOverlayWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true,
     }
   });
+  protectWindow(overlayWindow);
 
   loadWindowContent(overlayWindow, 'overlay');
 
@@ -129,8 +179,10 @@ function createDashboardWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true,
     }
   });
+  protectWindow(dashboardWindow);
 
   loadWindowContent(dashboardWindow, 'dashboard');
 
@@ -187,10 +239,16 @@ function setupTray() {
   tray.on('double-click', () => createDashboardWindow());
 }
 
-function registerHotkeys() {
+function registerHotkeys(requested = currentShortcut) {
   try {
-    globalShortcut.unregisterAll();
-    const registered = globalShortcut.register(currentShortcut, () => {
+    const validated = validateShortcut(requested);
+    if (!validated.success) return validated;
+    const shortcut = validated.shortcut;
+    if (globalShortcut.isRegistered(shortcut)) {
+      currentShortcut = shortcut;
+      return { success: true, shortcut };
+    }
+    const registered = globalShortcut.register(shortcut, () => {
       console.log('Global activation hotkey triggered!');
       if (!overlayWindow) {
         createOverlayWindow();
@@ -207,19 +265,34 @@ function registerHotkeys() {
       }
     });
 
-    if (!registered) {
-      console.warn(`Failed to register global hotkey: ${currentShortcut}`);
-    } else {
-      console.log(`Global hotkey registered: ${currentShortcut}`);
-    }
+    if (!registered) return { success: false, error: 'Shortcut unavailable: ' + shortcut };
+    if (currentShortcut !== shortcut) globalShortcut.unregister(currentShortcut);
+    currentShortcut = shortcut;
+    console.log('Global hotkey registered: ' + shortcut);
+    return { success: true, shortcut };
   } catch (err) {
     console.error('Hotkey registration error:', err);
+    return { success: false, error: err.message };
   }
 }
 
 // IPC Handlers
-ipcMain.handle('execute-tool', async (_, { toolName, params }) => {
-  console.log(`[IPC] Executing tool: ${toolName}`, params);
+secureHandle('execute-tool', async (event, payload) => {
+  const validated = validateToolRequest(payload);
+  if (!validated.success) return { success: false, verified: false, error: validated.error };
+  const { toolName, params } = validated;
+
+  if (toolName === 'win.recyclebin.empty') {
+    const answer = await dialog.showMessageBox(BrowserWindow.fromWebContents(event.sender), {
+      type: 'warning',
+      buttons: ['Cancel', 'Empty Recycle Bin'],
+      defaultId: 0,
+      cancelId: 0,
+      message: 'Permanently delete everything in the Recycle Bin?',
+      title: 'Confirm permanent deletion'
+    });
+    if (answer.response !== 1) return { success: false, verified: false, error: 'Deletion cancelled.' };
+  }
 
   switch (toolName) {
     // Browser tools
@@ -365,8 +438,28 @@ ipcMain.handle('execute-tool', async (_, { toolName, params }) => {
   }
 });
 
+// Settings are applied by the native window manager, not only by React state.
+secureHandle('set-activation-shortcut', async (_, value) => {
+  const validation = validateShortcut(value);
+  if (!validation.success) return validation;
+  const applied = registerHotkeys(validation.shortcut);
+  if (applied.success && !saveConfig({ activationShortcut: applied.shortcut })) {
+    return { success: false, error: 'Shortcut changed but could not be saved.' };
+  }
+  return applied;
+});
+secureHandle('set-overlay-preferences', async (_, options) => {
+  if (!options || typeof options.alwaysOnTop !== 'boolean') {
+    return { success: false, error: 'Invalid overlay preferences' };
+  }
+  overlayPreferences.alwaysOnTop = options.alwaysOnTop;
+  if (overlayWindow) overlayWindow.setAlwaysOnTop(options.alwaysOnTop);
+  const saved = saveConfig({ alwaysOnTop: options.alwaysOnTop });
+  return { success: saved, verified: saved, error: saved ? undefined : 'Could not save overlay preference' };
+});
+
 // Model Downloader IPC handlers
-ipcMain.handle('get-models-status', async () => {
+secureHandle('get-models-status', async () => {
   try {
     return modelDownloader.listModels();
   } catch (err) {
@@ -374,7 +467,7 @@ ipcMain.handle('get-models-status', async () => {
   }
 });
 
-ipcMain.handle('download-model', async (event, { modelId }) => {
+secureHandle('download-model', async (event, { modelId }) => {
   try {
     return await modelDownloader.downloadModel(modelId, (progress) => {
       try {
@@ -386,16 +479,16 @@ ipcMain.handle('download-model', async (event, { modelId }) => {
   }
 });
 
-ipcMain.handle('cancel-model-download', async () => {
+secureHandle('cancel-model-download', async () => {
   return modelDownloader.cancelDownload();
 });
 
-ipcMain.handle('get-volume', async () => await volumeController.getVolume());
-ipcMain.handle('set-volume', async (_, level) => await volumeController.setVolume(level));
-ipcMain.handle('set-mute', async (_, mute) => await volumeController.setMute(mute));
-ipcMain.handle('take-screenshot', async () => await winAppsController.takeScreenshot());
+secureHandle('get-volume', async () => await volumeController.getVolume());
+secureHandle('set-volume', async (_, level) => await volumeController.setVolume(level));
+secureHandle('set-mute', async (_, mute) => await volumeController.setMute(mute));
+secureHandle('take-screenshot', async () => await winAppsController.takeScreenshot());
 
-ipcMain.handle('toggle-dashboard', async (_, show) => {
+secureHandle('toggle-dashboard', async (_, show) => {
   if (show === false) {
     if (dashboardWindow) dashboardWindow.hide();
   } else {
@@ -404,29 +497,30 @@ ipcMain.handle('toggle-dashboard', async (_, show) => {
   return true;
 });
 
-ipcMain.handle('save-overlay-position', async (_, { x, y }) => {
+secureHandle('save-overlay-position', async (_, { x, y }) => {
   savePosition(x, y);
   return true;
 });
 
-ipcMain.handle('get-overlay-position', async () => {
+secureHandle('get-overlay-position', async () => {
   return loadSavedPosition();
 });
 
-ipcMain.handle('set-ignore-mouse-events', (event, ignore) => {
+secureHandle('set-ignore-mouse-events', (event, ignore) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (win) {
     win.setIgnoreMouseEvents(ignore, { forward: true });
   }
 });
 
-ipcMain.handle('quit-app', () => {
+secureHandle('quit-app', () => {
   app.isQuitting = true;
   app.quit();
 });
 
 // State synchronization between overlay and dashboard windows
 ipcMain.on('sync-state-broadcast', (event, state) => {
+  if (!isTrustedSender(event)) return;
   if (overlayWindow && event.sender !== overlayWindow.webContents) {
     overlayWindow.webContents.send('sync-state', state);
   }
@@ -435,12 +529,12 @@ ipcMain.on('sync-state-broadcast', (event, state) => {
   }
 });
 
-ipcMain.handle('hide-overlay', () => {
+secureHandle('hide-overlay', () => {
   if (overlayWindow) overlayWindow.hide();
   return true;
 });
 
-ipcMain.handle('start-native-speech', async (_, { timeoutSec = 5 } = {}) => {
+secureHandle('start-native-speech', async (_, { timeoutSec = 5 } = {}) => {
   try {
     return await nativeSpeech.recognizeOnce(timeoutSec);
   } catch (e) {
@@ -448,12 +542,12 @@ ipcMain.handle('start-native-speech', async (_, { timeoutSec = 5 } = {}) => {
   }
 });
 
-ipcMain.handle('cancel-native-speech', () => {
+secureHandle('cancel-native-speech', () => {
   nativeSpeech.cancel();
   return { success: true };
 });
 
-ipcMain.handle('show-overlay', () => {
+secureHandle('show-overlay', () => {
   if (overlayWindow) {
     overlayWindow.show();
     overlayWindow.focus();
@@ -462,20 +556,30 @@ ipcMain.handle('show-overlay', () => {
 });
 
 app.commandLine.appendSwitch('enable-speech-dispatcher');
-app.commandLine.appendSwitch('enable-features', 'WebBluetooth,WebUSB');
 
 app.whenReady().then(() => {
-  // Auto-grant microphone and media permissions for Web Speech API
+  // Never grant camera, accessibility, Bluetooth or USB permissions automatically.
   if (session && session.defaultSession) {
-    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-      const allowed = ['media', 'microphone', 'notifications', 'accessibility-events'];
-      callback(allowed.includes(permission));
+    const trusted = (wc) => {
+      const win = BrowserWindow.fromWebContents(wc);
+      return !!win && (win === overlayWindow || win === dashboardWindow) && isTrustedAppURL(wc.getURL());
+    };
+    session.defaultSession.setPermissionRequestHandler((wc, permission, callback, details) => {
+      const audioOnly = permission === 'media' && Array.isArray(details?.mediaTypes)
+        && details.mediaTypes.includes('audio') && !details.mediaTypes.includes('video');
+      callback(trusted(wc) && (audioOnly || permission === 'notifications'));
     });
-    session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
-      return ['media', 'microphone', 'notifications', 'accessibility-events'].includes(permission);
+    session.defaultSession.setPermissionCheckHandler((wc, permission, requestingOrigin, details) => {
+      const audioOnly = permission === 'media' && Array.isArray(details?.mediaTypes)
+        && details.mediaTypes.includes('audio') && !details.mediaTypes.includes('video');
+      return trusted(wc) && (audioOnly || permission === 'notifications');
     });
   }
 
+  const saved = loadSavedPosition() || {};
+  const shortcut = validateShortcut(saved.activationShortcut);
+  if (shortcut.success) currentShortcut = shortcut.shortcut;
+  if (typeof saved.alwaysOnTop === 'boolean') overlayPreferences.alwaysOnTop = saved.alwaysOnTop;
   createOverlayWindow();
   setupTray();
   registerHotkeys();
