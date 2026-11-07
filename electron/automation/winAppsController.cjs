@@ -77,30 +77,57 @@ $rem = Get-Process -Name "CalculatorApp","Calculator","calc" -ErrorAction Silent
   // Launch VS Code
   async launchVSCode(projectPath = '') {
     try {
-      const target = projectPath || path.join(os.homedir(), 'aura');
-      const script = `& code ${quotePowerShell(target)}`;
-      await runPowerShell(script);
+      if (typeof projectPath !== 'string') throw new Error('Invalid VS Code project path');
+      const target = projectPath.trim();
+      if (target && (!fs.existsSync(target) || !fs.statSync(target).isDirectory())) {
+        return { success: false, verified: false, error: 'VS Code project folder does not exist.' };
+      }
+      const script = [
+        "$ErrorActionPreference = 'Stop'",
+        '& code' + (target ? ' ' + quotePowerShell(target) : ''),
+        '$found = $false',
+        'for ($i = 0; $i -lt 16; $i++) {',
+        '  Start-Sleep -Milliseconds 250',
+        "  if (Get-Process -Name 'Code' -ErrorAction SilentlyContinue | Select-Object -First 1) { $found = $true; break }",
+        '}',
+        "if ($found) { 'COMPANIO_CODE_RUNNING' } else { 'COMPANIO_CODE_NOT_FOUND' }"
+      ].join('\n');
+      const { stdout } = await runPowerShell(script);
+      const verified = stdout.trim() === 'COMPANIO_CODE_RUNNING';
       return {
-        success: true,
-        message: `VS Code opened for ${target}`,
-        verified: true
+        success: verified,
+        verified,
+        message: verified ? 'Visual Studio Code process is running.' : 'VS Code launch attempted, but no running process was confirmed.',
+        error: verified ? undefined : 'Could not verify VS Code started.'
       };
     } catch (err) {
-      return { success: false, error: err.message, verified: false };
+      return { success: false, verified: false, error: err.message };
     }
   }
 
   // Launch Spotify
   async launchSpotify() {
     try {
-      await runPowerShell('Start-Process "spotify:"');
+      const script = [
+        "$ErrorActionPreference = 'Stop'",
+        'Start-Process -FilePath "spotify:" -ErrorAction Stop',
+        '$found = $false',
+        'for ($i = 0; $i -lt 16; $i++) {',
+        '  Start-Sleep -Milliseconds 250',
+        "  if (Get-Process -Name 'Spotify' -ErrorAction SilentlyContinue | Select-Object -First 1) { $found = $true; break }",
+        '}',
+        "if ($found) { 'COMPANIO_SPOTIFY_RUNNING' } else { 'COMPANIO_SPOTIFY_NOT_FOUND' }"
+      ].join('\n');
+      const { stdout } = await runPowerShell(script);
+      const verified = stdout.trim() === 'COMPANIO_SPOTIFY_RUNNING';
       return {
-        success: true,
-        message: 'Spotify launched',
-        verified: true
+        success: verified,
+        verified,
+        message: verified ? 'Spotify process is running.' : 'Spotify launch requested, but its process was not found.',
+        error: verified ? undefined : 'Spotify could not be verified. Confirm that it is installed.'
       };
     } catch (err) {
-      return { success: false, error: err.message, verified: false };
+      return { success: false, verified: false, error: err.message };
     }
   }
 
@@ -138,15 +165,19 @@ $type::keybd_event(${vkCode}, 0, 2, [UIntPtr]::Zero)
   // Play Spotify specific track
   async playSpotifyTrack(query) {
     try {
-      const uri = `spotify:search:${encodeURIComponent(query)}`;
-      await runPowerShell(`Start-Process "${uri}"`);
+      if (typeof query !== 'string' || !query.trim()) {
+        throw new Error('Spotify search needs a song or artist.');
+      }
+      const uri = 'spotify:search:' + encodeURIComponent(query);
+      await runPowerShell('Start-Process -FilePath ' + quotePowerShell(uri) + ' -ErrorAction Stop');
       return {
         success: true,
-        message: `Playing "${query}" on Spotify`,
-        verified: true
+        verified: false,
+        message: 'Opened a Spotify search for "' + query + '"; actual playback has not been confirmed.',
+        error: 'Spotify search was opened, but playback cannot be verified or started automatically.'
       };
     } catch (err) {
-      return { success: false, error: err.message, verified: false };
+      return { success: false, verified: false, error: err.message };
     }
   }
 
