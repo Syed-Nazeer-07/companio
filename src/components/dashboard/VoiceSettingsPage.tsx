@@ -15,6 +15,9 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
   const [micLevel, setMicLevel] = useState<number>(0);
   const micIntervalRef = React.useRef<any>(null);
   const micStreamRef = React.useRef<MediaStream | null>(null);
+  const micAudioCtxRef = React.useRef<AudioContext | null>(null);
+  const micRequestRef = React.useRef(0);
+  const [micError, setMicError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadVoices = () => {
@@ -23,44 +26,73 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
     };
     loadVoices();
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
+      window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
     }
 
     return () => {
+      micRequestRef.current++;
       if (micIntervalRef.current) clearInterval(micIntervalRef.current);
       if (micStreamRef.current) micStreamRef.current.getTracks().forEach((t) => t.stop());
+      if (micAudioCtxRef.current) void micAudioCtxRef.current.close().catch(() => {});
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+      }
+      speechService.stopSpeaking();
     };
   }, []);
 
   const handleToggleTestMic = async () => {
+    const request = ++micRequestRef.current;
     if (testingMic) {
       if (micIntervalRef.current) clearInterval(micIntervalRef.current);
-      if (micStreamRef.current) micStreamRef.current.getTracks().forEach((t) => t.stop());
+      micIntervalRef.current = null;
+      micStreamRef.current?.getTracks().forEach(track => track.stop());
+      micStreamRef.current = null;
+      if (micAudioCtxRef.current) void micAudioCtxRef.current.close().catch(() => {});
+      micAudioCtxRef.current = null;
       setTestingMic(false);
       setMicLevel(0);
       return;
     }
 
+    setMicError(null);
+    setTestingMic(true); // Permit cancellation while the browser asks permission.
+    let stream: MediaStream | null = null;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('This browser does not provide microphone access.');
+      }
+      stream = await navigator.mediaDevices.getUserMedia({audio:true});
+      if (request !== micRequestRef.current) {
+        stream.getTracks().forEach(track => track.stop());
+        return;
+      }
       micStreamRef.current = stream;
-      setTestingMic(true);
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!Ctx) throw new Error('Audio level monitoring is unavailable in this browser.');
+      const audioCtx = new Ctx() as AudioContext;
+      micAudioCtxRef.current = audioCtx;
       const source = audioCtx.createMediaStreamSource(stream);
       const analyser = audioCtx.createAnalyser();
       analyser.fftSize = 64;
       source.connect(analyser);
       const data = new Uint8Array(analyser.frequencyBinCount);
       micIntervalRef.current = setInterval(() => {
+        if (request !== micRequestRef.current) return;
         analyser.getByteFrequencyData(data);
-        let sum = 0;
-        for (let i = 0; i < data.length; i++) sum += data[i];
-        const avg = sum / data.length;
-        const norm = Math.min(100, Math.round(avg * 1.2));
-        setMicLevel(norm);
-      }, 50);
-    } catch (e: any) {
-      alert(`Could not access microphone: ${e.message}`);
+        const average = data.reduce((sum,value)=>sum+value,0)/data.length;
+        setMicLevel(Math.min(100, Math.max(0, Math.round(average * 1.2))));
+      },80);
+    } catch (error) {
+      stream?.getTracks().forEach(track => track.stop());
+      if (request === micRequestRef.current) {
+        setTestingMic(false);
+        setMicLevel(0);
+        setMicError(error instanceof Error ? error.message : 'Could not access your microphone.');
+      }
+      if (micAudioCtxRef.current) void micAudioCtxRef.current.close().catch(() => {});
+      micAudioCtxRef.current = null;
+      micStreamRef.current = null;
     }
   };
 
@@ -118,9 +150,16 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
               Push-to-Talk Activation
             </label>
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700">
-              Click the microphone button on the companion or press <span className="font-mono font-bold text-sky-700">Ctrl + Shift + Space</span> to talk!
+              Press <span className="font-mono font-bold text-sky-700">{settings.activationShortcut}</span> to open the assistant.
+              Click its microphone button to speak. Turn on auto-start above if you want the shortcut to start listening immediately.
             </div>
           </div>
+
+          <p className="text-xs text-slate-500 leading-relaxed">
+            The installed desktop app uses Windows speech recognition for a single request at a time.
+            This requires a working Windows speech engine and microphone. Continuous wake-word detection is not available.
+            Speech recognition in browser previews may depend on the browser's online speech service.
+          </p>
 
           {/* Test Live Microphone Meter */}
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
@@ -139,6 +178,9 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
               </button>
             </div>
 
+            {micError && (
+              <p role="alert" className="text-xs text-rose-700">{micError}</p>
+            )}
             {testingMic && (
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-[11px] text-slate-600 font-mono">
@@ -191,7 +233,8 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
               </span>
             </div>
             <p className="text-[11px] text-slate-600 leading-relaxed">
-              Companio automatically customizes pitch and rate to match {settings.characterName}'s personality.
+              Companio adapts the base pitch and speaking pace to {settings.characterName}'s profile.
+              Your voice settings fine-tune that profile.
             </p>
           </div>
 
