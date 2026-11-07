@@ -22,7 +22,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
   onUpdateSettings
 }) => {
   const [characterState, setCharacterState] = useState<CharacterState>('idle');
-  const [bubbleText, setBubbleText] = useState<string>('Hello! Click me or press Ctrl+Shift+Space ✨');
+  const [bubbleText, setBubbleText] = useState<string>(`Hello! Click me or press ${settings.activationShortcut} ✨`);
   const [activePlan, setActivePlan] = useState<TaskPlan | null>(null);
   const [isInputOpen, setIsInputOpen] = useState<boolean>(false);
   const [isListeningVoice, setIsListeningVoice] = useState<boolean>(false);

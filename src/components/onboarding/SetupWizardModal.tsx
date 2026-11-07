@@ -188,7 +188,7 @@ export const SetupWizardModal: React.FC<Props> = ({
                       {localSettings.ai.provider === 'mock' && <Check className="w-4 h-4 text-sky-600 stroke-[3]" />}
                     </div>
                     <p className="text-xs text-slate-500 leading-relaxed">
-                      Zero limits, 0ms latency, zero API keys required. Perfectly controls all apps & browser tasks.
+                      Runs supported commands offline without API keys. General computer control is still experimental.
                     </p>
                   </div>
 

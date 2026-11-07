@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppSettings } from '../../types';
-import { Keyboard, Bell, Monitor, RotateCcw, Sparkles } from 'lucide-react';
+import { Keyboard, Bell, Monitor, RotateCcw } from 'lucide-react';
+import { desktopBridge, isNativeDesktop } from '../../services/desktopBridge';
 
 interface Props {
   settings: AppSettings;
@@ -8,11 +9,48 @@ interface Props {
 }
 
 export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) => {
-  const handleResetDefaults = () => {
-    if (confirm('Reset all Companio preferences to default values?')) {
-      localStorage.clear();
-      window.location.reload();
+  const [shortcutDraft, setShortcutDraft] = useState(settings.activationShortcut);
+  const [status, setStatus] = useState('');
+  const [savingShortcut, setSavingShortcut] = useState(false);
+  useEffect(() => setShortcutDraft(settings.activationShortcut), [settings.activationShortcut]);
+
+  const handleSaveShortcut = async () => {
+    setSavingShortcut(true);
+    try {
+      const result = await desktopBridge.setActivationShortcut(shortcutDraft);
+      if (result.success && result.shortcut) {
+        onUpdateSettings({ activationShortcut: result.shortcut.replace('CommandOrControl', 'Ctrl') });
+        setStatus('Global shortcut updated.');
+      } else setStatus(result.error || 'Shortcut could not be registered.');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Shortcut update failed.');
+    } finally { setSavingShortcut(false); }
+  };
+
+  const handleOverlayOption = async (key: 'alwaysOnTop' | 'snapToEdge', enabled: boolean) => {
+    const options = { alwaysOnTop: settings.overlay.alwaysOnTop, snapToEdge: settings.overlay.snapToEdge, [key]: enabled };
+    try {
+      const result = await desktopBridge.setOverlayPreferences(options);
+      if (result.success) {
+        onUpdateSettings({ overlay: { ...settings.overlay, ...options } });
+        setStatus('Desktop behavior updated.');
+      } else setStatus(result.error || 'Could not apply the native setting.');
+    } catch (error) { setStatus(error instanceof Error ? error.message : 'Could not change desktop setting.'); }
+  };
+
+  const handleResetDefaults = async () => {
+    if (!confirm('Reset Companio preferences? Your notes and history will be kept.')) return;
+    if (isNativeDesktop()) {
+      const shortcut = await desktopBridge.setActivationShortcut('Ctrl+Shift+Space');
+      const overlay = await desktopBridge.setOverlayPreferences({ alwaysOnTop: true, snapToEdge: true });
+      if (!shortcut.success || !overlay.success) {
+        setStatus(shortcut.error || overlay.error || 'Could not reset native settings.');
+        return;
+      }
     }
+    localStorage.removeItem('companio_settings');
+    localStorage.removeItem('aura_settings');
+    window.location.reload();
   };
 
   return (
@@ -34,14 +72,18 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
           <div className="flex items-center gap-3">
             <input
               type="text"
-              value={settings.activationShortcut}
-              onChange={(e) => onUpdateSettings({ activationShortcut: e.target.value })}
+              value={shortcutDraft}
+              onChange={(e) => setShortcutDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleSaveShortcut(); } }}
               className="px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sky-700 font-mono font-bold text-sm focus:outline-none focus:border-sky-500 focus:bg-white w-64 shadow-sm"
             />
-            <span className="text-xs text-slate-500">
-              Press once to wake or activate; press again to close/dismiss.
-            </span>
+            <button type="button" onClick={handleSaveShortcut} disabled={savingShortcut}
+              className="rounded-lg bg-sky-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">
+              {savingShortcut ? 'Saving...' : 'Save shortcut'}
+            </button>
+            <span className="text-xs text-slate-500">Example: Ctrl+Shift+Space</span>
           </div>
+          {status && <p role="status" className="mt-2 text-xs text-slate-600">{status}</p>}
         </div>
 
         <div className="border-t border-slate-100 pt-5 space-y-4">
@@ -59,9 +101,7 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
             <input
               type="checkbox"
               checked={settings.overlay.alwaysOnTop}
-              onChange={(e) => onUpdateSettings({
-                overlay: { ...settings.overlay, alwaysOnTop: e.target.checked }
-              })}
+              onChange={(e) => void handleOverlayOption('alwaysOnTop', e.target.checked)}
               className="w-5 h-5 accent-sky-600 rounded cursor-pointer"
             />
           </div>
@@ -75,9 +115,7 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
             <input
               type="checkbox"
               checked={settings.overlay.snapToEdge}
-              onChange={(e) => onUpdateSettings({
-                overlay: { ...settings.overlay, snapToEdge: e.target.checked }
-              })}
+              onChange={(e) => void handleOverlayOption('snapToEdge', e.target.checked)}
               className="w-5 h-5 accent-sky-600 rounded cursor-pointer"
             />
           </div>
@@ -105,14 +143,13 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
           <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
             <div>
               <p className="text-sm font-bold text-slate-800">Hide in Exclusive Fullscreen Games</p>
-              <p className="text-xs text-slate-500">Temporarily hide overlay to avoid interrupting gaming</p>
+              <p className="text-xs text-slate-500">Not yet supported. Fullscreen detection is planned for a future update.</p>
             </div>
             <input
               type="checkbox"
-              checked={settings.overlay.autoHideInFullscreen}
-              onChange={(e) => onUpdateSettings({
-                overlay: { ...settings.overlay, autoHideInFullscreen: e.target.checked }
-              })}
+              checked={false}
+              disabled
+              aria-label="Fullscreen detection is not yet available"
               className="w-5 h-5 accent-sky-600 rounded cursor-pointer"
             />
           </div>

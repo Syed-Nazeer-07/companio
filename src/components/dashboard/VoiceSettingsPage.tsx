@@ -99,8 +99,8 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
           {/* Wake Word Toggle */}
           <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
             <div>
-              <p className="text-sm font-bold text-slate-800">Wake Phrase ("Hey Companio")</p>
-              <p className="text-xs text-slate-500">Allows hands-free voice activation when overlay is running</p>
+              <p className="text-sm font-bold text-slate-800">Auto-start listening after activation</p>
+              <p className="text-xs text-slate-500">Starts the microphone after activating Companio. Continuous wake-word detection is not available.</p>
             </div>
             <input
               type="checkbox"
