@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { validateProposal, proposeActions } = require('../electron/automation/localActionPlanner.cjs');
+const { validateProposal, proposeActions, planOfflineSequence } = require('../electron/automation/localActionPlanner.cjs');
 
 const json = steps => JSON.stringify({steps});
 test('proposes 1 to 3 verified, allowlisted actions with trustworthy descriptions', async () => {
@@ -65,4 +65,32 @@ test('native validator normalizes safe public website URLs',()=>{
   const plan=validateProposal(json([{tool:'browser.open_url',params:{url:'example.com'}}]));
   assert.equal(plan[0].params.url,'https://example.com/');
   assert.match(plan[0].description,/https:\/\/example.com/);
+});
+test('offline compound tasks work with no inference server or API key', () => {
+  const result = planOfflineSequence({query:'Open Notepad and then set volume to 45%'});
+  assert.equal(result.success, true);
+  assert.equal(result.recognized, true);
+  assert.equal(result.requiresConfirmation, true);
+  assert.deepEqual(result.steps.map(step => step.tool), ['win.notepad.launch', 'win.volume.set']);
+  assert.equal(result.steps[1].params.level, 45);
+  const youtube = planOfflineSequence({query:'Open YouTube and search Google for Python tutorials'});
+  assert.equal(youtube.success, true);
+  assert.deepEqual(youtube.steps.map(step=>step.tool), ['browser.youtube.open','browser.search_google']);
+});
+
+test('offline grammar never executes a partial or destructive workflow', () => {
+  const mixed = planOfflineSequence({query:'Open Notepad and delete my Documents'});
+  assert.equal(mixed.success, false);
+  assert.equal(mixed.recognized, true);
+  assert.deepEqual(mixed.steps, []);
+  const tooMany = planOfflineSequence({query:'Open Notepad and open YouTube and open Calculator and mute sound'});
+  assert.equal(tooMany.success, false);
+  assert.equal(tooMany.recognized, true);
+  const invalid = planOfflineSequence({query:'Set volume to 105 and open YouTube'});
+  assert.equal(invalid.success, false);
+  assert.deepEqual(invalid.steps, []);
+  const noun = planOfflineSequence({query:'Search Google for Tom and Jerry cartoons'});
+  assert.equal(noun.recognized, false);
+  const single = planOfflineSequence({query:'Open Calculator'});
+  assert.equal(single.recognized, false);
 });
