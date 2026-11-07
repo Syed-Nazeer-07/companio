@@ -818,7 +818,7 @@ export class AgentEngine {
     };
   }
 
-  // Conversational response with Local LLM (Ollama/LM Studio) support & natural fallback
+  // Conversational response with local desktop inference and deterministic offline utilities
   private async generateConversationalResponse(query: string, aiConfig?: AiConfig): Promise<string> {
     const q = query.toLowerCase().trim();
 
@@ -892,48 +892,20 @@ export class AgentEngine {
       return quotes[Math.floor(Math.random() * quotes.length)];
     }
 
-    // 3. Try Local LLM (Ollama / LM Studio) if configured
+    // Local mode must use the selected model or report a real error.
+    // Never silently fall back to a canned reply when the server is offline.
     if (aiConfig?.provider === 'local') {
-      const endpoints = [
-        aiConfig.localEndpoint,
-        'http://127.0.0.1:11434/v1',
-        'http://localhost:11434/v1',
-        'http://127.0.0.1:1234/v1',
-        'http://localhost:1234/v1'
-      ].filter(Boolean) as string[];
-
-      for (const base of endpoints) {
-        try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 8000);
-
-          const url = base.endsWith('/chat/completions') ? base : `${base.replace(/\/+$/, '')}/chat/completions`;
-          const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              model: aiConfig.model || 'llama3.2:1b',
-              messages: [
-                {
-                  role: 'system',
-                  content: 'You are Companio, an adorable, friendly, helpful personal AI desktop companion for Windows 11. Keep replies concise (1-2 sentences), sweet, and warm.'
-                },
-                { role: 'user', content: query }
-              ],
-              max_tokens: 100,
-              temperature: 0.7
-            }),
-            signal: controller.signal
-          });
-
-          clearTimeout(timeout);
-          if (res.ok) {
-            const data = await res.json();
-            const reply = data.choices?.[0]?.message?.content?.trim();
-            if (reply) return reply;
-          }
-        } catch (err) {}
+      const result = await desktopBridge.chatLocalAi({
+        endpoint: aiConfig.localEndpoint,
+        model: aiConfig.model || 'llama3.2:1b',
+        prompt: query,
+        systemPrompt: aiConfig.systemPrompt,
+        temperature: aiConfig.temperature
+      });
+      if (!result.success || !result.reply) {
+        throw new Error(result.error || 'The local model did not return a response. Check AI Settings.');
       }
+      return result.reply;
     }
 
     // Built-in delightful companion personality
