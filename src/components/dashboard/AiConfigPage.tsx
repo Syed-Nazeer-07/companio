@@ -139,8 +139,46 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
     }
   };
 
+  const handleFindLocalAi = async () => {
+    setTestingConnection(true);
+    setTestResult(null);
+    setTestReply(null);
+    try {
+      const result = await desktopBridge.discoverLocalAi(settings.ai.localEndpoint || DEFAULT_LOCAL_ENDPOINT);
+      if (!result.success || !result.endpoint) {
+        setDetectedLocalModels([]);
+        setTestResult({ success: false, message: result.error || 'No local AI server was found.' });
+        return;
+      }
+      setDetectedLocalModels(result.models);
+      const model = result.models.includes(settings.ai.model)
+        ? settings.ai.model
+        : (result.models[0] || '');
+      onUpdateSettings({
+        ai: { ...settings.ai, localEndpoint: result.endpoint, model }
+      });
+      setTestResult({
+        success: result.models.length > 0,
+        message: result.models.length > 0
+          ? `Found ${result.models.length} available model(s) at ${result.endpoint}. Selected ${model}. Try a prompt to verify inference.`
+          : `Found a running local server at ${result.endpoint}, but no models are loaded. Load a model and retry.`
+      });
+    } catch (error) {
+      setTestResult({
+        success: false,
+        message: error instanceof Error ? error.message : 'Could not discover local model servers.'
+      });
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+
   const handleRunLiveTest = async () => {
     if (!testPrompt.trim()) return;
+    if (!settings.ai.model || settings.ai.model === 'companio-deterministic-v1') {
+      setTestReply('Choose a loaded local model before testing. Use Find Local AI to discover one.');
+      return;
+    }
     setIsTestingPrompt(true);
     setTestReply(null);
     try {
@@ -179,7 +217,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
             provider: 'local',
             model: detectedLocalModels.includes(settings.ai.model)
               ? settings.ai.model
-              : (detectedLocalModels[0] || (settings.ai.model !== 'companio-deterministic-v1' ? settings.ai.model : 'llama3.2:1b')),
+              : (detectedLocalModels[0] || (settings.ai.model !== 'companio-deterministic-v1' ? settings.ai.model : '')),
             localEndpoint: settings.ai.localEndpoint || DEFAULT_LOCAL_ENDPOINT
           } })}
           className={`p-4 rounded-2xl border cursor-pointer transition-all ${
@@ -253,14 +291,26 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
                   Selected local model: <span className="font-mono text-sky-700">{settings.ai.model || 'No model selected'}</span>
                 </span>
               </div>
-              <button
-                onClick={handleManualCheck}
-                disabled={testingConnection}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-all"
-              >
-                <RefreshCw className={`w-3 h-3 ${testingConnection ? 'animate-spin' : ''}`} />
-                <span>Check Connection</span>
-              </button>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={handleFindLocalAi}
+                  disabled={testingConnection}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold transition-all disabled:opacity-50"
+                >
+                  <Server className="w-3.5 h-3.5" />
+                  <span>{testingConnection ? 'Checking...' : 'Find Local AI'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleManualCheck}
+                  disabled={testingConnection}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-all disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3 h-3 ${testingConnection ? 'animate-spin' : ''}`} />
+                  <span>Check Connection</span>
+                </button>
+              </div>
             </div>
 
             {testResult && (
@@ -307,8 +357,8 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
             </div>
             <p className="text-[11px] text-slate-500">
               Ollama: http://127.0.0.1:11434/v1 · LM Studio: http://127.0.0.1:1234/v1.
-              Start the server and load a model first. Only local addresses are accepted.
-              Built-in Windows commands do not need an AI model.
+              Start the server and load a model first, then use Find Local AI to locate a running server and select its loaded model.
+              Only local addresses are accepted. Built-in Windows commands do not need an AI model.
             </p>
 
             {/* Quick Live Test Chat Box */}
