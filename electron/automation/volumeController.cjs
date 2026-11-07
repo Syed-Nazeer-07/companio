@@ -75,6 +75,10 @@ public class AudioController {
 `;
 
 class VolumeController {
+  constructor(run = runPowerShell) {
+    this.runPowerShell = run;
+  }
+
   async getVolume() {
     try {
       const psCommand = `${CORE_AUDIO_SCRIPT}
@@ -82,24 +86,27 @@ $v = [math]::Round([AudioController]::GetVolume() * 100)
 $m = [AudioController]::GetMute()
 Write-Output "$v|$m"
 `;
-      const { stdout } = await runPowerShell(psCommand);
-      const parts = stdout.trim().split('|');
-      const vol = parseInt(parts[0], 10);
-      const isMuted = parts[1] ? parts[1].toLowerCase() === 'true' : false;
+      const { stdout } = await this.runPowerShell(psCommand);
+      const snapshot = stdout.trim().match(/^(0|[1-9]\d?|100)\|(true|false)$/i);
+      if (!snapshot) throw new Error('Windows returned an invalid volume or mute state');
       return {
-        volume: isNaN(vol) ? 50 : vol,
-        muted: isMuted,
-        verified: !isNaN(vol)
+        success: true,
+        volume: Number(snapshot[1]),
+        muted: snapshot[2].toLowerCase() === 'true',
+        verified: true
       };
     } catch (err) {
       console.error('Failed to get volume:', err.message);
-      return { volume: 50, muted: false, verified: false, error: err.message };
+      return { success: false, volume: null, muted: null, verified: false, error: err.message };
     }
   }
 
   async setVolume(percentage) {
     try {
-      const clamped = Math.max(0, Math.min(100, Math.round(percentage)));
+      if (typeof percentage !== 'number' || !Number.isFinite(percentage) || percentage < 0 || percentage > 100) {
+        throw new Error('Volume must be a number between 0 and 100');
+      }
+      const clamped = Math.round(percentage);
       const scalar = (clamped / 100).toFixed(2);
       const psCommand = `${CORE_AUDIO_SCRIPT}
 [AudioController]::SetVolume(${scalar})
@@ -107,13 +114,15 @@ Write-Output "$v|$m"
 $v = [math]::Round([AudioController]::GetVolume() * 100)
 Write-Output "$v"
 `;
-      const { stdout } = await runPowerShell(psCommand);
-      const verifiedVol = parseInt(stdout.trim(), 10);
-      const ok = !isNaN(verifiedVol) && Math.abs(verifiedVol - clamped) <= 2;
+      const { stdout } = await this.runPowerShell(psCommand);
+      const value = stdout.trim();
+      const verifiedVol = /^(0|[1-9]\d?|100)$/.test(value) ? Number(value) : null;
+      const ok = verifiedVol !== null && Math.abs(verifiedVol - clamped) <= 2;
       return {
         success: ok,
         volume: verifiedVol,
-        message: `System volume set to ${verifiedVol}%`,
+        message: ok ? `System volume set to ${verifiedVol}%` : 'Windows volume change could not be verified.',
+        error: ok ? undefined : 'Could not verify the requested system volume.',
         verified: ok
       };
     } catch (err) {
@@ -127,9 +136,14 @@ Write-Output "$v"
 
   async changeVolume(delta) {
     try {
+      if (typeof delta !== 'number' || !Number.isFinite(delta) || delta < -100 || delta > 100) {
+        throw new Error('Volume adjustment must be between -100 and 100');
+      }
       const current = await this.getVolume();
-      const currentLevel = (current && typeof current.volume === 'number') ? current.volume : 50;
-      const target = Math.max(0, Math.min(100, currentLevel + delta));
+      if (!current.success || !current.verified || typeof current.volume !== 'number') {
+        return { success: false, verified: false, error: 'Cannot change volume: current system volume could not be read.' };
+      }
+      const target = Math.max(0, Math.min(100, current.volume + delta));
       return await this.setVolume(target);
     } catch (err) {
       return { success: false, error: err.message, verified: false };
@@ -138,19 +152,26 @@ Write-Output "$v"
 
   async setMute(mute) {
     try {
+      if (typeof mute !== 'boolean') throw new Error('Mute must be true or false');
       const muteArg = mute ? '$true' : '$false';
       const psCommand = `${CORE_AUDIO_SCRIPT}
 [AudioController]::SetMute(${muteArg})
 $m = [AudioController]::GetMute()
 Write-Output "$m"
 `;
-      const { stdout } = await runPowerShell(psCommand);
-      const isMuted = stdout.trim().toLowerCase() === 'true';
+      const { stdout } = await this.runPowerShell(psCommand);
+      const response = stdout.trim().toLowerCase();
+      if (response !== 'true' && response !== 'false') {
+        return { success: false, verified: false, error: 'Windows mute status could not be read.' };
+      }
+      const isMuted = response === 'true';
+      const verified = isMuted === mute;
       return {
-        success: true,
+        success: verified,
         muted: isMuted,
-        message: isMuted ? 'System audio muted' : 'System audio unmuted',
-        verified: isMuted === mute
+        message: verified ? (isMuted ? 'System audio muted' : 'System audio unmuted') : 'Requested mute state was not applied.',
+        error: verified ? undefined : 'System mute state does not match the requested value.',
+        verified
       };
     } catch (err) {
       return {
@@ -163,3 +184,4 @@ Write-Output "$m"
 }
 
 module.exports = new VolumeController();
+module.exports.VolumeController = VolumeController;
