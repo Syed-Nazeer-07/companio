@@ -1,5 +1,6 @@
 const { chromium } = require('playwright-core');
 const { verifyNavigation } = require('./browserNavigationVerifier.cjs');
+const { channelMatches, channelVideosUrl } = require('./youtubeChannelSafety.cjs');
 
 class BrowserController {
   constructor() {
@@ -56,62 +57,122 @@ class BrowserController {
     }
   }
 
-  // 2. Search for creator's newest video and play it
-  async searchAndPlayYouTube(creatorQuery, specificTopic = '') {
+  // 2. Locate a matching creator and verify actual playback.
+  // Latest mode is intentionally conservative: it never silently plays a
+  // highly-ranked search result instead of the creator's latest upload.
+  async searchAndPlayYouTube(creatorQuery, specificTopic = '', latest = false) {
     try {
-      const page = await this.ensureBrowser();
-      const query = specificTopic ? `${creatorQuery} ${specificTopic}` : `${creatorQuery}`;
-      console.log(`[YouTube] Searching for creator: "${creatorQuery}", topic: "${specificTopic}"`);
+      if (typeof creatorQuery !== 'string' || creatorQuery.trim().length < 3 ||
+          typeof specificTopic !== 'string' || typeof latest !== 'boolean') {
+        throw new Error('YouTube needs a valid creator, optional topic and latest flag.');
+      }
+      if (latest && specificTopic.trim()) {
+        throw new Error('Cannot guarantee the latest upload for a specific topic. Try the creator alone.');
+      }
 
-      // Navigate directly to YouTube search results to avoid search bar rendering delays
-      await page.goto(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`, { waitUntil: 'domcontentloaded', timeout: 25000 });
+      const page = await this.ensureBrowser();
+      const query = specificTopic ? creatorQuery + ' ' + specificTopic : creatorQuery;
+      const url = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(query);
+      const searchResponse = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 25000 });
+      const searchNavigation = verifyNavigation(url, page.url(), searchResponse?.status(), true);
+      if (!searchNavigation.success) throw new Error(searchNavigation.error || 'YouTube search did not load.');
       await this.dismissPopups(page);
 
-      // Wait for search results
-      await page.waitForTimeout(1500);
-      await page.waitForSelector('ytd-video-renderer, ytd-channel-renderer, a#video-title', { timeout: 15000 });
+      let videoLink;
+      let creatorConfirmed = false;
+      if (latest) {
+        await page.waitForSelector('ytd-channel-renderer', { timeout: 14000 });
+        const candidates = page.locator('ytd-channel-renderer');
+        const count = Math.min(await candidates.count(), 8);
+        let videosUrl = null;
+        for (let i = 0; i < count; i++) {
+          const channelLink = candidates.nth(i).locator('a#main-link').first();
+          const observed = (await channelLink.innerText().catch(() => '')).trim();
+          const href = await channelLink.getAttribute('href').catch(() => null);
+          if (channelMatches(creatorQuery, observed) && href) {
+            videosUrl = channelVideosUrl(href);
+            if (videosUrl) {
+              creatorConfirmed = true;
+              break;
+            }
+          }
+        }
+        if (!videosUrl) {
+          throw new Error('Cannot confirm an exact YouTube channel matching "' + creatorQuery + '". No video was played.');
+        }
 
-      // Click the first prominent video result
-      const videoLink = page.locator('ytd-video-renderer a#video-title, a#video-title').first();
+        const channelResponse = await page.goto(videosUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
+        const channelNavigation = verifyNavigation(videosUrl, page.url(), channelResponse?.status());
+        if (!channelNavigation.success) throw new Error(channelNavigation.error || 'YouTube channel videos did not load.');
+
+        // Explicitly select "Latest" rather than assuming the default tab is
+        // chronologically sorted. If YouTube changes its UI, fail safely.
+        const latestChip = page.getByText('Latest', { exact: true }).first();
+        if (!(await latestChip.isVisible().catch(() => false))) {
+          throw new Error('YouTube did not expose the Latest upload filter. Cannot guarantee newest-video selection.');
+        }
+        await latestChip.click();
+        await page.waitForSelector('ytd-rich-grid-media a#video-title-link, ytd-grid-video-renderer a#video-title', { timeout: 15000 });
+        videoLink = page.locator('ytd-rich-grid-media a#video-title-link, ytd-grid-video-renderer a#video-title').first();
+      } else {
+        await page.waitForSelector('ytd-video-renderer', { timeout: 15000 });
+        const videos = page.locator('ytd-video-renderer');
+        const count = Math.min(await videos.count(), 12);
+        for (let i = 0; i < count; i++) {
+          const candidate = videos.nth(i);
+          const observed = (await candidate.locator('ytd-channel-name a').first().innerText().catch(() => '')).trim();
+          if (channelMatches(creatorQuery, observed)) {
+            creatorConfirmed = true;
+            videoLink = candidate.locator('a#video-title').first();
+            break;
+          }
+        }
+        if (!videoLink) {
+          throw new Error('No search result was confirmed as a video from "' + creatorQuery + '". No unrelated result was played.');
+        }
+      }
+
       await videoLink.waitFor({ state: 'visible', timeout: 10000 });
       const videoTitle = (await videoLink.innerText()).trim();
-      console.log(`[YouTube] Found video: "${videoTitle}", opening...`);
       await videoLink.click();
-
-      // Wait for watch page video element
       await page.waitForSelector('video.html5-main-video', { timeout: 15000 });
-      await page.waitForTimeout(2000);
-
-      // Trigger and verify playback
-      const isPlaying = await page.evaluate(async () => {
-        const v = document.querySelector('video.html5-main-video');
-        if (!v) return false;
+      const requestedPlay = await page.evaluate(async () => {
+        const video = document.querySelector('video.html5-main-video');
+        if (!video) return false;
         try {
-          if (v.paused) await v.play();
-          return !v.paused;
-        } catch (e) {
+          if (video.paused) await video.play();
+          return !video.paused;
+        } catch {
           return false;
         }
       });
-      await page.waitForTimeout(1000);
-      const confirmedPlaying = isPlaying && await page.evaluate(() => {
-        const v = document.querySelector('video.html5-main-video');
-        return !!v && !v.paused && !v.ended && v.readyState >= 2 && v.currentTime > 0;
+      await page.waitForTimeout(1200);
+      const confirmedPlaying = requestedPlay && await page.evaluate(() => {
+        const video = document.querySelector('video.html5-main-video');
+        return !!video && !video.paused && !video.ended && video.readyState >= 2 && video.currentTime > 0;
       });
-      const verified = confirmedPlaying && page.url().includes('/watch?v=');
-
+      const final = new URL(page.url());
+      const verified = !!confirmedPlaying && final.hostname.endsWith('youtube.com') &&
+        final.pathname === '/watch' && !!final.searchParams.get('v') && creatorConfirmed;
       return {
         success: verified,
+        verified,
         creator: creatorQuery,
+        creatorConfirmed,
+        latestRequested: latest,
         videoTitle,
         url: page.url(),
-        message: verified ? `Playing "${videoTitle}" on YouTube` : 'Video opened, but playback could not be verified.',
-        error: verified ? undefined : 'YouTube playback was not confirmed.',
-        verified
+        message: verified
+          ? (latest ? 'Playing the first video in the Latest tab of ' + creatorQuery + ': "' + videoTitle + '"' : 'Playing "' + videoTitle + '" on YouTube.')
+          : 'A matching video opened, but its playback could not be verified.',
+        error: verified ? undefined : 'YouTube playback or creator identity was not confirmed.'
       };
-    } catch (err) {
-      console.error('[YouTube] Search and play failed:', err.message);
-      return { success: false, error: err.message, verified: false };
+    } catch (error) {
+      return {
+        success: false,
+        verified: false,
+        error: error.message || 'Cannot verify the requested YouTube video.'
+      };
     }
   }
 
@@ -299,3 +360,4 @@ class BrowserController {
 }
 
 module.exports = new BrowserController();
+module.exports.BrowserController = BrowserController;
