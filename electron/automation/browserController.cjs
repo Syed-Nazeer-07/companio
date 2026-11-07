@@ -1,4 +1,5 @@
 const { chromium } = require('playwright-core');
+const { verifyNavigation } = require('./browserNavigationVerifier.cjs');
 
 class BrowserController {
   constructor() {
@@ -38,13 +39,15 @@ class BrowserController {
   async openYouTube() {
     try {
       const page = await this.ensureBrowser();
-      await page.goto('https://www.youtube.com', { waitUntil: 'domcontentloaded', timeout: 20000 });
+      const response = await page.goto('https://www.youtube.com', { waitUntil: 'domcontentloaded', timeout: 20000 });
       await this.dismissPopups(page);
       const title = await page.title();
-      const verified = title.toLowerCase().includes('youtube');
+      const navigation = verifyNavigation('https://www.youtube.com', page.url(), response?.status());
+      const verified = navigation.verified && title.toLowerCase().includes('youtube');
       return {
         success: verified,
-        message: 'YouTube opened and ready',
+        message: verified ? 'YouTube homepage loaded.' : 'YouTube homepage could not be verified.',
+        error: verified ? undefined : (navigation.error || 'The page title did not indicate YouTube.'),
         title,
         verified
       };
@@ -167,14 +170,13 @@ class BrowserController {
     try {
       const page = await this.ensureBrowser();
       const targetUrl = url.startsWith('http') ? url : `https://${url}`;
-      await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+      const response = await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
       const title = await page.title();
+      const navigation = verifyNavigation(targetUrl, page.url(), response?.status(), true);
       return {
-        success: true,
+        ...navigation,
         title,
-        url: page.url(),
-        message: `Navigated to ${title || url}`,
-        verified: true
+        message: navigation.verified ? `Opened ${title || page.url()}` : 'The requested website could not be verified.'
       };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
@@ -185,13 +187,13 @@ class BrowserController {
   async searchGoogle(query) {
     try {
       const page = await this.ensureBrowser();
-      await page.goto(`https://www.google.com/search?q=${encodeURIComponent(query)}`, { waitUntil: 'domcontentloaded', timeout: 20000 });
+      const requestedUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+      const response = await page.goto(requestedUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
       await this.dismissPopups(page);
+      const navigation = verifyNavigation(requestedUrl, page.url(), response?.status(), true);
       return {
-        success: true,
-        message: `Searched Google for "${query}"`,
-        url: page.url(),
-        verified: true
+        ...navigation,
+        message: navigation.verified ? `Google search page loaded for "${query}"` : 'Google search page could not be verified.'
       };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
@@ -207,8 +209,11 @@ class BrowserController {
       for (const url of urls) {
         const page = await this.context.newPage();
         try {
-          await page.goto(url.startsWith('http') ? url : `https://${url}`, { waitUntil: 'domcontentloaded', timeout: 15000 });
-          opened.push(url);
+          const targetUrl = url.startsWith('http') ? url : `https://${url}`;
+          const response = await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+          const navigation = verifyNavigation(targetUrl, page.url(), response?.status(), true);
+          if (!navigation.success) throw new Error(navigation.error || 'Navigation was not verified');
+          opened.push(navigation.url);
           this.activePage = page;
         } catch (err) {
           failed.push({ url, reason: err.message });
@@ -232,10 +237,17 @@ class BrowserController {
   async closeCurrentTab() {
     try {
       if (this.activePage && !this.activePage.isClosed()) {
-        await this.activePage.close();
+        const closedPage = this.activePage;
+        await closedPage.close();
+        const verified = closedPage.isClosed();
         const pages = this.context.pages();
         this.activePage = pages.length > 0 ? pages[pages.length - 1] : null;
-        return { success: true, message: 'Tab closed', verified: true };
+        return {
+          success: verified,
+          verified,
+          message: verified ? 'Browser tab closed.' : 'Tab close could not be verified.',
+          error: verified ? undefined : 'The browser did not confirm that the tab closed.'
+        };
       }
       return { success: false, error: 'No active tab to close', verified: false };
     } catch (err) {
@@ -247,12 +259,11 @@ class BrowserController {
   async openWebsite(url, label) {
     try {
       const page = await this.ensureBrowser();
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+      const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+      const navigation = verifyNavigation(url, page.url(), response?.status());
       return {
-        success: true,
-        message: `${label} opened and ready`,
-        url,
-        verified: true
+        ...navigation,
+        message: navigation.verified ? `${label} page loaded.` : `${label} could not be verified.`
       };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
