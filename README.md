@@ -167,7 +167,7 @@ Optional local LLM: conversational path via Ollama-compatible API
 - **Microsoft Edge** for the preferred Playwright automation path
 - Optional: microphone for voice commands; Ollama for local-model conversations
 
-Companio has packaging targets for both **Windows x64** and **Windows ARM64**. Their real-device behavior still needs validation, especially on Windows on ARM.
+Companio has packaging targets for **Windows x64** and **Windows ARM64**. Both CPU architectures pass CI packaging checks, but real-device functionality still needs verification, especially on Windows on ARM.
 
 ### 1. Clone and install
 
@@ -224,7 +224,7 @@ Electron Builder writes the output under `release/`. Generated filenames depend 
 
 ### 5. GitHub Releases
 
-The repository includes [`release.yml`](.github/workflows/release.yml), which is configured to build Windows x64/ARM64 artifacts when a `v*` tag is pushed, then publish a GitHub Release. The existing [v1.0.0 release](https://github.com/Syed-Nazeer-07/companio/releases/tag/v1.0.0) was built **before Phase 1**. Build from current source to test Phase 1 until a newer installer is released. Workflow presence does **not** guarantee that a particular release build has passed or that an installer has been published.
+The repository includes [`release.yml`](.github/workflows/release.yml), which is configured to build Windows x64/ARM64 artifacts when a `v*` tag is pushed, then publish a GitHub Release. The existing [v1.0.0 release](https://github.com/Syed-Nazeer-07/companio/releases/tag/v1.0.0) was built **before Phase 1**. Preview **v1.1.0-rc.2** is generated as separate unsigned x64 and ARM64 CI artifacts after all checks pass; these are not public signed releases. View [Actions](https://github.com/Syed-Nazeer-07/companio/actions/workflows/ci.yml), open the matching successful release-candidate workflow run, and download your architecture's artifact. Artifacts expire after 14 days. They contain installers, portable executables, and SHA-256 checksums. Workflow presence does **not** guarantee that a particular release build has passed or that an installer has been published.
 
 ## 📁 Project Structure
 
@@ -274,7 +274,7 @@ npm run test:unit
 npm run build
 ```
 
-The [CI workflow](.github/workflows/ci.yml) runs both on Windows for every push to `main` and for pull requests. Passing CI verifies code compilation and unit checks, not actual GUI automation on a device.
+The [CI workflow](.github/workflows/ci.yml) runs security regression tests, a high-severity dependency audit, the TypeScript/Vite build, packages a Windows x64 app, and executes an app-startup smoke test that checks React, Electron preload, invalid native IPC rejection, and shortcut input activation. Packaging both architectures is verified on release-candidate pushes. These checks do **not** demonstrate real voice recognition, web playback, or native automation on consumer devices.
 
 Run native automation scenarios on a **Windows test machine**:
 
@@ -284,7 +284,13 @@ npm run test:tools
 
 **Note:** the automation test script may open browsers and applications, change/mute system audio, and create screenshots. Run it interactively, where those side effects are acceptable.
 
-Automated Windows CI covers TypeScript compilation and native-input validation. Desktop automation integration tests still require a real Windows session and are not yet verified across x64 and ARM64.
+Automated Windows CI covers TypeScript compilation, native-input and permission validation, and packaged Electron startup/input. Full desktop automation integration tests require an interactive Windows test machine and have not been verified across x64 and ARM64.
+
+## 🛡️ Security & release-candidate status
+
+- **Electron:** upgraded to 45.2.3. The latest tested dependency audit has **0 high/critical advisories** and **6 moderate** advisories in the packaging dependency chain.
+- **Tested:** security and shortcut unit suites, TypeScript build, and packaged Windows x64 app smoke checks. Windows x64 and ARM64 packages build successfully in CI.
+- **Not tested:** real user desktop sessions, sustained voice input, arbitrary app control, actual browser/media playback, or code signing. Avoid entering production cloud API keys.
 
 ## 🛠️ Phase 1 Hardening
 
