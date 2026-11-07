@@ -54,27 +54,71 @@ $rem = Get-Process -Name "CalculatorApp","Calculator","calc" -ErrorAction Silent
   // Open File Explorer
   async openFileExplorer(targetFolder = '') {
     try {
-      let resolvedPath = targetFolder.toLowerCase();
-      if (!resolvedPath || resolvedPath === 'downloads' || resolvedPath === 'my downloads') {
-        resolvedPath = path.join(os.homedir(), 'Downloads');
-      } else if (resolvedPath === 'documents' || resolvedPath === 'my documents') {
-        resolvedPath = path.join(os.homedir(), 'Documents');
-      } else if (resolvedPath === 'pictures' || resolvedPath === 'my pictures') {
-        resolvedPath = path.join(os.homedir(), 'Pictures');
-      } else if (resolvedPath === 'aura' || resolvedPath === 'project folder') {
-        resolvedPath = path.join(os.homedir(), 'aura');
+      if (typeof targetFolder !== 'string' || targetFolder.length > 1024 || /[\u0000-\u001f]/.test(targetFolder)) {
+        throw new Error('Invalid File Explorer folder.');
+      }
+      const request = targetFolder.trim();
+      const key = request.toLowerCase().replace(/^my\s+/, '');
+      const knownFolders = {
+        desktop: 'Desktop', downloads: 'Downloads', documents: 'Documents',
+        pictures: 'Pictures', music: 'Music', videos: 'Videos'
+      };
+      const resolvedPath = request
+        ? (Object.hasOwn(knownFolders, key) ? path.join(os.homedir(), knownFolders[key]) : request)
+        : '';
+      if (resolvedPath && !path.isAbsolute(resolvedPath) && !path.win32.isAbsolute(resolvedPath)) {
+        throw new Error('Choose a standard Windows folder or an absolute directory path.');
+      }
+      if (resolvedPath && (!fs.existsSync(resolvedPath) || !fs.statSync(resolvedPath).isDirectory())) {
+        return {
+          success: false, verified: false,
+          error: 'The requested File Explorer directory does not exist.'
+        };
       }
 
-      const script = `Start-Process -FilePath 'explorer.exe' -ArgumentList ${quotePowerShell(resolvedPath)}`;
-      await this.runPowerShell(script);
+      // On Windows 11 an Explorer process may already be running. Its mere
+      // existence does not prove we opened the intended folder, so inspect
+      // the actual Explorer shell window locations after the launch.
+      const script = [
+        "$ErrorActionPreference = 'Stop'",
+        '$shell = New-Object -ComObject Shell.Application',
+        '$target = ' + quotePowerShell(resolvedPath),
+        "$windowsBefore = @($shell.Windows() | Where-Object { $_.FullName -like '*explorer.exe' }).Count",
+        "if ($target) { Start-Process -FilePath 'explorer.exe' -ArgumentList ('\"' + $target + '\"') -ErrorAction Stop }",
+        "else { Start-Process -FilePath 'explorer.exe' -ErrorAction Stop }",
+        '$confirmed = $false',
+        'for ($i = 0; $i -lt 16; $i++) {',
+        '  Start-Sleep -Milliseconds 250',
+        "  $wins = @($shell.Windows() | Where-Object { $_.FullName -like '*explorer.exe' })",
+        '  if (!$target) {',
+        '    if ($wins.Count -gt $windowsBefore) { $confirmed = $true; break }',
+        '    continue',
+        '  }',
+        '  foreach ($w in $wins) {',
+        '    try {',
+        '      $url = [string]$w.LocationURL',
+        "      if ($url -like 'file:*') {",
+        '        $localPath = ([Uri]$url).LocalPath',
+        "        if ([string]::Equals($localPath.TrimEnd('\'), $target.TrimEnd('\'), [StringComparison]::OrdinalIgnoreCase)) {",
+        '          $confirmed = $true; break',
+        '        }',
+        '      }',
+        '    } catch {}',
+        '  }',
+        '  if ($confirmed) { break }',
+        '}',
+        "if ($confirmed) { 'COMPANIO_EXPLORER_OPENED' } else { 'COMPANIO_EXPLORER_UNVERIFIED' }"
+      ].join('\n');
+      const { stdout } = await this.runPowerShell(script);
+      const verified = stdout.trim() === 'COMPANIO_EXPLORER_OPENED';
       return {
-        success: true,
-        message: `Opened File Explorer at ${resolvedPath}`,
-        path: resolvedPath,
-        verified: true
+        success: verified, verified,
+        path: resolvedPath || undefined,
+        message: verified ? 'File Explorer window confirmed.' : 'File Explorer launch was sent but could not be verified.',
+        error: verified ? undefined : 'No matching File Explorer window was detected after the launch.'
       };
     } catch (err) {
-      return { success: false, error: err.message, verified: false };
+      return { success: false, verified: false, error: err.message };
     }
   }
 
