@@ -153,5 +153,20 @@ export const desktopBridge = {
       return api.onGlobalShortcutToggle(callback);
     }
     return this.onShortcut(callback);
+  },
+
+  sendStateUpdate(state: any) {
+    const api = getDesktopAPI();
+    if (api?.sendStateUpdate) {
+      api.sendStateUpdate(state);
+    }
+  },
+
+  onStateUpdate(callback: (state: any) => void) {
+    const api = getDesktopAPI();
+    if (api?.onStateUpdate) {
+      return api.onStateUpdate(callback);
+    }
+    return () => {};
   }
 };

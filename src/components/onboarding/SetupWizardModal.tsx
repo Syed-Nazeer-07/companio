@@ -17,6 +17,7 @@ import { speechService } from '../../services/speechService';
 interface Props {
   isOpen: boolean;
   settings: AppSettings;
+  onUpdateLive?: (updated: Partial<AppSettings>) => void;
   onComplete: (updated: Partial<AppSettings>) => void;
   onClose: () => void;
 }
@@ -24,12 +25,18 @@ interface Props {
 export const SetupWizardModal: React.FC<Props> = ({
   isOpen,
   settings,
+  onUpdateLive,
   onComplete,
   onClose
 }) => {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
   const [testCmdStatus, setTestCmdStatus] = useState<string | null>(null);
+
+  // Sync localSettings if settings prop changes from live updates
+  React.useEffect(() => {
+    setLocalSettings((prev) => ({ ...prev, characterId: settings.characterId }));
+  }, [settings.characterId]);
 
   if (!isOpen) return null;
 
@@ -41,6 +48,12 @@ export const SetupWizardModal: React.FC<Props> = ({
     { id: 'kiko', name: 'Kiko', desc: 'Chibi Kitten' },
     { id: 'boba', name: 'Boba', desc: 'Boba Bear' }
   ];
+
+  const handleSelectCharacter = (charId: CharacterId) => {
+    setLocalSettings((prev) => ({ ...prev, characterId: charId }));
+    onUpdateLive?.({ characterId: charId });
+    speechService.playChime('activate');
+  };
 
   const handleNext = () => {
     if (currentStep < 4) {
@@ -119,7 +132,7 @@ export const SetupWizardModal: React.FC<Props> = ({
                   return (
                     <div
                       key={char.id}
-                      onClick={() => setLocalSettings({ ...localSettings, characterId: char.id })}
+                      onClick={() => handleSelectCharacter(char.id)}
                       className={`p-3.5 rounded-2xl cursor-pointer border text-center transition-all ${
                         isSel 
                           ? 'border-sky-500 bg-sky-50 shadow-md ring-2 ring-sky-500/20' 

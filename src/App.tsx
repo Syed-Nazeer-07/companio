@@ -90,12 +90,34 @@ export const App: React.FC = () => {
         desktopBridge.toggleDashboard(true);
       }
     }
+    // Listen for live cross-window state updates (e.g. character selection from Control Center to Overlay)
+    const unbind = desktopBridge.onStateUpdate((updatedSettings) => {
+      if (updatedSettings) {
+        setSettings((prev) => ({ ...prev, ...updatedSettings }));
+      }
+    });
+
+    const handleStorage = (e: StorageEvent) => {
+      if ((e.key === 'companio_settings' || e.key === 'aura_settings') && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          setSettings((prev) => ({ ...prev, ...parsed }));
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      unbind();
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
   const handleUpdateSettings = (newSettings: Partial<AppSettings>) => {
     setSettings((prev) => {
       const updated = { ...prev, ...newSettings };
       dbService.saveSettings(updated);
+      desktopBridge.sendStateUpdate(updated);
       return updated;
     });
   };
@@ -172,6 +194,7 @@ export const App: React.FC = () => {
       <SetupWizardModal
         isOpen={isOnboardingOpen}
         settings={settings}
+        onUpdateLive={handleUpdateSettings}
         onComplete={(upd) => {
           handleUpdateSettings(upd);
           setIsOnboardingOpen(false);
