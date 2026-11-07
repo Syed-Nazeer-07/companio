@@ -16,6 +16,8 @@ let dashboardWindow = null;
 let tray = null;
 let currentShortcut = 'CommandOrControl+Shift+Space';
 let overlayPreferences = { alwaysOnTop: true, snapToEdge: true };
+const SMOKE_TEST = process.argv.includes('--companio-smoke');
+if (SMOKE_TEST) app.disableHardwareAcceleration();
 
 // Position storage file
 const CONFIG_PATH = path.join(app.getPath('userData'), 'companio_window_config.json');
@@ -578,7 +580,7 @@ secureHandle('show-overlay', () => {
 
 app.commandLine.appendSwitch('enable-speech-dispatcher');
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Never grant camera, accessibility, Bluetooth or USB permissions automatically.
   if (session && session.defaultSession) {
     const trusted = (wc) => {
@@ -600,6 +602,40 @@ app.whenReady().then(() => {
   if (shortcut.success) currentShortcut = shortcut.shortcut;
   if (typeof saved.alwaysOnTop === 'boolean') overlayPreferences.alwaysOnTop = saved.alwaysOnTop;
   if (typeof saved.snapToEdge === 'boolean') overlayPreferences.snapToEdge = saved.snapToEdge;
+  if (SMOKE_TEST) {
+    const timer = setTimeout(() => {
+      console.error('COMPANIO_SMOKE_FAIL: App did not load within 30 seconds.');
+      app.exit(1);
+    }, 30000);
+    try {
+      createOverlayWindow();
+      const win = overlayWindow;
+      if (!win) throw new Error('Overlay window not constructed');
+      await new Promise((resolve, reject) => {
+        win.webContents.once('did-finish-load', resolve);
+        win.webContents.once('did-fail-load', (_event, code, message) => reject(new Error(`Load failed ${code}: ${message}`)));
+      });
+      const details = await win.webContents.executeJavaScript(
+        "({ rendered: !!document.querySelector('#root > *'), bridge: typeof window.companioDesktop?.executeTool === 'function' })"
+      );
+      if (!details.rendered || !details.bridge) throw new Error('React UI or native preload bridge was not available');
+      const negative = await win.webContents.executeJavaScript(
+        "window.companioDesktop.executeTool('win.volume.set', { level: 'invalid' })"
+      );
+      if (negative.success !== false || negative.verified !== false) {
+        throw new Error('Native tool validation did not reject the malformed request');
+      }
+      clearTimeout(timer);
+      console.log('COMPANIO_SMOKE_OK: React, Electron preload, and negative IPC verified');
+      app.exit(0);
+    } catch (err) {
+      clearTimeout(timer);
+      console.error('COMPANIO_SMOKE_FAIL:', err);
+      app.exit(1);
+    }
+    return;
+  }
+
   createOverlayWindow();
   setupTray();
   registerHotkeys();

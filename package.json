@@ -16,7 +16,8 @@
     "dist:x64": "npm run build && electron-builder --win --x64",
     "dist:arm64": "npm run build && electron-builder --win --arm64",
     "dist:portable": "npm run build && electron-builder --win portable",
-    "test:unit": "node --test test/test-phase1.cjs test/test-security-policy.cjs"
+    "test:unit": "node --test test/test-phase1.cjs test/test-security-policy.cjs",
+    "test:desktop-smoke": "node test/test-electron-smoke.cjs"
   },
   "keywords": [
     "ai",
