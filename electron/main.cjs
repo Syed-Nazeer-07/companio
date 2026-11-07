@@ -670,6 +670,23 @@ app.whenReady().then(async () => {
       ]);
       if (!awakened) throw new Error('Global shortcut did not open the companion text input');
       smokeReport({ stage: 'shortcut-input-visible' });
+
+      // Exercise the actual packaged preload -> trusted IPC -> pure planner
+      // path without executing any Windows actions.
+      const safePlan = await win.webContents.executeJavaScript(
+        "window.companioDesktop.planOfflineSequence({query:'Open Notepad and set volume to 45%'})"
+      );
+      if (!safePlan?.success || safePlan.requiresConfirmation !== true ||
+          safePlan.steps?.length !== 2 || safePlan.steps[1].params.level !== 45) {
+        throw new Error('Offline compound planning was not available through packaged IPC');
+      }
+      const unsafePlan = await win.webContents.executeJavaScript(
+        "window.companioDesktop.planOfflineSequence({query:'Open Notepad and delete all files'})"
+      );
+      if (unsafePlan?.success !== false || unsafePlan?.recognized !== true) {
+        throw new Error('Offline planning incorrectly accepted a destructive request');
+      }
+      smokeReport({ stage: 'offline-planner-verified' });
       clearTimeout(timer);
       smokeReport({ ok: true, rendered: details.rendered, bridge: details.bridge, inputVisible: awakened });
       console.log('COMPANIO_SMOKE_OK: React, Electron preload, hotkey UI and negative IPC verified');
