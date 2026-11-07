@@ -4,6 +4,7 @@ import { AppSettings, CharacterState, TaskPlan } from '../../types';
 import { CharacterRenderer } from '../characters/CharacterRenderer';
 import { SpeechBubble } from './SpeechBubble';
 import { CompactInput } from './CompactInput';
+import { ActionApprovalDialog } from './ActionApprovalDialog';
 import { agentEngine } from '../../services/agentEngine';
 import { speechService } from '../../services/speechService';
 import { desktopBridge, isNativeDesktop } from '../../services/desktopBridge';
@@ -24,6 +25,8 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
   const [characterState, setCharacterState] = useState<CharacterState>('idle');
   const [bubbleText, setBubbleText] = useState<string>(`Hello! Click me or press ${settings.activationShortcut} ✨`);
   const [activePlan, setActivePlan] = useState<TaskPlan | null>(null);
+  const [pendingApproval, setPendingApproval] = useState<TaskPlan | null>(null);
+  const approvalResolverRef = useRef<((approved: boolean) => void) | null>(null);
   const [isInputOpen, setIsInputOpen] = useState<boolean>(false);
   const [isListeningVoice, setIsListeningVoice] = useState<boolean>(false);
   const [audioLevel, setAudioLevel] = useState<number>(0);
@@ -39,7 +42,26 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     wake: () => {}
   });
 
+  const resolveApproval = (approved: boolean) => {
+    const resolver = approvalResolverRef.current;
+    approvalResolverRef.current = null;
+    setPendingApproval(null);
+    resolver?.(approved);
+  };
+
+  const requestApproval = (plan: TaskPlan): Promise<boolean> => {
+    if (approvalResolverRef.current) return Promise.resolve(false);
+    return new Promise<boolean>((resolve) => {
+      approvalResolverRef.current = resolve;
+      setPendingApproval(plan);
+    });
+  };
+
   const handleDismiss = () => {
+    if (approvalResolverRef.current) {
+      resolveApproval(false);
+      return;
+    }
     setIsInputOpen(false);
     setCharacterState('idle');
     setBubbleText('');
@@ -69,6 +91,10 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       if (unbindDismiss) unbindDismiss();
       window.removeEventListener('keydown', handleKeyDown);
       clearTimeout(resetTimerRef.current);
+      if (approvalResolverRef.current) {
+        approvalResolverRef.current(false);
+        approvalResolverRef.current = null;
+      }
       speechService.stopListening();
       speechService.stopSpeaking();
     };
@@ -235,17 +261,10 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         return;
       }
 
-      // Never execute AI-suggested native actions automatically. The dialog
-      // lists the real validated tool parameters, not model-written promises.
+      // Never run locally suggested workflows without the user's click
+      // in the explicit action-review dialog.
       if (plan.intent === 'local_ai_actions' || plan.intent === 'builtin_sequence') {
-        const preview = plan.steps.map((step, index) =>
-          (index + 1) + '. ' + step.description +
-          '\n   ' + step.tool + ' ' + JSON.stringify(step.params)
-        ).join('\n\n');
-        const approved = window.confirm(
-          'Review these actions before execution. Nothing has run yet.\n\n' +
-          preview + '\n\nRun these actions in order?'
-        );
+        const approved = await requestApproval(plan);
         if (!approved) {
           plan.status = 'cancelled';
           plan.steps.forEach((step) => { step.status = 'cancelled'; });
@@ -365,6 +384,10 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
   };
 
   const handleCancelTask = () => {
+    if (approvalResolverRef.current) {
+      resolveApproval(false);
+      return;
+    }
     agentEngine.cancelActiveTask();
     speechService.stopSpeaking();
     setCharacterState('confused');
@@ -388,9 +411,9 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
   };
 
   shortcutActionsRef.current = {
-    toggle: () => { if (isInputOpen) handleDismiss(); else handleWakeAndActivate(); },
+    toggle: () => { if (approvalResolverRef.current || isInputOpen) handleDismiss(); else handleWakeAndActivate(); },
     dismiss: handleDismiss,
-    wake: handleWakeAndActivate
+    wake: () => { if (approvalResolverRef.current) handleDismiss(); else handleWakeAndActivate(); }
   };
 
   return (
@@ -467,6 +490,13 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
           )}
         </button>
       </div>
+      {pendingApproval && (
+        <ActionApprovalDialog
+          plan={pendingApproval}
+          onApprove={() => resolveApproval(true)}
+          onCancel={() => resolveApproval(false)}
+        />
+      )}
     </div>
   );
 };
