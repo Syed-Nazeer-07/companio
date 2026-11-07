@@ -638,11 +638,17 @@ app.whenReady().then(async () => {
       }
       smokeReport({ stage: 'negative-ipc-verified' });
       await new Promise((resolve) => setTimeout(resolve, 200));
+      smokeReport({ stage: 'before-shortcut' });
       win.webContents.send('shortcut-toggle');
+      smokeReport({ stage: 'shortcut-sent' });
       await new Promise((resolve) => setTimeout(resolve, 450));
-      const awakened = await win.webContents.executeJavaScript(
-        "!!document.querySelector('input[placeholder=\"Ask Companio...\"]')"
-      );
+      smokeReport({ stage: 'checking-shortcut-input' });
+      const awakened = await Promise.race([
+        win.webContents.executeJavaScript(
+          "!!document.querySelector('input[placeholder=\"Ask Companio...\"]')"
+        ),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Renderer did not answer shortcut input check within 10 seconds')), 10000))
+      ]);
       if (!awakened) throw new Error('Global shortcut did not open the companion text input');
       smokeReport({ stage: 'shortcut-input-visible' });
       clearTimeout(timer);
