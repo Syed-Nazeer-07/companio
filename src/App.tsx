@@ -172,13 +172,13 @@ export const App: React.FC = () => {
   // Wait for the native history snapshot to hydrate before accepting new
   // chat/log writes. This prevents two windows from racing old cached data.
   if (!historyReady) {
-    return <div className="w-screen h-screen bg-transparent" aria-label="Preparing Companio history" />;
+    return <div data-companio-loading="true" className="w-screen h-screen bg-transparent" aria-label="Preparing Companio history" />;
   }
 
   // If in overlay view mode (transparent desktop companion)
   if (viewMode === 'overlay') {
     return (
-      <div className="w-screen h-screen bg-transparent overflow-hidden">
+      <div data-companio-ready="true" className="w-screen h-screen bg-transparent overflow-hidden">
         <DesktopCompanionOverlay
           settings={settings}
           onOpenDashboard={handleOpenDashboard}

@@ -661,6 +661,17 @@ app.whenReady().then(async () => {
         throw new Error('Native tool validation did not reject the malformed request');
       }
       smokeReport({ stage: 'negative-ipc-verified' });
+      // The app now hydrates native history before mounting the overlay.
+      // Wait for the actual overlay React subtree, not the loading placeholder,
+      // or early shortcut events would be lost before its listener attaches.
+      const overlayReady = await Promise.race([
+        win.webContents.executeJavaScript(
+          "new Promise(resolve => { let attempts = 0; const check = () => { if (document.querySelector('[data-companio-ready=\"true\"]')) return resolve(true); if (++attempts >= 100) return resolve(false); setTimeout(check, 100); }; check(); })"
+        ),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Overlay failed to hydrate history within 12 seconds')), 12000))
+      ]);
+      if (!overlayReady) throw new Error('The companion overlay did not finish its storage initialization');
+      smokeReport({ stage: 'history-hydrated' });
       // On headless Windows runners, the main-process timer occasionally stops
       // progressing after IPC. Dispatch immediately and let the renderer itself
       // wait for React to show the shortcut input.
