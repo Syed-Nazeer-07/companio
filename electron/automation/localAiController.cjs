@@ -85,6 +85,10 @@ async function chat(options = {}, fetchImpl = globalThis.fetch) {
     if (typeof temperature !== 'number' || !Number.isFinite(temperature) || temperature < 0 || temperature > 2) {
       throw new Error('Temperature must be a number between 0 and 2.');
     }
+    const maxTokens = options.maxTokens == null ? 220 : options.maxTokens;
+    if (!Number.isInteger(maxTokens) || maxTokens < 32 || maxTokens > 900) {
+      throw new Error('maxTokens must be an integer between 32 and 900.');
+    }
     const data = await requestJson(endpoint + '/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -92,7 +96,7 @@ async function chat(options = {}, fetchImpl = globalThis.fetch) {
         model,
         messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: prompt }],
         temperature,
-        max_tokens: 220,
+        max_tokens: maxTokens,
         stream: false
       })
     }, 45000, fetchImpl);
