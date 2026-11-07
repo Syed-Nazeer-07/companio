@@ -604,6 +604,9 @@ app.whenReady().then(async () => {
   if (SMOKE_TEST) {
     console.log('COMPANIO_SMOKE_START: loading packaged Windows app');
     const smokeReport = (details) => {
+      // Console output is retained when the main process stalls before the next
+      // JSON-file polling interval, so the last completed stage remains visible.
+      console.log('COMPANIO_SMOKE_STAGE:', details.stage || (details.ok === true ? 'passed' : details.ok === false ? 'failed' : 'unknown'));
       try {
         if (process.env.COMPANIO_SMOKE_RESULT_PATH) {
           fs.writeFileSync(process.env.COMPANIO_SMOKE_RESULT_PATH, JSON.stringify(details));
