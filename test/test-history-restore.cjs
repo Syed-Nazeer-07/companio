@@ -140,3 +140,44 @@ test('concurrent initialization hydrates the native disk copy only once', async 
   assert.equal(loads,1);
   assert.equal(h.service.getMessages()[0].id,'m1');
 });
+
+test('quick notes are reported saved only after the storage transaction succeeds',async()=>{
+  const h=harness();
+  const saved=await h.service.addNote('Review the ARM64 build');
+  assert.equal(saved.success,true);
+  assert.equal(saved.count,2);
+  assert.deepEqual(h.service.getNotes(),['Keep old notes','Review the ARM64 build']);
+  const clear=await h.service.clearNotes();
+  assert.equal(clear.success,true);
+  assert.deepEqual(h.service.getNotes(),[]);
+});
+
+test('a storage quota error does not claim a quick note was saved',async()=>{
+  const h=harness({throwOnWrite:write=>write===2});
+  const before=h.data.get('companio_notes');
+  const result=await h.service.addNote('Important reminder');
+  assert.equal(result.success,false);
+  assert.equal(h.data.get('companio_notes'),before);
+});
+
+test('native disk failure prevents successful note creation and deletion',async()=>{
+  const h=harness({
+    native:true,
+    mutate:async()=>({success:false,error:'Native disk unavailable'})
+  });
+  const before=h.data.get('companio_notes');
+  const add=await h.service.addNote('Do not lose this');
+  assert.equal(add.success,false);
+  assert.match(add.error,/Native disk unavailable/);
+  assert.equal(h.data.get('companio_notes'),before);
+  const clear=await h.service.clearNotes();
+  assert.equal(clear.success,false);
+  assert.equal(h.data.get('companio_notes'),before);
+});
+
+test('quick notes reject empty and excessive content',async()=>{
+  const h=harness();
+  assert.equal((await h.service.addNote('  ')).success,false);
+  assert.equal((await h.service.addNote('n'.repeat(4001))).success,false);
+  assert.equal(h.service.getNotes().length,1);
+});
