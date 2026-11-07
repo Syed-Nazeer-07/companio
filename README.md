@@ -239,7 +239,7 @@ Electron Builder writes the output under `release/`. Generated filenames depend 
 
 ### 5. GitHub Releases
 
-The repository includes [`release.yml`](.github/workflows/release.yml), which is configured to build Windows x64/ARM64 artifacts when a `v*` tag is pushed, then publish a GitHub Release. The existing [v1.0.0 release](https://github.com/Syed-Nazeer-07/companio/releases/tag/v1.0.0) was built **before Phase 1**. The **v1.1.0-rc.7** candidate produces separate unsigned x64 and ARM64 CI artifacts only after its Windows checks pass; these are not public signed releases. View [Actions](https://github.com/Syed-Nazeer-07/companio/actions/workflows/ci.yml), open the matching successful release-candidate workflow run, and download your architecture's artifact. Artifacts expire after 14 days. They contain installers, portable executables, and SHA-256 checksums. Tagged releases also require a matching package version and passing x64 desktop smoke test. Workflow presence does **not** guarantee that a particular release build has passed or that an installer has been published.
+The repository includes [`release.yml`](.github/workflows/release.yml), which is configured to build Windows x64/ARM64 artifacts when a `v*` tag is pushed, then publish a GitHub Release. The existing [v1.0.0 release](https://github.com/Syed-Nazeer-07/companio/releases/tag/v1.0.0) was built **before Phase 1**. The **v1.1.0-rc.8** candidate produces separate unsigned x64 and ARM64 CI artifacts only after its Windows checks pass; these are not public signed releases. View [Actions](https://github.com/Syed-Nazeer-07/companio/actions/workflows/ci.yml), open the matching successful release-candidate workflow run, and download your architecture's artifact. Artifacts expire after 14 days. They contain installers, portable executables, and SHA-256 checksums. Tagged releases also require a matching package version and passing x64 desktop smoke test. Workflow presence does **not** guarantee that a particular release build has passed or that an installer has been published.
 
 ## 📁 Project Structure
 
@@ -313,6 +313,12 @@ Automated Windows CI covers TypeScript compilation, native-input and permission 
 This candidate adds strict model-generated 1–3 action proposals, **offline multi-step phrases without an LLM**, trusted Electron validation, and confirmation with the exact command parameters before execution. A packaged smoke test verifies a benign plan and rejection of a destructive plan without triggering either action. Quick Controls no longer equate attempted actions with verified success, and the Control Center can restore a previously hidden overlay.
 
 **Preview caveat:** supported tool launchers still require verification on an interactive Windows device. An AI plan is not autonomous unrestricted PC control; a separate Ollama/LM Studio runtime is needed for model-guided planning.
+
+### 🧪 v1.1.0-rc.8 — Voice, intent and approval usability preview
+
+This unsigned preview builds on rc.7 history recovery with cancellable speech, voice-session cleanup, meaningful companion speech profiles, command-versus-question protection, a native-looking multi-action approval dialog, verified note persistence, read-only Windows Device Diagnostics, and a more careful creator-specific YouTube latest-video flow. The packaged Electron smoke test now cancels an actual UI plan and verifies no native command executed.
+
+**Limitations:** local AI still needs a separately running Ollama/LM Studio model; downloaded GGUF files are not automatically runnable. Windows speech and YouTube interfaces require hands-on ARM64/x64 validation. Code signing, auto-updates, independent security review, and production credential storage are not complete.
 
 ## 🎙️ Voice reliability, safer commands and local action approval
 
