@@ -10,6 +10,7 @@ const winAppsController = require('./automation/winAppsController.cjs');
 const volumeController = require('./automation/volumeController.cjs');
 const modelDownloader = require('./automation/modelDownloader.cjs');
 const nativeSpeech = require('./automation/nativeSpeech.cjs');
+const localAiController = require('./automation/localAiController.cjs');
 
 let overlayWindow = null;
 let dashboardWindow = null;
@@ -471,6 +472,11 @@ secureHandle('set-overlay-preferences', async (_, options) => {
   const saved = saveConfig({ alwaysOnTop: options.alwaysOnTop, snapToEdge: options.snapToEdge });
   return { success: saved, verified: saved, error: saved ? undefined : 'Could not save overlay preference' };
 });
+
+// Local inference uses the Node main process to avoid file:// CORS issues.
+// All requests are validated by localAiController and restricted to loopback.
+secureHandle('local-ai-models', async (_, options) => localAiController.listModels(options));
+secureHandle('local-ai-chat', async (_, options) => localAiController.chat(options));
 
 // Model Downloader IPC handlers
 secureHandle('get-models-status', async () => {

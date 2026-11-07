@@ -23,6 +23,8 @@ interface CompanioDesktopAPI {
   cancelNativeSpeech?: () => Promise<any>;
   onStateUpdate: (callback: (state: any) => void) => () => void;
   sendStateUpdate: (state: any) => void;
+  listLocalAiModels?: (options: { endpoint?: string }) => Promise<{ success: boolean; models: string[]; error?: string }>;
+  chatLocalAi?: (options: { endpoint?: string; model: string; prompt: string; systemPrompt?: string; temperature?: number }) => Promise<{ success: boolean; reply?: string; error?: string }>;
   getModelsStatus?: () => Promise<any[]>;
   downloadModel?: (modelId: string) => Promise<any>;
   cancelModelDownload?: () => Promise<any>;
@@ -200,6 +202,20 @@ export const desktopBridge = {
       return api.onStateUpdate(callback);
     }
     return () => {};
+  },
+
+  async listLocalAiModels(endpoint?: string): Promise<{ success: boolean; models: string[]; error?: string }> {
+    const api = getDesktopAPI();
+    return api?.listLocalAiModels
+      ? api.listLocalAiModels({ endpoint })
+      : { success: false, models: [], error: 'Local inference requires the Companio desktop app.' };
+  },
+
+  async chatLocalAi(options: { endpoint?: string; model: string; prompt: string; systemPrompt?: string; temperature?: number }): Promise<{ success: boolean; reply?: string; error?: string }> {
+    const api = getDesktopAPI();
+    return api?.chatLocalAi
+      ? api.chatLocalAi(options)
+      : { success: false, error: 'Local inference requires the Companio desktop app.' };
   },
 
   async getModelsStatus(): Promise<any[]> {

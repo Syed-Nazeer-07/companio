@@ -45,6 +45,10 @@ const desktopAPI = {
   startNativeSpeech: (timeoutSec = 5) => ipcRenderer.invoke('start-native-speech', { timeoutSec }),
   cancelNativeSpeech: () => ipcRenderer.invoke('cancel-native-speech'),
 
+  // Local inference (loopback-only, validated in Electron main process)
+  listLocalAiModels: (options) => ipcRenderer.invoke('local-ai-models', options),
+  chatLocalAi: (options) => ipcRenderer.invoke('local-ai-chat', options),
+
   // Model Downloader
   getModelsStatus: () => ipcRenderer.invoke('get-models-status'),
   downloadModel: (modelId) => ipcRenderer.invoke('download-model', { modelId }),
