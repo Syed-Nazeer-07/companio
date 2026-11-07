@@ -1,0 +1,53 @@
+{
+  "name": "companio",
+  "version": "1.0.0",
+  "description": "Companio — Personal AI Desktop Companion for Windows 11",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "start": "electron .",
+    "dev:all": "concurrently -k \"vite\" \"electron .\"",
+    "test:tools": "node test/test-automation.cjs"
+  },
+  "keywords": [
+    "ai",
+    "assistant",
+    "desktop-companion",
+    "windows-11",
+    "arm64",
+    "automation",
+    "electron"
+  ],
+  "author": "Companio Team",
+  "license": "MIT",
+  "dependencies": {
+    "canvas-confetti": "^1.9.4",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.4.7",
+    "lucide-react": "^1.16.0",
+    "playwright-core": "^1.50.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "sql.js": "^1.12.0",
+    "tailwind-merge": "^3.0.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.5",
+    "@types/canvas-confetti": "^1.9.0",
+    "@types/node": "^22.13.4",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@types/sql.js": "^1.4.9",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.2",
+    "electron": "^34.2.0",
+    "postcss": "^8.5.2",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0"
+  }
+}
