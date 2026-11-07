@@ -896,21 +896,23 @@ export class AgentEngine {
     if (aiConfig?.provider === 'local') {
       const endpoints = [
         aiConfig.localEndpoint,
+        'http://127.0.0.1:11434/v1',
         'http://localhost:11434/v1',
+        'http://127.0.0.1:1234/v1',
         'http://localhost:1234/v1'
       ].filter(Boolean) as string[];
 
       for (const base of endpoints) {
         try {
           const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 3500);
+          const timeout = setTimeout(() => controller.abort(), 8000);
 
           const url = base.endsWith('/chat/completions') ? base : `${base.replace(/\/+$/, '')}/chat/completions`;
           const res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              model: aiConfig.model || 'llama3.2',
+              model: aiConfig.model || 'llama3.2:1b',
               messages: [
                 {
                   role: 'system',

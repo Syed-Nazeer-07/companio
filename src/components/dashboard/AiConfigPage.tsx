@@ -148,9 +148,12 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
     setTestingConnection(true);
     setTestResult(null);
 
-    // Try detecting Ollama on localhost:11434
+    // Try detecting Ollama on 127.0.0.1:11434 or localhost:11434
     try {
-      const res = await fetch('http://localhost:11434/api/tags');
+      let res = await fetch('http://127.0.0.1:11434/api/tags');
+      if (!res.ok) {
+        res = await fetch('http://localhost:11434/api/tags');
+      }
       if (res.ok) {
         const data = await res.json();
         const models = (data.models || []).map((m: any) => m.name);
@@ -168,7 +171,26 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
         return;
       }
     } catch (e) {
-      // Ollama not reachable, try LM Studio on localhost:1234
+      // Ollama not reachable on 127.0.0.1, try localhost
+      try {
+        const res = await fetch('http://localhost:11434/api/tags');
+        if (res.ok) {
+          const data = await res.json();
+          const models = (data.models || []).map((m: any) => m.name);
+          setDetectedLocalModels(models);
+          setTestingConnection(false);
+          setTestResult({
+            success: true,
+            message: `Connected to Ollama! Found ${models.length} model(s): ${models.join(', ') || 'None downloaded yet'}`
+          });
+          if (models.length > 0) {
+            onUpdateSettings({
+              ai: { ...settings.ai, provider: 'local', model: models[0] }
+            });
+          }
+          return;
+        }
+      } catch (e2) {}
     }
 
     try {
