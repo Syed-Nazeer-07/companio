@@ -15,9 +15,9 @@ const timer = setTimeout(() => {
   if (settled) return;
   settled = true;
   child.kill();
-  console.error('Electron smoke test timed out.\n' + text.slice(-6000));
+  console.error('Electron smoke test exceeded 150 seconds, possibly during binary download or startup.\n' + text.slice(-6000));
   process.exitCode = 1;
-}, 45000);
+}, 150000);
 
 for (const stream of [child.stdout, child.stderr]) {
   stream.on('data', (chunk) => {
