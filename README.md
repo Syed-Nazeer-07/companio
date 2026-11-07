@@ -39,7 +39,7 @@ Companio is built around three ideas:
 | Capability | What Companio provides |
 | --- | --- |
 | **Floating desktop companion** | A transparent, frameless, movable Electron overlay with an always-on-top character |
-| **Global shortcut** | Press **Ctrl + Shift + Space** to summon or toggle the companion |
+| **Global shortcut** | Press **Ctrl + Shift + Space** by default, or save a different supported shortcut in Settings |
 | **Character Studio** | Select from six companions, customize their presentation, and preview expressions |
 | **Voice and text** | Enter commands by keyboard or use supported speech recognition and spoken replies |
 | **Windows actions** | Open supported desktop apps, folders, and utilities; control master volume; take screenshots |
@@ -113,7 +113,7 @@ ollama run llama3.2
 
 Then select the local provider under **AI Configuration**. The current conversational implementation targets `http://localhost:11434/v1/chat/completions`; LM Studio detection is present in the settings, but conversations are not fully wired to its configurable endpoint.
 
-The app also includes an **in-app GGUF model downloader**. At present, downloading a model file does **not** automatically provide a bundled inference runtime, so do not assume those downloaded files can immediately power conversations without an appropriate model server.
+The app also includes an **in-app GGUF model downloader**. Downloaded files are **not activated** without a separate inference runtime. New downloads check expected byte counts and write a completion marker; models downloaded with older builds may need downloading again to be recognized. Cryptographic signature validation is not yet available.
 
 ## 🧰 Technology Stack
 
@@ -155,7 +155,7 @@ The app also includes an **in-app GGUF model downloader**. At present, downloadi
 Optional local LLM: conversational path via Ollama-compatible API
 ```
 
-**Desktop versus web preview:** the normal browser preview cannot invoke Electron's native Windows handlers. Some fallback actions are simulated and may report success even when no desktop operation occurred. Use the **Electron desktop application** for meaningful automation tests.
+**Desktop versus web preview:** the normal browser preview cannot invoke Electron's native Windows handlers. The browser preview does **not** mark simulated native actions as successful or verified. Use the **Electron desktop application** for meaningful automation tests.
 
 ## 🚀 Quick Start
 
@@ -224,7 +224,7 @@ Electron Builder writes the output under `release/`. Generated filenames depend 
 
 ### 5. GitHub Releases
 
-The repository includes [`release.yml`](.github/workflows/release.yml), which is configured to build Windows x64/ARM64 artifacts when a `v*` tag is pushed, then publish a GitHub Release. Workflow presence does **not** guarantee that a particular release build has passed or that an installer has been published.
+The repository includes [`release.yml`](.github/workflows/release.yml), which is configured to build Windows x64/ARM64 artifacts when a `v*` tag is pushed, then publish a GitHub Release. The existing [v1.0.0 release](https://github.com/Syed-Nazeer-07/companio/releases/tag/v1.0.0) was built **before Phase 1**. Build from current source to test Phase 1 until a newer installer is released. Workflow presence does **not** guarantee that a particular release build has passed or that an installer has been published.
 
 ## 📁 Project Structure
 
@@ -247,6 +247,7 @@ companio/
 ├── test/
 │   └── test-automation.cjs     # Native automation scenarios
 ├── .github/workflows/
+│   ├── ci.yml                  # Windows build and unit checks
 │   └── release.yml             # Windows packaging workflow
 ├── package.json
 └── README.md
@@ -259,18 +260,21 @@ Companio runs locally for its built-in command processing, but it can interact w
 - **No mandatory paid AI API key:** the predefined command planner does not require one.
 - **Local history:** preferences, conversation messages, notes, and tool logs are stored using browser/Electron local storage. The current `sql.js` database is initialized in memory, **not saved as a durable SQLite file**.
 - **API key caution:** provider-key fields currently use local application settings. They are **not a secure secrets vault**; avoid entering sensitive production keys.
-- **Permissions:** Electron's current media-permission handlers are permissive and should be hardened before wider distribution.
+- **Permissions:** IPC is restricted to trusted app windows; microphone requests are audio-only, while camera/USB/accessibility permissions are not auto-granted. Real-device permission testing is still required.
 - **Tool effects:** commands can change system settings, open websites, capture screenshots, or act on existing windows. Run them only on a device you control.
 
 There is currently no claim of a hardened security sandbox, independent security audit, or production-grade credential protection.
 
 ## 🧪 Testing
 
-Build the UI and TypeScript:
+Run native-input security regression tests and build TypeScript/UI:
 
 ```powershell
+npm run test:unit
 npm run build
 ```
+
+The [CI workflow](.github/workflows/ci.yml) runs both on Windows for every push to `main` and for pull requests. Passing CI verifies code compilation and unit checks, not actual GUI automation on a device.
 
 Run native automation scenarios on a **Windows test machine**:
 
@@ -280,13 +284,23 @@ npm run test:tools
 
 **Note:** the automation test script may open browsers and applications, change/mute system audio, and create screenshots. Run it interactively, where those side effects are acceptable.
 
-Automated scripts exist, but this README does **not** claim that they were recently executed successfully or that every tool has been verified on Windows x64 and ARM64.
+Automated Windows CI covers TypeScript compilation and native-input validation. Desktop automation integration tests still require a real Windows session and are not yet verified across x64 and ARM64.
+
+## 🛠️ Phase 1 Hardening
+
+The `main` branch now includes trusted-window IPC guards, validated tool inputs, safer PowerShell handling, narrower Electron permissions, and confirmation before Recycle Bin deletion. Browser preview no longer fabricates native successes; YouTube and tab actions have stricter verification.
+
+Shortcut changes are applied to the native global hotkey, always-on-top and edge snapping are wired to Electron, and resetting preferences keeps saved notes and history. Unsupported fullscreen-game auto-hide is labeled accordingly.
+
+The prior state is preserved in [`rollback/pre-phase1-2026-11-07`](https://github.com/Syed-Nazeer-07/companio/tree/rollback/pre-phase1-2026-11-07).
+
+**Not yet verified:** real-device microphone permission behavior, YouTube site changes, interactive Windows automation, model downloads, and ARM64 installer runtime compatibility.
 
 ## ⚠️ Known Limitations
 
 - Commands are pattern-matched; arbitrary multi-application computer use is not supported.
 - YouTube and other browser workflows depend on external page structures and may break.
-- Browser-only preview can simulate tool success instead of performing a real Windows action.
+- Browser-only preview cannot verify Windows tools or YouTube playback and no longer claims simulated success.
 - Voice input and speech output depend on runtime/device support; there is no true always-listening hotword service.
 - Local-model endpoint configuration is incomplete; downloaded GGUF files are not integrated with a bundled inference engine.
 - OpenAI/Gemini settings exist, but end-to-end cloud reasoning is unfinished.
