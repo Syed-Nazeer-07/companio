@@ -42,6 +42,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     wakePhrase: 'Hey Companio',
     pushToTalkKey: 'Space',
     sttEngine: 'browser',
+    recognitionLanguage: 'en-IN',
     ttsVoice: '',
     ttsRate: 1.0,
     ttsPitch: 1.05,
