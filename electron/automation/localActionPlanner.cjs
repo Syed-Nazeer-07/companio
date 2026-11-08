@@ -1,6 +1,6 @@
 'use strict';
 
-const { validateToolRequest } = require('./requestValidation.cjs');
+const { validateToolRequest, safeHttpUrl } = require('./requestValidation.cjs');
 const localAi = require('./localAiController.cjs');
 
 // Deliberately small and non-destructive. A model cannot request PowerShell,
@@ -152,6 +152,10 @@ function offlineClause(raw) {
     return { tool: 'win.notepad.launch', params: {} };
   if (/^(?:open|launch|start)\s+(?:the\s+)?spotify$/i.test(text))
     return { tool: 'win.spotify.launch', params: {} };
+  if (/^(?:open|launch|start)\s+(?:(?:the\s+)?(?:vs\s*code|vscode|visual\s+studio\s+code))$/i.test(text))
+    return { tool: 'win.vscode.launch', params: {} };
+  if (/^(?:open|launch|start)\s+(?:(?:the\s+)?file\s+explorer)$/i.test(text))
+    return { tool: 'win.explorer.open', params: {} };
   if (/^(?:open|launch|start|go\s+to)\s+(?:the\s+)?youtube$/i.test(text))
     return { tool: 'browser.youtube.open', params: {} };
   if ((m = text.match(/^(?:open|launch)\s+(?:my\s+)?(downloads|documents|desktop|pictures|music|videos)(?:\s+folder)?$/i)))
@@ -166,6 +170,33 @@ function offlineClause(raw) {
     return { tool: 'browser.search_google', params: { query: m[1].trim() } };
   if ((m = text.match(/^search\s+wikipedia\s+(?:for\s+)?(.+)$/i)))
     return { tool: 'browser.wikipedia.search', params: { query: m[1].trim() } };
+  if ((m = text.match(/^search\s+(?:(?:on|in)\s+)?youtube\s+(?:for|about)\s+(.+)$/i))) {
+    const query = m[1].trim();
+    if (query.length > 500 || !query) return null;
+    return { tool: 'browser.open_url', params: {
+      url: 'https://www.youtube.com/results?search_query=' + encodeURIComponent(query)
+    }};
+  }
+  if ((m = text.match(/^search\s+(?:(?:on|in)\s+)?github\s+(?:for|about)\s+(.+)$/i))) {
+    const query = m[1].trim();
+    if (query.length > 500 || !query) return null;
+    return { tool: 'browser.open_url', params: {
+      url: 'https://github.com/search?q=' + encodeURIComponent(query) + '&type=repositories'
+    }};
+  }
+  const commonSites = Object.freeze({
+    github:'https://github.com', gmail:'https://mail.google.com',
+    reddit:'https://www.reddit.com', wikipedia:'https://www.wikipedia.org',
+    chatgpt:'https://chatgpt.com', netflix:'https://www.netflix.com',
+    coursera:'https://www.coursera.org'
+  });
+  if ((m = text.match(/^(?:open|visit|go\s+to)\s+(?:the\s+)?(github|gmail|reddit|wikipedia|chatgpt|netflix|coursera)$/i))) {
+    return { tool: 'browser.open_url', params: { url: commonSites[m[1].toLowerCase()] } };
+  }
+  if ((m = text.match(/^(?:open|visit|go\s+to|browse)\s+((?:https?:\/\/)?(?:www\.)?[a-z\d](?:[a-z\d.-]*[a-z\d])?\.[a-z]{2,63}(?::\d{2,5})?(?:[\/?#][^\s]*)?)$/i))) {
+    try { return { tool: 'browser.open_url', params: { url: safeHttpUrl(m[1]) } }; }
+    catch { return null; }
+  }
   if ((m = text.match(/^search\s+(?:google\s+)?maps\s+(?:for\s+)?(.+)$/i)))
     return { tool: 'browser.maps.search', params: { query: m[1].trim() } };
   return null;

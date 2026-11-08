@@ -97,3 +97,33 @@ test('offline grammar never executes a partial or destructive workflow', () => {
   const single = planOfflineSequence({query:'Open Calculator'});
   assert.equal(single.recognized, false);
 });
+
+test('offline workflows combine safe browser and Windows actions without an API key',()=>{
+  for(const [query,expected] of [
+    ['Open VS Code and then visit github.com',['win.vscode.launch','browser.open_url']],
+    ['Open Notepad and search YouTube for React tutorials',['win.notepad.launch','browser.open_url']],
+    ['Open GitHub and set volume to 45%',['browser.open_url','win.volume.set']],
+    ['Open file explorer and open Documents',['win.explorer.open','win.explorer.open']],
+    ['Search GitHub for weather api and then open calculator',['browser.open_url','win.calculator.launch']]
+  ]) {
+    const plan=planOfflineSequence({query});
+    assert.equal(plan.success,true,query+(plan.error||''));
+    assert.deepEqual(plan.steps.map(s=>s.tool),expected,query);
+    assert.equal(plan.requiresConfirmation,true);
+  }
+  const gh=planOfflineSequence({query:'Open Notepad and search GitHub for React'});
+  assert.equal(gh.steps[1].params.url,'https://github.com/search?q=React&type=repositories');
+});
+test('offline actions never execute unknown domains, private endpoints or partial instructions',()=>{
+  for(const query of [
+    'Open Notepad and open javascript:alert(1)',
+    'Open Notepad and visit localhost',
+    'Open YouTube and delete my desktop',
+    'Open Notepad and open an unknown website',
+    'Open VS Code and run a terminal command'
+  ]) {
+    const result=planOfflineSequence({query});
+    assert.equal(result.success,false,query);
+    assert.deepEqual(result.steps,[],query);
+  }
+});
