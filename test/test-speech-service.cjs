@@ -14,8 +14,9 @@ const compiled = ts.transpileModule(source, {
 
 function setup({native = false, listen, browserRecognition = false} = {}) {
   const api = {
+    cancels: 0,
     startNativeSpeech: listen || (async () => ({success:true,silence:true})),
-    cancelNativeSpeech: async () => ({success:true})
+    cancelNativeSpeech: async () => { api.cancels++; return {success:true}; }
   };
   let recognition;
   class BrowserRecognizer {
@@ -129,4 +130,27 @@ test('Web Speech synthesis errors complete the animation exactly once', () => {
   h.spoken[0].onerror();
   h.spoken[0].onend();
   assert.equal(ended,1);
+});
+
+test('normal voice completion does not send stale cancellation to the next request',async()=>{
+  const h=setup({native:true,listen:async()=>({success:true,text:'Open YouTube',language:'en-IN',confidence:0.82})});
+  const transcripts=[];
+  await h.service.startListening(()=>{},(value,meta)=>transcripts.push({value,meta}),()=>{});
+  assert.equal(h.api.cancels,0);
+  assert.equal(transcripts[0].value,'Open YouTube');
+  assert.equal(transcripts[0].meta.language,'en-IN');
+  assert.equal(transcripts[0].meta.confidence,0.82);
+  await h.service.startListening(()=>{},()=>{},()=>{});
+  assert.equal(h.api.cancels,0);
+});
+
+test('explicit user microphone cancellation still aborts one active native session',async()=>{
+  let resolve;
+  const h=setup({native:true,listen:()=>new Promise(r=>{resolve=r;})});
+  const active=h.service.startListening(()=>{},()=>{},()=>{});
+  h.service.stopListening();
+  assert.equal(h.api.cancels,1);
+  resolve({success:true,text:'late'});
+  await active;
+  assert.equal(h.api.cancels,1);
 });
