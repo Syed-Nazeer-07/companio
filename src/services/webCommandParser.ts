@@ -64,8 +64,8 @@ export function parseWebCommand(input: string): WebCommand | null {
   const siteFirst = lead.match(/^search\s+(?:(?:on|in)\s+)?(youtube|wikipedia|github|reddit|google maps|stack overflow)\s+(?:for|about)\s+(.+?)\s*[.!?]?$/i);
   const termFirst = lead.match(/^(?:search\s+for|look\s+up|find)\s+(.+?)\s+(?:on|in)\s+(youtube|wikipedia|github|reddit|google maps|stack overflow)\s*[.!?]?$/i);
   const videoSearch = lead.match(/^find\s+(?:videos?|tutorials?)\s+(?:about|for|on)\s+(.+?)\s+on\s+youtube\s*[.!?]?$/i);
-  const provider = siteFirst?.[1] || termFirst?.[2] || (videoSearch ? 'youtube' : null);
-  const term = siteFirst?.[2] || termFirst?.[1] || videoSearch?.[1];
+  const provider = siteFirst?.[1] || (videoSearch ? 'youtube' : termFirst?.[2]);
+  const term = siteFirst?.[2] || videoSearch?.[1] || termFirst?.[1];
   if (provider && term) {
     const query = term.trim().replace(/[!?]+$/, '').trim();
     const site = provider.toLowerCase();

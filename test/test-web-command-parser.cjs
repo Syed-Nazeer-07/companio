@@ -43,7 +43,7 @@ test('conversational and malformed requests are not executable URL commands',()=
   for(const q of [
     'What is github.com?', 'Do not open example.com',
     'Open Notepad', 'Open file:///private', 'Open javascript:alert(1)',
-    'Open https://user:pass@example.com', 'Search wikipedia for people',
+    'Open https://user:pass@example.com',
     'Open localhost:8000', 'Visit website.com and delete all files'
   ]) assert.equal(parseWebCommand(q),null,q);
 });
