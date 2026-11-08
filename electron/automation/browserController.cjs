@@ -48,6 +48,11 @@ class BrowserController {
         this.activePage = null;
       }
     });
+    context.on('page', page => {
+      // Follow tabs opened manually or by a site inside this dedicated profile.
+      // Closed profiles must not overwrite a newer browser session.
+      if (this.context === context) this.activePage = page;
+    });
     // A persistent context may already contain a restored page; do not open
     // needless blank tabs or discard existing profile cookies/local storage.
     const existing = context.pages().filter(page => !page.isClosed());
