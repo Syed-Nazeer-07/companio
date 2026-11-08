@@ -56,19 +56,24 @@ export class SpeechService {
   // continuous offline wake-word detector.
   async startListening(
     onInterim: (text: string) => void,
-    onFinal: (text: string) => void,
+    onFinal: (text: string, details?: { language?: string; confidence?: number }) => void,
     onError: (err: string) => void,
     onAudioLevel?: (level: number) => void,
-    onStop?: () => void
+    onStop?: () => void,
+    recognitionLanguage: 'en-IN' | 'en-US' | 'en-GB' | 'en-AU' = 'en-IN'
   ): Promise<void> {
     this.stopListening();
     const token = ++this.listenToken;
     this.isListening = true;
     const active = () => this.isListening && token === this.listenToken;
-    const complete = (kind: 'result' | 'silence' | 'error', detail?: string) => {
+    const complete = (
+      kind: 'result' | 'silence' | 'error',
+      detail?: string,
+      metadata?: { language?: string; confidence?: number }
+    ) => {
       if (!active()) return;
       this.stopListening();
-      if (kind === 'result' && detail?.trim()) onFinal(detail.trim());
+      if (kind === 'result' && detail?.trim()) onFinal(detail.trim(), metadata);
       else if (kind === 'error') onError(detail || 'Speech recognition did not start.');
       else onStop?.();
     };
@@ -78,9 +83,11 @@ export class SpeechService {
 
     if (isNativeDesktop()) {
       try {
-        const res = await desktopBridge.startNativeSpeech(6);
+        const res = await desktopBridge.startNativeSpeech(6, recognitionLanguage);
         if (!active()) return; // Discard transcripts from cancelled sessions.
-        if (res.success && res.text?.trim()) complete('result', res.text);
+        if (res.success && res.text?.trim()) {
+          complete('result', res.text, { language: res.language, confidence: res.confidence });
+        }
         else if (res.silence || res.cancelled) complete('silence');
         else complete('error', res.error || 'Windows speech recognition was unavailable. Use text input.');
       } catch (error) {
@@ -93,6 +100,7 @@ export class SpeechService {
       complete('error', 'Voice recognition is unavailable in this browser. You can type your command.');
       return;
     }
+    this.recognition.lang = recognitionLanguage;
 
     // An audio meter is optional. Never allow a late mic permission response
     // to keep recording after the user has stopped the speech session.
