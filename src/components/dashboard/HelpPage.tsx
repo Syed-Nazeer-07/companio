@@ -11,11 +11,11 @@ export const HelpPage: React.FC<Props> = ({ onStartOnboarding }) => {
       title: 'Browser & YouTube',
       icon: Globe,
       examples: [
-        '"Open YouTube."',
-        '"Open ChatGPT." / "Open Claude."',
-        '"Search Google for Python tutorials."',
-        '"Open the official Python documentation."',
-        '"Pause the current YouTube video." (if Companio opened it)'
+        '"Open YouTube." (your default browser)',
+        '"Open github.com/Syed-Nazeer-07/companio."',
+        '"Search for Python DSA tutorials."',
+        '"Search Google for React examples."',
+        '"Pause the current YouTube video." (Companio-controlled Edge only)'
       ]
     },
     {
@@ -77,9 +77,10 @@ export const HelpPage: React.FC<Props> = ({ onStartOnboarding }) => {
       <div className="rounded-xl border border-sky-200 bg-sky-50/60 px-4 py-3 text-xs leading-relaxed text-slate-700">
         <strong className="text-slate-900">How commands work:</strong> Use clear action words such as
         {' '}<code>open</code>, <code>set</code>, <code>search</code> or <code>save</code>.
-        Companio confirms multi-step plans before execution. Browser search results do not guarantee the
-        latest creator upload; global media play/pause is unavailable without verified playback state.
-        Voice recognition requires a working microphone and installed Windows speech support.
+        Single, clearly requested low-risk app and website launches run directly.
+        Multi-step and higher-risk proposed actions still need confirmation. Websites and
+        searches open in your default browser; verified YouTube playback uses Companio's
+        separate controlled Edge session. Dictated text must be reviewed before pressing Send.
       </div>
 
       {/* Command Cheat Sheets */}
