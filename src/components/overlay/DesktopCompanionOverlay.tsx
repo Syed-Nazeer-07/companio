@@ -205,14 +205,18 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         (interim) => {
           setBubbleText(interim);
         },
-        (final) => {
+        (final, details) => {
           setIsListeningVoice(false);
           setAudioLevel(0);
           setCharacterState('idle');
           // Never silently execute a possibly misheard native transcript.
           setVoiceTranscript(final);
           setIsInputOpen(true);
-          setBubbleText('I heard: "' + final + '". Check the text, then press Send.');
+          const source = details?.language ? ' (' + details.language + ')' : '';
+          const uncertain = typeof details?.confidence === 'number' && details.confidence < 0.65
+            ? ' Low recognition confidence; please correct any mistakes.'
+            : '';
+          setBubbleText('Heard' + source + ': "' + final + '". Review and press Send.' + uncertain);
         },
         (err) => {
           setIsListeningVoice(false);
@@ -228,8 +232,9 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
           setIsListeningVoice(false);
           setAudioLevel(0);
           setCharacterState('idle');
-          setBubbleText('No speech detected. Try again or type your request.');
-        }
+          setBubbleText('No speech detected. Check microphone and speech language, then retry.');
+        },
+        settings.voice.recognitionLanguage || 'en-IN'
       );
     }
   };
