@@ -15,7 +15,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 40
     env:
-      ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/companio-electron-builder-cache
+      ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.electron-builder-cache
     strategy:
       matrix:
         target:
@@ -37,7 +37,7 @@ jobs:
       - name: Restore Electron Builder download cache
         uses: actions/cache@v4
         with:
-          path: ${{ runner.temp }}/companio-electron-builder-cache
+          path: ${{ github.workspace }}/.electron-builder-cache
           key: companio-electron-builder-${{ runner.os }}-v26-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             companio-electron-builder-${{ runner.os }}-v26-
