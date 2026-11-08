@@ -772,6 +772,22 @@ app.whenReady().then(async () => {
       }
       smokeReport({ stage: 'native-history-verified' });
 
+      // Verify startup IPC is wired without changing the runner's Windows
+      // login preferences. Malformed requests must always fail closed.
+      const startupState = await win.webContents.executeJavaScript(
+        "window.companioDesktop.getStartupStatus()"
+      );
+      if (!startupState?.success || startupState.supported !== false || startupState.enabled !== false) {
+        throw new Error('Smoke test incorrectly exposed Windows login startup controls.');
+      }
+      const startupRejected = await win.webContents.executeJavaScript(
+        "window.companioDesktop.setStartupEnabled('yes')"
+      );
+      if (startupRejected?.success !== false) {
+        throw new Error('Startup IPC accepted a non-boolean state.');
+      }
+      smokeReport({ stage: 'startup-ipc-verified' });
+
       const deviceCheck = await win.webContents.executeJavaScript(
         "window.companioDesktop.getDesktopDiagnostics()"
       );

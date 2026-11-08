@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AppSettings } from '../../types';
-import { Keyboard, Bell, Monitor, RotateCcw, Activity, RefreshCw } from 'lucide-react';
+import { Keyboard, Bell, Monitor, RotateCcw, Activity, RefreshCw, Power } from 'lucide-react';
 import { desktopBridge, isNativeDesktop } from '../../services/desktopBridge';
 
 interface Props {
@@ -13,10 +13,44 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
   const [status, setStatus] = useState('');
   const [savingShortcut, setSavingShortcut] = useState(false);
   const [checkingDevice, setCheckingDevice] = useState(false);
+  const [startupStatus, setStartupStatus] = useState<Awaited<ReturnType<typeof desktopBridge.getStartupStatus>> | null>(null);
+  const [loadingStartup, setLoadingStartup] = useState(true);
+  const [savingStartup, setSavingStartup] = useState(false);
+  const [startupError, setStartupError] = useState('');
   const [diagnostics, setDiagnostics] = useState<
     Awaited<ReturnType<typeof desktopBridge.getDesktopDiagnostics>> | null
   >(null);
   useEffect(() => setShortcutDraft(settings.activationShortcut), [settings.activationShortcut]);
+  useEffect(() => {
+    let alive = true;
+    void desktopBridge.getStartupStatus()
+      .then(result => {
+        if (!alive) return;
+        setStartupStatus(result);
+        if (!result.success) setStartupError(result.error || 'Could not read Windows startup settings.');
+      })
+      .catch(error => {
+        if (alive) setStartupError(error instanceof Error ? error.message : 'Could not read Windows startup settings.');
+      })
+      .finally(() => { if (alive) setLoadingStartup(false); });
+    return () => { alive = false; };
+  }, []);
+
+  const handleStartupToggle = async (enabled: boolean) => {
+    if (!startupStatus?.supported || savingStartup) return;
+    setSavingStartup(true);
+    setStartupError('');
+    try {
+      const result = await desktopBridge.setStartupEnabled(enabled);
+      setStartupStatus(result);
+      if (!result.success) setStartupError(result.error || 'Windows startup setting could not be changed.');
+    } catch (error) {
+      setStartupError(error instanceof Error ? error.message : 'Could not update startup setting.');
+      try { setStartupStatus(await desktopBridge.getStartupStatus()); } catch {}
+    } finally {
+      setSavingStartup(false);
+    }
+  };
 
   const handleSaveShortcut = async () => {
     setSavingShortcut(true);
@@ -62,8 +96,9 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
     if (isNativeDesktop()) {
       const shortcut = await desktopBridge.setActivationShortcut('Ctrl+Shift+Space');
       const overlay = await desktopBridge.setOverlayPreferences({ alwaysOnTop: true, snapToEdge: true });
-      if (!shortcut.success || !overlay.success) {
-        setStatus(shortcut.error || overlay.error || 'Could not reset native settings.');
+      const startup = await desktopBridge.setStartupEnabled(false);
+      if (!shortcut.success || !overlay.success || !startup.success) {
+        setStatus(shortcut.error || overlay.error || startup.error || 'Could not reset native settings.');
         return;
       }
     }
@@ -103,6 +138,36 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
             <span className="text-xs text-slate-500">Example: Ctrl+Shift+Space</span>
           </div>
           {status && <p role="status" className="mt-2 text-xs text-slate-600">{status}</p>}
+        </div>
+
+        <div className="border-t border-slate-100 pt-5 space-y-4">
+          <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+            <Power className="w-4 h-4 text-sky-600" />
+            <span>Windows Startup</span>
+          </h3>
+          <div className="flex items-center justify-between gap-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+            <div>
+              <label htmlFor="companio-launch-at-login" className="text-sm font-bold text-slate-800">Launch Companio when I sign in</label>
+              <p className="text-xs text-slate-500 mt-1">Optional. Starts your floating companion and tray icon after Windows sign-in. Off until you enable it.</p>
+            </div>
+            <input
+              id="companio-launch-at-login"
+              type="checkbox"
+              checked={startupStatus?.enabled === true}
+              disabled={loadingStartup || savingStartup || !startupStatus?.success || !startupStatus.supported}
+              onChange={event => void handleStartupToggle(event.target.checked)}
+              className="w-5 h-5 shrink-0 accent-sky-600 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </div>
+          {loadingStartup && <p className="text-xs text-slate-500" role="status">Reading Windows startup preference…</p>}
+          {!loadingStartup && startupStatus?.supported === false && (
+            <p className="text-xs text-slate-500">Available in the installed Windows app, not browser or development previews.</p>
+          )}
+          {!loadingStartup && startupStatus?.blockedByWindows && (
+            <p className="text-xs text-amber-700">Windows Startup Apps has disabled this entry. Re-enable it here or in Windows Settings.</p>
+          )}
+          {savingStartup && <p className="text-xs text-slate-500" role="status">Applying startup preference…</p>}
+          {startupError && <p className="text-xs text-rose-700" role="alert">{startupError}</p>}
         </div>
 
         <div className="border-t border-slate-100 pt-5 space-y-4">

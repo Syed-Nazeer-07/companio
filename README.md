@@ -62,7 +62,13 @@ Characters react with visual states such as **idle, listening, thinking, talking
 
 ### 🖥️ Desktop presence
 
-Companio starts with a floating character overlay and can open a separate **Control Center**. You can move the overlay, retain its position, summon it with the keyboard shortcut, and access controls from the Windows system tray.
+Companio starts with a floating character overlay and can open a separate **Control Center**.
+### Start with Windows (optional)
+
+In the **installed Windows desktop app**, open **Control Center → Settings → Windows Startup** and enable **Launch Companio when I sign in**. This setting is **off by default**; it is not silently enabled by setup, updates, or first launch. When enabled, Windows starts Companio after the user signs in, showing the floating companion and system tray icon. Disabling it removes the login startup entry.
+
+This setting uses Electron's Windows login-item API and reads back the Windows state instead of trusting a cached checkbox. If Windows Startup Apps / Task Manager blocks the entry, the app reports that state. A browser preview, dev run, or test build cannot register startup. No extra Windows permission prompts or Administrator access are required for the normal per-user startup entry.
+ You can move the overlay, retain its position, summon it with the keyboard shortcut, and access controls from the Windows system tray.
 
 ### 🎙️ Voice interaction
 
