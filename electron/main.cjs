@@ -609,9 +609,9 @@ secureHandle('hide-overlay', () => {
   return true;
 });
 
-secureHandle('start-native-speech', async (_, { timeoutSec = 5 } = {}) => {
+secureHandle('start-native-speech', async (_, { timeoutSec = 5, language = 'en-IN' } = {}) => {
   try {
-    return await nativeSpeech.recognizeOnce(timeoutSec);
+    return await nativeSpeech.recognizeOnce(timeoutSec, language);
   } catch (e) {
     return { success: false, error: e.message };
   }
