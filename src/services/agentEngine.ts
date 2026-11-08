@@ -2,6 +2,7 @@ import { TaskPlan, TaskStep, AiConfig } from '../types';
 import { desktopBridge } from './desktopBridge';
 import { dbService } from './dbService';
 import { isCommandRequest } from './intentSafety';
+import { parseWebCommand } from './webCommandParser';
 
 export class AgentEngine {
   private activeAbortController: AbortController | null = null;
@@ -31,6 +32,22 @@ export class AgentEngine {
         id: planId, query, intent: 'conversation', steps: [],
         currentStepIndex: 0, status: 'completed', createdAt: Date.now(),
         finalMessage: await this.generateConversationalResponse(query, aiConfig)
+      };
+    }
+
+    // Direct navigation needs no model, no guesswork, and no separate
+    // controlled Edge profile: Windows opens the site in the user's default
+    // browser. This handles explicit domains as well as general web searches.
+    const webCommand = parseWebCommand(query);
+    if (webCommand) {
+      return {
+        id: planId, query, intent: webCommand.tool,
+        steps: [{
+          id: 'step_1', tool: webCommand.tool, params: webCommand.params,
+          description: webCommand.description, status: 'pending',
+          verification: 'Windows accepted browser launch; page loading is not verified.'
+        }],
+        currentStepIndex: 0, status: 'planning', createdAt: Date.now()
       };
     }
 
@@ -1053,6 +1070,16 @@ export class AgentEngine {
 
   // Formulate warm, human-like companion completion messages
   private getDelightfulSuccessMessage(plan: TaskPlan): string {
+    // Windows shell.openExternal verifies handoff, not page rendering. Preserve
+    // this distinction instead of saying a site loaded or a video is playing.
+    const delegated = plan.steps.filter(step => step.result?.handoffOnly === true);
+    if (delegated.length > 0) {
+      return delegated.length === plan.steps.length
+        ? (delegated.length === 1
+          ? delegated[0].result.message
+          : `Sent ${delegated.length} requests to your default browser. Page loading was not verified.`)
+        : `Completed the requested actions, including ${delegated.length} default-browser handoff(s). Website loading was not verified.`;
+    }
     if (plan.steps.length === 1) {
       const step = plan.steps[0];
       const p = step.params || {};
