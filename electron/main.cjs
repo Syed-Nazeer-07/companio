@@ -707,6 +707,11 @@ app.whenReady().then(async () => {
         new Promise((_, reject) => setTimeout(() => reject(new Error('Overlay failed to hydrate history within 12 seconds')), 12000))
       ]);
       if (!overlayReady) throw new Error('The companion overlay did not finish its storage initialization');
+      const dragHandleVisible = await win.webContents.executeJavaScript(
+        "(() => { const el = document.querySelector('[aria-label=\"Drag to move Companio around your desktop\"]'); if (!el) return false; const rect = el.getBoundingClientRect(); const style = getComputedStyle(el); return rect.width >= 100 && rect.height >= 24 && style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) > 0.95; })()"
+      );
+      if (!dragHandleVisible) throw new Error('The draggable Companio handle must be visible without hovering');
+      smokeReport({ stage: 'drag-handle-visible' });
       smokeReport({ stage: 'history-hydrated' });
       // On headless Windows runners, the main-process timer occasionally stops
       // progressing after IPC. Dispatch immediately and let the renderer itself
