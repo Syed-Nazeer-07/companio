@@ -19,6 +19,7 @@ const desktopAPI = {
   setIgnoreMouseEvents: (ignore) => ipcRenderer.invoke('set-ignore-mouse-events', ignore),
   saveOverlayPosition: (x, y) => ipcRenderer.invoke('save-overlay-position', { x, y }),
   getOverlayPosition: () => ipcRenderer.invoke('get-overlay-position'),
+  moveCompanion: (direction) => ipcRenderer.invoke('move-companion', direction),
   setActivationShortcut: (shortcut) => ipcRenderer.invoke('set-activation-shortcut', shortcut),
   setOverlayPreferences: (options) => ipcRenderer.invoke('set-overlay-preferences', options),
   getStartupStatus: () => ipcRenderer.invoke('get-startup-status'),

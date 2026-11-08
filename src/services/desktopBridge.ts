@@ -10,6 +10,7 @@ interface CompanioDesktopAPI {
   setIgnoreMouseEvents: (ignore: boolean) => void;
   saveOverlayPosition: (x: number, y: number) => Promise<boolean>;
   getOverlayPosition: () => Promise<{ x: number; y: number } | null>;
+  moveCompanion?: (direction: 'left' | 'right' | 'up' | 'down') => Promise<{ success: boolean; verified: boolean; moved?: boolean; message?: string; error?: string }>; 
   setActivationShortcut: (shortcut: string) => Promise<{ success: boolean; shortcut?: string; error?: string }>;
   setOverlayPreferences: (options: { alwaysOnTop: boolean; snapToEdge: boolean }) => Promise<{ success: boolean; error?: string }>;
   getStartupStatus?: () => Promise<{ success: boolean; supported: boolean; enabled: boolean; blockedByWindows?: boolean; verified?: boolean; reason?: string; error?: string }>;
@@ -102,6 +103,12 @@ export const desktopBridge = {
     const api = getDesktopAPI();
     return api ? api.setOverlayPreferences(options)
       : { success: false, error: 'Desktop window settings require the installed app.' };
+  },
+  async moveCompanion(direction: 'left' | 'right' | 'up' | 'down') {
+    const api = getDesktopAPI();
+    return api?.moveCompanion
+      ? await api.moveCompanion(direction)
+      : { success: false, verified: false, error: 'Movement commands require the installed Windows desktop app.' };
   },
   async getStartupStatus(): Promise<{ success: boolean; supported: boolean; enabled: boolean; blockedByWindows?: boolean; verified?: boolean; reason?: string; error?: string }> {
     const api = getDesktopAPI();

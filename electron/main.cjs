@@ -18,6 +18,7 @@ const { NativeHistoryStore } = require('./automation/nativeHistoryStore.cjs');
 const { updateShortcutWithRollback, updateOverlayWithRollback } = require('./automation/settingsTransaction.cjs');
 const { writeConfigAtomically } = require('./automation/atomicConfigStore.cjs');
 const { createStartupController } = require('./automation/startupController.cjs');
+const { planCompanionMove } = require('./automation/companionMovement.cjs');
 
 let overlayWindow = null;
 let dashboardWindow = null;
@@ -585,6 +586,32 @@ secureHandle('save-overlay-position', async (event, position) => {
 
 secureHandle('get-overlay-position', async () => {
   return loadSavedPosition();
+});
+
+secureHandle('move-companion', (event, direction) => {
+  // Only Companio's own overlay can move. A spoken command cannot specify
+  // pixels, coordinates, target windows or shell commands.
+  if (event.sender !== overlayWindow?.webContents) {
+    return { success: false, verified: false, error: 'Only the companion overlay can move.' };
+  }
+  try {
+    const before = overlayWindow.getBounds();
+    const area = screen.getDisplayMatching(before).workArea;
+    const next = planCompanionMove(before, area, direction);
+    if (!next) return { success: false, verified: false, error: 'Invalid movement direction.' };
+    if (!next.moved) {
+      return { success: true, verified: true, moved: false, message: 'Already at the edge of this screen.' };
+    }
+    overlayWindow.setPosition(next.x, next.y);
+    const actual = overlayWindow.getBounds();
+    const verified = actual.x === next.x && actual.y === next.y;
+    if (verified) savePosition(actual.x, actual.y);
+    return verified
+      ? { success: true, verified: true, moved: true, message: 'Moved Companio ' + direction + '.' }
+      : { success: false, verified: false, moved: false, error: 'Windows did not confirm the new companion position.' };
+  } catch (error) {
+    return { success: false, verified: false, error: error?.message || 'Could not move companion.' };
+  }
 });
 
 secureHandle('set-ignore-mouse-events', (event, ignore) => {
