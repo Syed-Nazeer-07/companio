@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   cleanup:
-    if: github.event.head_commit.message == 'chore(releases): clean duplicated v1.0.0 downloads'
+    if: "github.event.head_commit.message == 'chore(releases): clean duplicated v1.0.0 downloads'"
     runs-on: ubuntu-latest
     steps:
       - name: Prune only verified legacy release duplicates
