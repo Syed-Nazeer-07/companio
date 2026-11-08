@@ -249,7 +249,8 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
           setBubbleText('No speech detected. Check microphone and speech language, then retry.');
         },
         settings.voice.recognitionLanguage || 'en-IN',
-        settings.overlay.soundEffects
+        settings.overlay.soundEffects,
+        settings.voice.recognitionEngine === 'whisper' ? 'whisper' : 'windows'
       );
     }
   };

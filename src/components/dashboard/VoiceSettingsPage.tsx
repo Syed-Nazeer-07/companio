@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppSettings } from '../../types';
 import { speechService } from '../../services/speechService';
+import { desktopBridge, isNativeDesktop } from '../../services/desktopBridge';
 import { Mic, Volume2, Play, VolumeX, Sparkles } from 'lucide-react';
 
 interface Props {
@@ -21,6 +22,32 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
   const [testingRecognition, setTestingRecognition] = useState(false);
   const [recognitionFeedback, setRecognitionFeedback] = useState('');
   const [recognitionAlternatives, setRecognitionAlternatives] = useState<string[]>([]);
+  const [whisperStatus, setWhisperStatus] = useState<Awaited<ReturnType<typeof desktopBridge.getWhisperStatus>> | null>(null);
+  const [whisperSetupError, setWhisperSetupError] = useState('');
+  const [choosingWhisper, setChoosingWhisper] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    void desktopBridge.getWhisperStatus().then(status => {
+      if (mounted) setWhisperStatus(status);
+    }).catch(() => {});
+    return () => { mounted = false; };
+  }, []);
+
+  const chooseWhisperFile = async (kind: 'binary' | 'model') => {
+    if (choosingWhisper) return;
+    setChoosingWhisper(true);
+    setWhisperSetupError('');
+    try {
+      const result = await desktopBridge.chooseWhisperFile(kind);
+      if (!result.success && !result.cancelled) setWhisperSetupError(result.error || 'Could not select this speech file.');
+      setWhisperStatus(await desktopBridge.getWhisperStatus());
+    } catch (error) {
+      setWhisperSetupError(error instanceof Error ? error.message : 'Whisper file setup failed.');
+    } finally {
+      setChoosingWhisper(false);
+    }
+  };
 
   useEffect(() => {
     const loadVoices = () => {
@@ -130,7 +157,9 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
         setTestingRecognition(false);
         setRecognitionFeedback('No words recognized. Check your microphone or Windows speech language pack.');
       },
-      settings.voice.recognitionLanguage || 'en-IN'
+      settings.voice.recognitionLanguage || 'en-IN',
+      settings.overlay.soundEffects,
+      settings.voice.recognitionEngine === 'whisper' ? 'whisper' : 'windows'
     );
   };
 
@@ -199,6 +228,45 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
               className="h-5 w-5 shrink-0 cursor-pointer accent-sky-600" />
           </div>
 
+          {/* Local Whisper is optional, explicit, private and uses no API credentials. */}
+          <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-3.5">
+            <label htmlFor="companio-speech-engine" className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+              Speech recognition engine
+            </label>
+            <select
+              id="companio-speech-engine"
+              value={settings.voice.recognitionEngine || 'windows'}
+              onChange={event => onUpdateSettings({
+                voice: {...settings.voice,recognitionEngine:event.target.value as 'windows' | 'whisper'}
+              })}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+            >
+              <option value="windows">Windows dictation — ready to use</option>
+              <option value="whisper">Local Whisper — optional offline accuracy</option>
+            </select>
+            {settings.voice.recognitionEngine === 'whisper' && (
+              <div className="space-y-2 text-xs text-slate-600">
+                <p>Local Whisper runs speech recognition entirely on this PC, without an API key. One-time setup requires the official whisper.cpp CLI and a GGML speech model. Models can use hundreds of MB, and CPU transcription may take longer.</p>
+                <p>Download from <a href="https://github.com/ggml-org/whisper.cpp/releases" target="_blank" rel="noopener noreferrer" className="font-semibold text-sky-700 underline">whisper.cpp releases</a> and <a href="https://huggingface.co/ggerganov/whisper.cpp/tree/main" target="_blank" rel="noopener noreferrer" className="font-semibold text-sky-700 underline">official GGML model files</a>. On ARM64, use a matching Windows ARM64 build; avoid experimental CUDA packages.</p>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" disabled={choosingWhisper || !isNativeDesktop()} onClick={() => void chooseWhisperFile('binary')}
+                    className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-50">
+                    Choose whisper-cli.exe
+                  </button>
+                  <button type="button" disabled={choosingWhisper || !isNativeDesktop()} onClick={() => void chooseWhisperFile('model')}
+                    className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-50">
+                    Choose speech model
+                  </button>
+                </div>
+                <p role="status">{whisperStatus?.configured
+                  ? 'Ready: ' + whisperStatus.model + ' — audio remains on this device.'
+                  : (whisperStatus?.message || 'Whisper setup not completed.')}</p>
+                {whisperSetupError && <p role="alert" className="text-rose-700">{whisperSetupError}</p>}
+                <p>Whisper does not provide a calibrated speech-confidence value here, so spoken commands always remain editable before Send, even with hands-free messages enabled.</p>
+              </div>
+            )}
+          </div>
+
           {/* Speech recognition uses installed Windows language packs. */}
           <div className="space-y-2">
             <label htmlFor="companio-recognition-language" className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
@@ -221,7 +289,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
               <option value="en-AU">English (Australia)</option>
             </select>
             <p className="text-xs leading-relaxed text-slate-500">
-              Windows must have an installed speech recognizer for your language.
+              Windows dictation needs an installed recognition language. Whisper is English-only in this version.
               If unavailable, Companio uses an installed English recognizer instead and reports the actual locale.
               Recognition quality still depends on Windows speech support and microphone clarity.
             </p>
@@ -239,7 +307,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
           </div>
 
           <p className="text-xs text-slate-500 leading-relaxed">
-            Desktop dictation uses the installed Windows recognition engine for one request at a time.
+            Desktop dictation uses your chosen recognition engine for one request at a time.
             Its transcript is shown for correction before a command runs. Continuous wake-word detection is not available.
             Speech recognition in browser previews may depend on the browser's online speech service.
           </p>
