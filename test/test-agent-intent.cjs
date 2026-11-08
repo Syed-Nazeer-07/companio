@@ -131,3 +131,10 @@ test('explicit YouTube and GitHub searches plan one default-browser handoff',asy
   assert.equal(gh.steps[0].tool,'browser.open_url');
   assert.equal(gh.steps[0].params.url,'https://github.com/search?q=react%20dashboard&type=repositories');
 });
+
+test('official website discovery is explicitly a search, never a fabricated open',async()=>{
+  const p=await engine.planTask('Open the official website of SpaceX');
+  assert.equal(p.steps.length,1);
+  assert.equal(p.steps[0].tool,'browser.search_google');
+  assert.equal(p.steps[0].params.query,'SpaceX official website');
+});

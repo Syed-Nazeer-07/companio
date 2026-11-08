@@ -79,6 +79,20 @@ export function parseWebCommand(input: string): WebCommand | null {
     };
   }
 
+  // Don't guess a domain for a brand or organization. Offer an explicit
+  // default-browser search for its official site instead of fabricating
+  // successful navigation to an unverified address.
+  const official = lead.match(/^(?:open|visit|go\s+to|find)\s+(?:the\s+)?(?:official\s+)?(?:website|site)\s+(?:of|for)\s+(.+?)\s*[.!?]?$/i);
+  if (official) {
+    const name = official[1].trim().replace(/[!?]+$/, '').trim();
+    if (!name || name.length > 100 || /\b(?:and\s+then|delete|execute|run\s+a\s+command)\b/i.test(name)) return null;
+    return {
+      tool: 'browser.search_google',
+      params: { query: name + ' official website' },
+      description: 'Search for the official website of ' + name
+    };
+  }
+
   const search = normalized.match(/^(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:search\s+(?:(?:the\s+)?web|(?:the\s+)?internet|google|on\s+google|(?:in\s+)?(?:my\s+)?default\s+browser)\s+for|search\s+for|look\s+up)\s+(.+?)\s*[.!?]?$/i);
   if (search) {
     const query = search[1].trim();

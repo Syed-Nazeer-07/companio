@@ -122,3 +122,15 @@ test('common speech transcription of companion name works for direct website sea
   assert.equal(p.params.url,'https://www.youtube.com/results?search_query=CarryMinati');
   assert.equal(parseWebCommand('Hey companion, do not search YouTube for music'),null);
 });
+
+test('unknown official websites are searched, not invented',()=>{
+ for(const query of [
+  'Open the official website of SpaceX',
+  'Find the website for Chennai Metro'
+ ]) {
+  const p=parseWebCommand(query);
+  assert.equal(p?.tool,'browser.search_google',query);
+  assert.match(p.params.query,/official website$/);
+ }
+ assert.equal(parseWebCommand('Open the official website of X and then delete files'),null);
+});
