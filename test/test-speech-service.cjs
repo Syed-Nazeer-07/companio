@@ -16,7 +16,8 @@ function setup({native = false, listen, browserRecognition = false} = {}) {
   const api = {
     cancels: 0,
     startNativeSpeech: listen || (async () => ({success:true,silence:true})),
-    cancelNativeSpeech: async () => { api.cancels++; return {success:true}; }
+    cancelNativeSpeech: async () => { api.cancels++; return {success:true}; },
+    transcribeWithWhisper: async () => ({success:true,text:'Open Notepad',language:'en'})
   };
   let recognition;
   class BrowserRecognizer {
@@ -41,6 +42,10 @@ function setup({native = false, listen, browserRecognition = false} = {}) {
     exports:result,
     require(name) {
       if (name==='./desktopBridge') return {desktopBridge:api,isNativeDesktop:()=>native};
+      if (name==='./whisperRecorder') return {LocalWhisperRecorder:class {
+        async capture(){return new Uint8Array(32044);}
+        cancel(){api.captureCancelled=(api.captureCancelled||0)+1;}
+      }};
       throw Error('Unexpected import '+name);
     },
     window,navigator:{},SpeechSynthesisUtterance:Utterance,
@@ -179,4 +184,14 @@ test('native voice alternatives are forwarded as editable hypotheses',async()=>{
   assert.equal(details.confidence,0.49);
   assert.deepEqual(details.alternatives,['Open Notepad','Open notes']);
   assert.equal(h.api.cancels,0);
+});
+
+test('optional offline Whisper returns transcript without inventing recognition confidence',async()=>{
+ const h=setup({native:true});
+ let received;
+ await h.service.startListening(()=>{},(text,meta)=>{received={text,meta};},()=>{},undefined,undefined,'en-IN',false,'whisper');
+ assert.equal(received.text,'Open Notepad');
+ assert.equal(received.meta.language,'en');
+ assert.equal(received.meta.confidence,undefined);
+ assert.equal(h.api.cancels,0);
 });

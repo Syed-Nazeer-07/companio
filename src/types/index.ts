@@ -40,6 +40,8 @@ export interface VoiceConfig {
   pushToTalkKey: string;
   sttEngine: 'browser' | 'cloud' | 'push_only';
   recognitionLanguage?: 'en-IN' | 'en-US' | 'en-GB' | 'en-AU';
+  /** Installed Windows dictation is the default. Whisper needs user-selected local files. */
+  recognitionEngine?: 'windows' | 'whisper';
   ttsVoice: string;
   ttsRate: number;
   ttsPitch: number;

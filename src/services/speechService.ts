@@ -1,5 +1,6 @@
 // Speech Recognition & Synthesis Service with Audio Chimes
 import { desktopBridge, isNativeDesktop } from './desktopBridge';
+import { LocalWhisperRecorder } from './whisperRecorder';
 
 export interface CharacterVoiceProfile {
   rate: number;
@@ -36,6 +37,7 @@ export class SpeechService {
   private micAudioCtx: AudioContext | null = null;
   private listenToken = 0;
   private activeSpeechFinish: (() => void) | null = null;
+  private whisperCapture: LocalWhisperRecorder | null = null;
 
   constructor() {
     this.initRecognition();
@@ -61,7 +63,8 @@ export class SpeechService {
     onAudioLevel?: (level: number) => void,
     onStop?: () => void,
     recognitionLanguage: 'en-IN' | 'en-US' | 'en-GB' | 'en-AU' = 'en-IN',
-    playActivationChime = true
+    playActivationChime = true,
+    engine: 'windows' | 'whisper' = 'windows'
   ): Promise<void> {
     this.stopListening();
     const token = ++this.listenToken;
@@ -83,6 +86,30 @@ export class SpeechService {
 
     if (playActivationChime) this.playChime('activate');
     onInterim('Listening…');
+
+    if (isNativeDesktop() && engine === 'whisper') {
+      try {
+        this.whisperCapture = new LocalWhisperRecorder();
+        const wav = await this.whisperCapture.capture(onAudioLevel);
+        if (!active()) return;
+        this.whisperCapture = null;
+        onInterim('Transcribing locally with Whisper…');
+        const result = await desktopBridge.transcribeWithWhisper(wav);
+        if (!active()) return;
+        if (result.success && result.text?.trim()) {
+          complete('result', result.text, { language: result.language });
+        } else if (result.silence || result.cancelled) {
+          complete('silence');
+        } else {
+          complete('error', result.error || 'Local Whisper transcription failed.');
+        }
+      } catch(error) {
+        complete('error', error instanceof Error ? error.message : 'Could not capture microphone audio for Whisper.');
+      } finally {
+        this.whisperCapture = null;
+      }
+      return;
+    }
 
     if (isNativeDesktop()) {
       try {
@@ -171,6 +198,10 @@ export class SpeechService {
     const wasListening = this.isListening;
     this.listenToken++;
     this.isListening = false;
+    if (cancelNative) {
+      this.whisperCapture?.cancel();
+      this.whisperCapture = null;
+    }
     if (cancelNative && wasListening && isNativeDesktop()) {
       void desktopBridge.cancelNativeSpeech().catch(() => {});
     }
