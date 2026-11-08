@@ -3,35 +3,73 @@ const { verifyNavigation } = require('./browserNavigationVerifier.cjs');
 const { channelMatches, channelVideosUrl } = require('./youtubeChannelSafety.cjs');
 
 class BrowserController {
-  constructor() {
-    this.browser = null;
+  constructor({ chromiumImpl = chromium, profileDirectory = null } = {}) {
+    this.chromium = chromiumImpl;
+    this.profileDirectory = profileDirectory;
     this.context = null;
     this.activePage = null;
+    this.launchPromise = null;
+  }
+
+  configureProfileDirectory(directory) {
+    const path = require('node:path');
+    if (typeof directory !== 'string' || !path.isAbsolute(directory)) {
+      throw new Error('The controlled-browser profile must be in an absolute local directory.');
+    }
+    if (this.context || this.launchPromise) {
+      throw new Error('Cannot switch the browser profile while the controlled browser is running.');
+    }
+    this.profileDirectory = directory;
+  }
+
+  async launchControlledBrowser() {
+    if (!this.profileDirectory) {
+      throw new Error('Companio controlled-browser profile has not been configured.');
+    }
+    let context;
+    try {
+      context = await this.chromium.launchPersistentContext(this.profileDirectory, {
+        channel: 'msedge',
+        headless: false,
+        viewport: null,
+        args: ['--start-maximized']
+      });
+    } catch (error) {
+      throw new Error(
+        'Could not launch the Companio-controlled Microsoft Edge session. ' +
+        'Check that Edge is installed and close any other window using the Companio browser profile. ' +
+        (error?.message || '')
+      );
+    }
+    this.context = context;
+    context.on('close', () => {
+      if (this.context === context) {
+        this.context = null;
+        this.activePage = null;
+      }
+    });
+    // A persistent context may already contain a restored page; do not open
+    // needless blank tabs or discard existing profile cookies/local storage.
+    const existing = context.pages().filter(page => !page.isClosed());
+    this.activePage = existing[existing.length - 1] || await context.newPage();
+    return this.activePage;
   }
 
   async ensureBrowser() {
-    if (!this.browser || !this.browser.isConnected()) {
+    // Multiple commands arriving together must not launch Edge twice with
+    // the same profile directory (Chromium would reject the second lock).
+    if (this.launchPromise) return this.launchPromise;
+    if (!this.context) {
+      this.launchPromise = this.launchControlledBrowser();
       try {
-        this.browser = await chromium.launch({
-          channel: 'msedge',
-          headless: false,
-          args: ['--start-maximized', '--disable-blink-features=AutomationControlled']
-        });
-        this.context = await this.browser.newContext({
-          viewport: null
-        });
-        this.activePage = await this.context.newPage();
-      } catch (err) {
-        console.warn('Could not launch Edge directly, trying fallback:', err.message);
-        this.browser = await chromium.launch({
-          headless: false
-        });
-        this.context = await this.browser.newContext();
-        this.activePage = await this.context.newPage();
+        return await this.launchPromise;
+      } finally {
+        this.launchPromise = null;
       }
     }
     if (!this.activePage || this.activePage.isClosed()) {
-      this.activePage = await this.context.newPage();
+      const pages = this.context.pages().filter(page => !page.isClosed());
+      this.activePage = pages[pages.length - 1] || await this.context.newPage();
     }
     return this.activePage;
   }
