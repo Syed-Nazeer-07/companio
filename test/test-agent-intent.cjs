@@ -86,7 +86,7 @@ test('a latest-video command requests creator-channel verification', async () =>
   assert.equal(latest.steps[0].params.latest,true);
   const carry=await engine.planTask('Play CarryMinati new video');
   assert.equal(carry.steps[0].tool,'browser.youtube.latest_known');
-  assert.deepEqual(carry.steps[0].params,{});
+  assert.equal(Object.keys(carry.steps[0].params).length,0);
 });
 
 test('normal site URLs and general web searches plan default browser actions without a model',async()=>{
