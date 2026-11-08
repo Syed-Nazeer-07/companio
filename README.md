@@ -82,6 +82,12 @@ This setting uses Electron's Windows login-item API and reads back the Windows s
 
 ### 🎙️ Voice interaction
 
+**Latest voice and browser reliability improvements (v1.1.0-rc.15):** Windows recognition now keeps up to three distinct alternative transcripts where its recognizer supplies them, with one-tap correction in the command bar. Native phrase-end silence is tuned for more natural sentences. Voice Settings also displays alternative recognition results. To avoid accidentally operating Windows, high-confidence hands-free speech is never automatically dispatched when multiple candidates are available; normal app/browser actions still require a manual Send.
+
+The spoken name **“companion”** is accepted as an alias for **“Companio”** when addressing the assistant with a strict command. Search YouTube, Wikipedia, GitHub, Reddit, Maps or Stack Overflow directly in your **default browser** (“Search YouTube for Python DSA”). Requests for an unfamiliar official website search Google rather than guessing an address. Dismissing or sleeping Companio cancels unstarted task steps and ignores late answers; a Windows action already in progress may still finish.
+
+
+
 The installed desktop uses the available **Windows speech recognition engine** for one-shot dictation and Web Speech synthesis for spoken replies. Browser previews use available **Web Speech APIs**. Voice Settings includes controls for speech language, voice, speaking rate, pitch, and volume. Microphone support varies by Windows configuration and Electron runtime. The wake-phrase setting is **not** a continuously listening system-wide hotword detector, and lip movement is approximate rather than phoneme-accurate.
 
 ## 🧭 How It Works
