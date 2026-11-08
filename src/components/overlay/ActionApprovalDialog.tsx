@@ -25,9 +25,9 @@ export const ActionApprovalDialog: React.FC<ActionApprovalDialogProps> = ({
           <ShieldCheck size={19} aria-hidden="true" />
         </div>
         <div className="min-w-0 flex-1">
-          <h2 id="companio-approval-title" className="text-sm font-bold">Approve desktop actions</h2>
+          <h2 id="companio-approval-title" className="text-sm font-bold">Review this task</h2>
           <p id="companio-approval-description" className="mt-0.5 text-[11px] leading-relaxed text-slate-600">
-            Nothing has run yet. Review every step before proceeding.
+            Nothing has run yet. Review these actions before proceeding.
           </p>
         </div>
         <button type="button" onClick={onCancel} aria-label="Cancel actions"
@@ -44,12 +44,13 @@ export const ActionApprovalDialog: React.FC<ActionApprovalDialogProps> = ({
               </span>
               <p className="text-xs font-semibold leading-snug">{step.description}</p>
             </div>
-            <div className="mt-2 rounded-lg border border-slate-100 bg-white px-2.5 py-2">
-              <code className="block break-all text-[10px] font-semibold text-sky-800">{step.tool}</code>
-              <pre className="mt-1 whitespace-pre-wrap break-all text-[10px] leading-snug text-slate-600">
+            <details className="mt-2 rounded-lg border border-slate-100 bg-white px-2.5 py-1.5 text-slate-600">
+              <summary className="cursor-pointer text-[10px] font-semibold">Technical details</summary>
+              <code className="mt-2 block break-all text-[10px] font-semibold text-sky-800">{step.tool}</code>
+              <pre className="mt-1 whitespace-pre-wrap break-all text-[10px] leading-snug">
                 {JSON.stringify(step.params, null, 2)}
               </pre>
-            </div>
+            </details>
           </li>
         ))}
       </ol>
