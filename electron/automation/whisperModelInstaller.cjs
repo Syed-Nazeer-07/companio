@@ -34,6 +34,10 @@ class WhisperModelInstaller {
       this.fs.mkdirSync(dir,{recursive:true});
       // Reuse a previously verified model instead of downloading it again.
       if(this.fs.existsSync(target)){
+        const existingSize=this.fs.statSync(target).size;
+        if(existingSize<minBytes || existingSize>maxBytes) {
+          throw Error('The existing Whisper model size is invalid. Remove it before retrying.');
+        }
         const hash=crypto.createHash('sha256');
         const reader=this.fs.createReadStream(target);
         for await(const part of reader)hash.update(part);
@@ -53,6 +57,7 @@ class WhisperModelInstaller {
       this.current.total=Number.isFinite(announced)&&announced>=minBytes?announced:maxBytes;
       handle=await this.fs.promises.open(temporary,'wx');
       let received=0;
+      let lastPercent=-1;
       const digest=crypto.createHash('sha256');
       for await(const raw of response.body){
         if(abort.signal.aborted)throw Error('Model download cancelled.');
@@ -67,9 +72,15 @@ class WhisperModelInstaller {
           offset+=bytesWritten;
         }
         this.current.received=received;
-        onProgress({received,total:this.current.total,percent:Math.min(99,Math.round(received/this.current.total*100))});
+        // Avoid flooding both Electron windows with thousands of events.
+        const percent=Math.min(99,Math.round(received/this.current.total*100));
+        if(percent!==lastPercent){
+          lastPercent=percent;
+          onProgress({received,total:this.current.total,percent});
+        }
       }
       await handle.sync();await handle.close();handle=null;
+      if(abort.signal.aborted)throw Error('Model download cancelled.');
       if(received<minBytes)throw Error('The downloaded Whisper model is incomplete.');
       if(digest.digest('hex')!==sha256)throw Error('Whisper model checksum mismatch. Nothing was installed.');
       this.fs.renameSync(temporary,target);
