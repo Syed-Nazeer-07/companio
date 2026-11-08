@@ -101,3 +101,17 @@ test('Edge errors are returned honestly with remediation', async () => {
   await assert.rejects(() => controller.ensureBrowser(), /close any other window using the Companio browser profile/);
   assert.equal(controller.context, null);
 });
+
+test('newly opened tabs become the active page for later commands', async () => {
+  const fake = fakeBrowser();
+  const controller = new BrowserController({
+    chromiumImpl: { launchPersistentContext: async () => fake.context },
+    profileDirectory: path.join(os.tmpdir(), 'companio-test-browser')
+  });
+  const original = await controller.ensureBrowser();
+  const newTab = { isClosed: () => false };
+  fake.pages.push(newTab);
+  fake.listeners.page(newTab);
+  assert.notStrictEqual(original, newTab);
+  assert.strictEqual(await controller.ensureBrowser(), newTab);
+});
