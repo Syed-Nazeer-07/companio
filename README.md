@@ -43,7 +43,7 @@ Companio is built around three ideas:
 | **Character Studio** | Select from six companions, customize their presentation, and preview expressions |
 | **Voice and text** | Enter commands by keyboard or use supported speech recognition and spoken replies |
 | **Windows actions** | Open supported desktop apps, folders, and utilities; control master volume; take screenshots |
-| **Browser automation** | Open websites, perform searches, and control supported tabs or YouTube actions in a dedicated persistent Edge session |
+| **Browser automation** | Open arbitrary HTTPS websites and searches in your default browser; use a separate controlled Edge profile only when interactive automation is required |
 | **Control Center** | Manage characters, commands, AI configuration, voice, settings, and local activity history |
 | **Local-first commands** | Execute predefined commands without signing up for a cloud AI service or purchasing an API key |
 
@@ -174,7 +174,9 @@ Optional local LLM: conversational path via Ollama-compatible API
 
 ### Dedicated browser session
 
-Native browser commands now reuse a **separate, persistent Microsoft Edge profile** stored in Companio's Electron user-data directory under `controlled_edge_profile`. Supported site cookies and local login/session data can survive app restarts. New tabs created within that controlled session can become the active target for later commands. Companio **does not control tabs in your existing everyday Edge or Chrome profile**, import browser passwords, or bypass site login requirements.
+Ordinary requests such as `Open github.com`, `Open YouTube`, `Open https://developer.mozilla.org`, `Search for Python tutorials`, or `Search Google for React` now **open in your Windows default browser** using the native Windows handoff. No additional app, model, or API key is necessary. Companio verifies that Windows accepted the handoff; it cannot verify that the external page fully loaded.
+
+Interactive YouTube playback/creator selection and managed-tab actions remain in a **separate, persistent Microsoft Edge automation profile** stored under `controlled_edge_profile` in Companio's Electron user data. That managed browser is not your normal daily browser. It is not possible for Companio to control arbitrary tabs in Chrome/Edge using the OS browser handoff alone.
 
 Microsoft Edge must be installed. If the controlled profile is already locked by another process, Companio returns an actionable launch error instead of silently using a temporary browser. Sign-in and automation remain subject to each website's policies and changing interface, so **persistent storage does not guarantee successful login or YouTube playback**.
 
@@ -329,7 +331,7 @@ This unsigned preview builds on rc.7 history recovery with cancellable speech, v
 
 Companio now handles speech and automation more conservatively:
 
-- **Windows voice:** one spoken request at a time, with bounded recognition duration, cancellation, hidden PowerShell process and explicit missing-microphone/engine errors. Cancelling or dismissing the overlay discards any late transcript. This still depends on the **installed Windows speech engine** and its available language support; it is **not** an always-on wake-word system.
+- **Windows voice:** one spoken request at a time, with bounded recognition duration, cancellation, hidden PowerShell process and explicit missing-microphone/engine errors. You can select English (India, US, UK or Australia); if the chosen recognizer is not installed, the engine uses an installed English fallback and reports which it used. Windows also reports a recognition confidence where available. A transcript now fills the editable command input **without automatically executing**. This helps prevent errors but is not a replacement for a modern Whisper-class speech engine, and it is **not** an always-on wake-word system.
 - **Browser preview:** speech input can use browser recognition, which may use the browser vendor's network service. Companio does not claim this mode is fully offline.
 - **Spoken replies:** selecting a companion changes the base voice profile; user settings fine-tune the pitch and speed. Muting and stopping speaking settle the UI instead of simulating a successful audio start.
 - **Command intent:** casual remarks and informational questions about apps no longer launch them just because their names are mentioned. Relative volume requests use measured changes instead of silently guessing a fixed number; unclear volume amounts fail safely.
@@ -348,7 +350,7 @@ These are **manual tests required on a real Windows ARM64 machine**, not claims 
 3. Say or type `Open Notepad`; confirm the intended app opens. Ask `What is Notepad?` and confirm it does **not** launch an app.
 4. Request `Open Notepad and set volume to 45%`; inspect the proposed tools, press **Cancel**, and confirm no action is executed. Repeat with **Run** only if you want those changes.
 5. Add notes and messages, restart Companio, and confirm history persists. Export history, restore it, and confirm settings are unaffected.
-6. Open YouTube in Companio's controlled Edge browser. If you choose to sign in, restart Companio and check whether this **dedicated browser profile** retained your session. Try `Play the latest video from CarryMinati`; if channel lookup or playback fails, report the actual error rather than playing a first search hit.
+6. Say `Open YouTube` and confirm it opens in your system-default browser. Separately, try `Play the latest video from CarryMinati`; this uses Companio's controlled Edge session because it needs to verify creator and playback. If it cannot verify those steps, it reports an error instead of playing an unrelated hit.
 7. Start Ollama or LM Studio with a loaded model, select **Find Local AI** in AI Settings, and test a conversational question plus a supported AI-planned action. Confirm an absent server produces an error instead of a fabricated answer.
 8. Repeat the essential tests on Windows x64. Check startup time, crashes, memory usage and microphone behavior across several launches.
 
@@ -424,8 +426,8 @@ A **Microsoft Defender SmartScreen 'unrecognized app' warning** can still appear
 
 ## ⚠️ Known Limitations
 
-- Supported commands include limited offline sequences and local AI proposals (up to three actions, always approved). Arbitrary multi-application computer use is not supported.
-- YouTube and other browser workflows depend on external page structures and may break. The dedicated Edge profile saves site state but does not grant control over unrelated browser windows, bypass anti-bot protections, or guarantee login persistence on every site.
+- Supported commands include limited offline sequences and local AI proposals (up to three actions). Explicit harmless one-step app launches run immediately; higher-risk or multi-step proposals require review. Arbitrary multi-application computer use is not supported.
+- Interactive YouTube and managed-tab workflows depend on external page structures and may break. Ordinary website opens and searches now use your default Windows browser; managed playback still needs Companio's separate Edge session. Neither bypasses anti-bot protections or grants control over unrelated browser windows.
 - Several native app protocols and global media/window controls still lack reliable end-state verification; unsupported play/pause and active-window minimization fail rather than falsely reporting success.
 - Browser-only preview cannot verify Windows tools or YouTube playback and no longer claims simulated success.
 - Voice input and speech output depend on runtime/device support; there is no true always-listening hotword service.
