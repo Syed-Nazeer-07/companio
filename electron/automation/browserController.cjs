@@ -1,6 +1,6 @@
 const { chromium } = require('playwright-core');
 const { verifyNavigation } = require('./browserNavigationVerifier.cjs');
-const { channelMatches, channelVideosUrl } = require('./youtubeChannelSafety.cjs');
+const { channelMatches, channelVideosUrl, isYouTubeWatchUrl } = require('./youtubeChannelSafety.cjs');
 
 class BrowserController {
   constructor({ chromiumImpl = chromium, profileDirectory = null } = {}) {
@@ -225,7 +225,7 @@ class BrowserController {
   async controlYouTube(action) {
     try {
       const page = await this.ensureBrowser();
-      if (!page.url().includes('youtube.com/watch')) {
+      if (!isYouTubeWatchUrl(page.url())) {
         return { success: false, error: 'No active YouTube video detected', verified: false };
       }
 
@@ -242,7 +242,7 @@ class BrowserController {
           const video = document.querySelector('video.html5-main-video');
           return video ? video.paused : null;
         });
-        const verified = isPaused !== null && (action === 'toggle' ? isPaused !== before
+        const verified = isYouTubeWatchUrl(page.url()) && isPaused !== null && (action === 'toggle' ? isPaused !== before
           : action === 'pause' ? isPaused === true : isPaused === false);
         return { success: verified, action, isPaused, verified,
           message: verified ? (isPaused ? 'YouTube video paused' : 'YouTube video playing') : 'Playback action could not be confirmed' };
@@ -252,7 +252,7 @@ class BrowserController {
         await page.keyboard.press('f');
         await page.waitForTimeout(450);
         const after = await page.evaluate(() => !!document.fullscreenElement);
-        const verified = before !== after;
+        const verified = isYouTubeWatchUrl(page.url()) && before !== after;
         return { success: verified, verified, message: verified ? 'YouTube fullscreen toggled' : 'Fullscreen not confirmed' };
       }
       if (action === 'mute') {
@@ -261,7 +261,7 @@ class BrowserController {
         await page.keyboard.press('m');
         await page.waitForTimeout(350);
         const after = await page.evaluate(() => document.querySelector('video.html5-main-video')?.muted);
-        const verified = typeof after === 'boolean' && after !== before;
+        const verified = isYouTubeWatchUrl(page.url()) && typeof after === 'boolean' && after !== before;
         return { success: verified, verified, message: verified ? 'YouTube mute toggled' : 'Mute toggle not confirmed' };
       }
 
