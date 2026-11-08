@@ -43,7 +43,7 @@ Companio is built around three ideas:
 | **Character Studio** | Select from six companions, customize their presentation, and preview expressions |
 | **Voice and text** | Enter commands by keyboard or use supported speech recognition and spoken replies |
 | **Windows actions** | Open supported desktop apps, folders, and utilities; control master volume; take screenshots |
-| **Browser automation** | Open websites, perform searches, manage supported tabs, and attempt YouTube playback actions |
+| **Browser automation** | Open websites, perform searches, and control supported tabs or YouTube actions in a dedicated persistent Edge session |
 | **Control Center** | Manage characters, commands, AI configuration, voice, settings, and local activity history |
 | **Local-first commands** | Execute predefined commands without signing up for a cloud AI service or purchasing an API key |
 
@@ -171,6 +171,12 @@ Optional local LLM: conversational path via Ollama-compatible API
 ```
 
 **Desktop versus web preview:** the normal browser preview cannot invoke Electron's native Windows handlers. The browser preview does **not** mark simulated native actions as successful or verified. Use the **Electron desktop application** for meaningful automation tests.
+
+### Dedicated browser session
+
+Native browser commands now reuse a **separate, persistent Microsoft Edge profile** stored in Companio's Electron user-data directory under `controlled_edge_profile`. Supported site cookies and local login/session data can survive app restarts. New tabs created within that controlled session can become the active target for later commands. Companio **does not control tabs in your existing everyday Edge or Chrome profile**, import browser passwords, or bypass site login requirements.
+
+Microsoft Edge must be installed. If the controlled profile is already locked by another process, Companio returns an actionable launch error instead of silently using a temporary browser. Sign-in and automation remain subject to each website's policies and changing interface, so **persistent storage does not guarantee successful login or YouTube playback**.
 
 ## 🚀 Quick Start
 
@@ -343,7 +349,7 @@ These are **manual tests required on a real Windows ARM64 machine**, not claims 
 3. Say or type `Open Notepad`; confirm the intended app opens. Ask `What is Notepad?` and confirm it does **not** launch an app.
 4. Request `Open Notepad and set volume to 45%`; inspect the proposed tools, press **Cancel**, and confirm no action is executed. Repeat with **Run** only if you want those changes.
 5. Add notes and messages, restart Companio, and confirm history persists. Export history, restore it, and confirm settings are unaffected.
-6. Try `Play the latest video from CarryMinati`. If channel lookup or playback fails, report the actual error; do not interpret a first search hit as a newest upload.
+6. Open YouTube in Companio's controlled Edge browser. If you choose to sign in, restart Companio and check whether this **dedicated browser profile** retained your session. Try `Play the latest video from CarryMinati`; if channel lookup or playback fails, report the actual error rather than playing a first search hit.
 7. Start Ollama or LM Studio with a loaded model, select **Find Local AI** in AI Settings, and test a conversational question plus a supported AI-planned action. Confirm an absent server produces an error instead of a fabricated answer.
 8. Repeat the essential tests on Windows x64. Check startup time, crashes, memory usage and microphone behavior across several launches.
 
@@ -412,7 +418,7 @@ The prior state is preserved in [`rollback/pre-phase1-2026-11-07`](https://githu
 ## ⚠️ Known Limitations
 
 - Supported commands include limited offline sequences and local AI proposals (up to three actions, always approved). Arbitrary multi-application computer use is not supported.
-- YouTube and other browser workflows depend on external page structures and may break.
+- YouTube and other browser workflows depend on external page structures and may break. The dedicated Edge profile saves site state but does not grant control over unrelated browser windows, bypass anti-bot protections, or guarantee login persistence on every site.
 - Several native app protocols and global media/window controls still lack reliable end-state verification; unsupported play/pause and active-window minimization fail rather than falsely reporting success.
 - Browser-only preview cannot verify Windows tools or YouTube playback and no longer claims simulated success.
 - Voice input and speech output depend on runtime/device support; there is no true always-listening hotword service.
@@ -431,6 +437,8 @@ The prior state is preserved in [`rollback/pre-phase1-2026-11-07`](https://githu
 - [ ] Bundle an inference runtime and activate downloaded GGUF files safely
 - [ ] Finish optional cloud-provider integrations with secure key handling
 - [x] Add explicit multi-action approval UI and a command-versus-question safety guard
+- [x] Add isolated, persistent Edge browser profiles with browser-startup locking and tracked new tabs
+- [x] Verify YouTube playback controls only operate on exact trusted watch-page URLs
 - [ ] Expand browser automation coverage and validate YouTube latest-creator behavior on real sites
 - [x] Add native JSON history persistence, localStorage migration, and validated export/restore
 - [ ] Evaluate durable SQLite and optional encrypted history storage; test crash recovery on real devices
