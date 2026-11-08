@@ -17,6 +17,7 @@ const historyBackupController = require('./automation/historyBackupController.cj
 const { NativeHistoryStore } = require('./automation/nativeHistoryStore.cjs');
 const { updateShortcutWithRollback, updateOverlayWithRollback } = require('./automation/settingsTransaction.cjs');
 const { writeConfigAtomically } = require('./automation/atomicConfigStore.cjs');
+const { createStartupController } = require('./automation/startupController.cjs');
 
 let overlayWindow = null;
 let dashboardWindow = null;
@@ -31,6 +32,7 @@ const CONFIG_PATH = path.join(app.getPath('userData'), 'companio_window_config.j
 const nativeHistoryStore = new NativeHistoryStore(path.join(app.getPath('userData'), 'companio_history_v1.json'));
 browserController.configureProfileDirectory(path.join(app.getPath('userData'), 'controlled_edge_profile'));
 const defaultBrowser = new DefaultBrowserController(shell);
+const startupController = createStartupController(app, { smokeTest: SMOKE_TEST });
 
 function loadSavedPosition() {
   try {
@@ -492,6 +494,11 @@ secureHandle('set-overlay-preferences', async (_, options) => {
     }
   );
 });
+
+// Startup registration is an explicit opt-in and only available after
+// installation. IPC is restricted to the trusted Companio windows.
+secureHandle('get-startup-status', () => startupController.read());
+secureHandle('set-startup-enabled', (_event, enabled) => startupController.setEnabled(enabled));
 
 // Local inference uses the Node main process to avoid file:// CORS issues.
 // All requests are validated by localAiController and restricted to loopback.

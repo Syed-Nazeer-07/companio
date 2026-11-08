@@ -21,6 +21,8 @@ const desktopAPI = {
   getOverlayPosition: () => ipcRenderer.invoke('get-overlay-position'),
   setActivationShortcut: (shortcut) => ipcRenderer.invoke('set-activation-shortcut', shortcut),
   setOverlayPreferences: (options) => ipcRenderer.invoke('set-overlay-preferences', options),
+  getStartupStatus: () => ipcRenderer.invoke('get-startup-status'),
+  setStartupEnabled: (enabled) => ipcRenderer.invoke('set-startup-enabled', enabled),
   minimizeWindow: () => ipcRenderer.invoke('minimize-window'),
   quitApp: () => ipcRenderer.invoke('quit-app'),
 

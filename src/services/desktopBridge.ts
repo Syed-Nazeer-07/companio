@@ -12,6 +12,8 @@ interface CompanioDesktopAPI {
   getOverlayPosition: () => Promise<{ x: number; y: number } | null>;
   setActivationShortcut: (shortcut: string) => Promise<{ success: boolean; shortcut?: string; error?: string }>;
   setOverlayPreferences: (options: { alwaysOnTop: boolean; snapToEdge: boolean }) => Promise<{ success: boolean; error?: string }>;
+  getStartupStatus?: () => Promise<{ success: boolean; supported: boolean; enabled: boolean; blockedByWindows?: boolean; verified?: boolean; reason?: string; error?: string }>;
+  setStartupEnabled?: (enabled: boolean) => Promise<{ success: boolean; supported: boolean; enabled: boolean; blockedByWindows?: boolean; verified?: boolean; reason?: string; error?: string }>;
   minimizeWindow: () => Promise<void>;
   quitApp: () => Promise<void>;
   hideOverlay: () => Promise<boolean>;
@@ -100,6 +102,18 @@ export const desktopBridge = {
     const api = getDesktopAPI();
     return api ? api.setOverlayPreferences(options)
       : { success: false, error: 'Desktop window settings require the installed app.' };
+  },
+  async getStartupStatus(): Promise<{ success: boolean; supported: boolean; enabled: boolean; blockedByWindows?: boolean; verified?: boolean; reason?: string; error?: string }> {
+    const api = getDesktopAPI();
+    return api?.getStartupStatus
+      ? await api.getStartupStatus()
+      : { success: true, supported: false, enabled: false, reason: 'Windows startup settings require the installed desktop app.' };
+  },
+  async setStartupEnabled(enabled: boolean): Promise<{ success: boolean; supported: boolean; enabled: boolean; blockedByWindows?: boolean; verified?: boolean; reason?: string; error?: string }> {
+    const api = getDesktopAPI();
+    return api?.setStartupEnabled
+      ? await api.setStartupEnabled(enabled)
+      : { success: false, supported: false, enabled: false, error: 'Windows startup settings require the installed desktop app.' };
   },
   async executeTool(toolName: string, params: Record<string, any> = {}) {
     const api = getDesktopAPI();
