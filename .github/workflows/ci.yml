@@ -10,6 +10,12 @@ on:
 permissions:
   contents: read
 
+# Every feature commit validates the app. Cancel only obsolete runs on the
+# same branch, keeping the newest check and installer artifacts authoritative.
+concurrency:
+  group: companio-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     name: Build and test on Windows
