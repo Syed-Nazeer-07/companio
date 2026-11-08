@@ -89,6 +89,13 @@ export class SpeechService {
 
     if (isNativeDesktop() && engine === 'whisper') {
       try {
+        // Fail fast before requesting microphone permission or recording audio.
+        const readiness = await desktopBridge.getWhisperStatus();
+        if (!active()) return;
+        if (!readiness.configured || !readiness.supported) {
+          complete('error', readiness.message || 'Set up local Whisper in Voice Settings before recording.');
+          return;
+        }
         this.whisperCapture = new LocalWhisperRecorder();
         const wav = await this.whisperCapture.capture(onAudioLevel);
         if (!active()) return;

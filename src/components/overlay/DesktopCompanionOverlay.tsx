@@ -152,7 +152,8 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     setActivePlan(null);
     setBubbleText(wasSleeping ? "I'm awake. What shall we do?" : 'What can I help with?');
     setIsInputOpen(true);
-    if (settings.overlay.soundEffects) speechService.playChime('activate');
+    // Auto-start voice already plays its own single activation cue.
+    if (settings.overlay.soundEffects && !settings.voice.wakePhraseEnabled) speechService.playChime('activate');
     if (settings.voice.wakePhraseEnabled && !isListeningVoice) handleVoiceToggle(true);
   };
 

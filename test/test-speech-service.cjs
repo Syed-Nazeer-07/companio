@@ -17,7 +17,8 @@ function setup({native = false, listen, browserRecognition = false} = {}) {
     cancels: 0,
     startNativeSpeech: listen || (async () => ({success:true,silence:true})),
     cancelNativeSpeech: async () => { api.cancels++; return {success:true}; },
-    transcribeWithWhisper: async () => ({success:true,text:'Open Notepad',language:'en'})
+    transcribeWithWhisper: async () => ({success:true,text:'Open Notepad',language:'en'}),
+    getWhisperStatus: async () => ({supported:true,configured:true,message:'Ready'})
   };
   let recognition;
   class BrowserRecognizer {
@@ -194,4 +195,14 @@ test('optional offline Whisper returns transcript without inventing recognition 
  assert.equal(received.meta.language,'en');
  assert.equal(received.meta.confidence,undefined);
  assert.equal(h.api.cancels,0);
+});
+
+test('unconfigured Whisper rejects before microphone capture or native transcription',async()=>{
+  const h=setup({native:true});
+  h.api.getWhisperStatus=async()=>({supported:true,configured:false,message:'Choose Whisper model first'});
+  h.api.transcribeWithWhisper=async()=>{throw Error('must not transcribe');};
+  const errors=[];
+  await h.service.startListening(()=>{},()=>{},e=>errors.push(e),undefined,undefined,'en-IN',false,'whisper');
+  assert.deepEqual(errors,['Choose Whisper model first']);
+  assert.equal(h.api.cancels,0);
 });
