@@ -2,8 +2,8 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),ts=require('typescript');
 const code=fs.readFileSync(path.join(__dirname,'../src/services/whisperRecorder.ts'),'utf8');
 const js=ts.transpileModule(code,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
-const exports={};vm.runInNewContext(js,{exports,Float32Array,Uint8Array,DataView,Math,Error,Number,MediaRecorder:undefined});
-const {encodeMonoPcm16}=exports;
+const exposed={};vm.runInNewContext(js,{exports:exposed,Float32Array,Uint8Array,DataView,Math,Error,Number,MediaRecorder:undefined});
+const {encodeMonoPcm16}=exposed;
 test('offline speech recorder emits exact 16k mono RIFF PCM and linearly resamples',()=>{
  const source=new Float32Array(48000);
  for(let i=0;i<source.length;i++)source[i]=Math.sin(i*2*Math.PI*440/48000)*0.4;
