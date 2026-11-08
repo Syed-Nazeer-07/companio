@@ -53,8 +53,8 @@ jobs:
       - name: Verify no high-severity advisories
         run: npm audit --audit-level=high
 
-      - name: Package Windows Installer & Portable Binary
-        run: npx electron-builder --win ${{ matrix.target.flag }} --publish never
+      - name: Package the Windows installer (no portable duplicates)
+        run: npx electron-builder --win nsis ${{ matrix.target.flag }} --publish never
 
       - name: Smoke test packaged x64 desktop startup and IPC
         if: matrix.target.arch == 'x64'
@@ -72,7 +72,7 @@ jobs:
         with:
           name: companio-windows-${{ matrix.target.arch }}
           path: |
-            release/*.exe
+            release/Companio-Setup-*.exe
             release/SHA256SUMS-${{ matrix.target.arch }}.txt
           if-no-files-found: error
 
@@ -94,7 +94,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            release-artifacts/**/*.exe
+            release-artifacts/**/Companio-Setup-*.exe
             release-artifacts/**/SHA256SUMS-*.txt
           name: Companio Release ${{ github.ref_name }}
           draft: false
