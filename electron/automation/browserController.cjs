@@ -83,17 +83,16 @@ class BrowserController {
   async openYouTube() {
     try {
       const page = await this.ensureBrowser();
-      const response = await page.goto('https://www.youtube.com', { waitUntil: 'domcontentloaded', timeout: 20000 });
-      await this.dismissPopups(page);
-      const title = await page.title();
+      // Navigational requests shouldn't wait for YouTube's full DOM hydration
+      // when all the user asked for is to open the site. 'commit' confirms the
+      // HTTP response; do not claim that video playback or rendering completed.
+      const response = await page.goto('https://www.youtube.com', { waitUntil: 'commit', timeout: 15000 });
       const navigation = verifyNavigation('https://www.youtube.com', page.url(), response?.status());
-      const verified = navigation.verified && title.toLowerCase().includes('youtube');
       return {
-        success: verified,
-        message: verified ? 'YouTube homepage loaded.' : 'YouTube homepage could not be verified.',
-        error: verified ? undefined : (navigation.error || 'The page title did not indicate YouTube.'),
-        title,
-        verified
+        ...navigation,
+        message: navigation.verified
+          ? 'YouTube opened; its content may still be loading.'
+          : 'YouTube could not be opened or its destination verified.'
       };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
@@ -276,13 +275,13 @@ class BrowserController {
     try {
       const page = await this.ensureBrowser();
       const targetUrl = url.startsWith('http') ? url : `https://${url}`;
-      const response = await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
-      const title = await page.title();
+      const response = await page.goto(targetUrl, { waitUntil: 'commit', timeout: 15000 });
       const navigation = verifyNavigation(targetUrl, page.url(), response?.status(), true);
       return {
         ...navigation,
-        title,
-        message: navigation.verified ? `Opened ${title || page.url()}` : 'The requested website could not be verified.'
+        message: navigation.verified
+          ? 'Requested website opened; its content may still be loading.'
+          : 'The requested website could not be verified.'
       };
     } catch (err) {
       return { success: false, error: err.message, verified: false };
