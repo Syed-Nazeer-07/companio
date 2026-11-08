@@ -6,6 +6,7 @@ const { validateToolRequest, validateShortcut } = require('./automation/requestV
 const { allowPermissionRequest, allowPermissionCheck, validVolume, validPosition } = require('./automation/securityPolicy.cjs');
 
 const browserController = require('./automation/browserController.cjs');
+const { DefaultBrowserController } = require('./automation/defaultBrowserController.cjs');
 const winAppsController = require('./automation/winAppsController.cjs');
 const volumeController = require('./automation/volumeController.cjs');
 const modelDownloader = require('./automation/modelDownloader.cjs');
@@ -29,6 +30,7 @@ if (SMOKE_TEST) app.disableHardwareAcceleration();
 const CONFIG_PATH = path.join(app.getPath('userData'), 'companio_window_config.json');
 const nativeHistoryStore = new NativeHistoryStore(path.join(app.getPath('userData'), 'companio_history_v1.json'));
 browserController.configureProfileDirectory(path.join(app.getPath('userData'), 'controlled_edge_profile'));
+const defaultBrowser = new DefaultBrowserController(shell);
 
 function loadSavedPosition() {
   try {
@@ -323,53 +325,53 @@ secureHandle('execute-tool', async (event, payload) => {
   switch (toolName) {
     // Browser tools
     case 'browser.youtube.open':
-      return await browserController.openYouTube();
+      return await defaultBrowser.open('https://www.youtube.com', 'YouTube');
     case 'browser.youtube.search_and_play':
       return await browserController.searchAndPlayYouTube(params.creator, params.topic, params.latest === true);
     case 'browser.youtube.control':
       return await browserController.controlYouTube(params.action);
     case 'browser.open_url':
-      return await browserController.openUrl(params.url);
+      return await defaultBrowser.open(params.url);
     case 'browser.search_google':
-      return await browserController.searchGoogle(params.query);
+      return await defaultBrowser.searchGoogle(params.query);
     case 'browser.open_tabs':
       return await browserController.openTabs(params.urls);
     case 'browser.close_tab':
       return await browserController.closeCurrentTab();
     case 'browser.wikipedia.search':
-      return await browserController.searchWikipedia(params.query);
+      return await defaultBrowser.searchWikipedia(params.query);
     case 'browser.amazon.search':
-      return await browserController.searchAmazon(params.query);
+      return await defaultBrowser.searchAmazon(params.query);
     case 'browser.maps.search':
-      return await browserController.searchGoogleMaps(params.query || params.location);
+      return await defaultBrowser.searchMaps(params.query || params.location);
 
     // Direct Web Apps
     case 'browser.chatgpt.open':
-      return await browserController.openUrl('https://chatgpt.com');
+      return await defaultBrowser.open('https://chatgpt.com', 'ChatGPT');
     case 'browser.claude.open':
-      return await browserController.openUrl('https://claude.ai');
+      return await defaultBrowser.open('https://claude.ai', 'Claude');
     case 'browser.gemini.open':
-      return await browserController.openUrl('https://gemini.google.com');
+      return await defaultBrowser.open('https://gemini.google.com', 'Gemini');
     case 'browser.deepseek.open':
-      return await browserController.openUrl('https://chat.deepseek.com');
+      return await defaultBrowser.open('https://chat.deepseek.com', 'DeepSeek');
     case 'browser.github.open':
-      return await browserController.openUrl('https://github.com');
+      return await defaultBrowser.open('https://github.com', 'GitHub');
     case 'browser.gmail.open':
-      return await browserController.openUrl('https://mail.google.com');
+      return await defaultBrowser.open('https://mail.google.com', 'Gmail');
     case 'browser.whatsapp.open':
-      return await browserController.openUrl('https://web.whatsapp.com');
+      return await defaultBrowser.open('https://web.whatsapp.com', 'WhatsApp Web');
     case 'browser.reddit.open':
-      return await browserController.openUrl('https://reddit.com');
+      return await defaultBrowser.open('https://reddit.com', 'Reddit');
     case 'browser.x.open':
-      return await browserController.openUrl('https://x.com');
+      return await defaultBrowser.open('https://x.com', 'X');
     case 'browser.netflix.open':
-      return await browserController.openUrl('https://netflix.com');
+      return await defaultBrowser.open('https://netflix.com', 'Netflix');
     case 'browser.twitch.open':
-      return await browserController.openUrl('https://www.twitch.tv');
+      return await defaultBrowser.open('https://www.twitch.tv', 'Twitch');
     case 'browser.linkedin.open':
-      return await browserController.openUrl('https://www.linkedin.com');
+      return await defaultBrowser.open('https://www.linkedin.com', 'LinkedIn');
     case 'browser.translate.open':
-      return await browserController.openUrl('https://translate.google.com');
+      return await defaultBrowser.open('https://translate.google.com', 'Google Translate');
 
     // Windows App tools
     case 'win.calculator.launch':
