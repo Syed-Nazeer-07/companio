@@ -64,6 +64,49 @@ jobs:
       - name: Smoke test packaged Electron UI and IPC
         run: npm run test:desktop-smoke
 
+  # Cross-compiling an ARM64 installer on x64 does not show whether its
+  # Electron app actually starts on Windows ARM. Exercise the real ARM binary.
+  arm64-native-smoke:
+    name: Verify packaged Electron on native Windows ARM64
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release:')
+    needs: verify
+    runs-on: windows-11-arm
+    timeout-minutes: 35
+    env:
+      ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.electron-builder-cache
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Node ARM64
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Check real native ARM64 runner
+        shell: pwsh
+        run: |
+          $arch = node -p "process.arch"
+          if ($arch -ne 'arm64') { throw "Expected ARM64 Node, found $arch" }
+          "Testing Electron on actual ARM64 Windows" | Out-File $env:GITHUB_STEP_SUMMARY -Append
+      - name: Install dependencies
+        run: npm ci
+      - name: Build production app
+        run: npm run build
+      - name: Regenerate Windows icons
+        shell: pwsh
+        run: ./scripts/generate-icon.ps1
+      - name: Package native ARM64 app for smoke test
+        shell: pwsh
+        run: |
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            npx electron-builder --win --arm64 --dir --publish never
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            if ($attempt -lt 3) { Start-Sleep -Seconds (5 * $attempt) }
+          }
+          exit 1
+      - name: Smoke test native ARM64 Electron UI and IPC
+        run: npm run test:desktop-smoke
+
   package-preview:
     name: Build unsigned Windows ${{ matrix.arch }} preview
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release:')

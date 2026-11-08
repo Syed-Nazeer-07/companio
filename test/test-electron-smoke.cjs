@@ -4,9 +4,16 @@ const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
 const root = path.resolve(__dirname, '..');
-const binary = path.join(root, 'release', 'win-unpacked', 'Companio.exe');
-if (!fs.existsSync(binary)) {
-  console.error('Packaged Windows executable missing. Build with: npx electron-builder --win --x64 --dir --publish never');
+// electron-builder distinguishes the arm64 folder on some builds; on
+// others it uses win-unpacked for the single requested architecture.
+const unpackedDirectories = process.arch === 'arm64'
+  ? ['win-arm64-unpacked', 'win-unpacked']
+  : ['win-unpacked'];
+const binary = unpackedDirectories
+  .map(dir => path.join(root, 'release', dir, 'Companio.exe'))
+  .find(candidate => fs.existsSync(candidate));
+if (!binary) {
+  console.error('Packaged '+process.arch+' Windows executable missing. Build with: npx electron-builder --win --'+process.arch+' --dir --publish never');
   process.exit(1);
 }
 const resultFile = path.join(os.tmpdir(), 'companio-smoke-' + process.pid + '.json');
