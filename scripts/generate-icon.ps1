@@ -7,7 +7,7 @@ $outDir = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\build'))
 [System.IO.Directory]::CreateDirectory($outDir) | Out-Null
 
 function New-CompanioImage([int]$size) {
-  $bitmap = New-Object System.Drawing.Bitmap($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+  $bitmap = [System.Drawing.Bitmap]::new($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
   $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
   try {
     $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
@@ -15,11 +15,11 @@ function New-CompanioImage([int]$size) {
     $graphics.Clear([System.Drawing.Color]::Transparent)
     $graphics.ScaleTransform(($size / 128.0), ($size / 128.0))
 
-    $rect = New-Object System.Drawing.Rectangle(6, 6, 116, 116)
+    $rect = [System.Drawing.Rectangle]::new(6, 6, 116, 116)
     $blue = [System.Drawing.Color]::FromArgb(14, 165, 233)
     $indigo = [System.Drawing.Color]::FromArgb(79, 70, 229)
-    $brush = New-Object System.Drawing.Drawing2D.LinearGradientBrush($rect, $blue, $indigo, 45)
-    $shape = New-Object System.Drawing.Drawing2D.GraphicsPath
+    $brush = [System.Drawing.Drawing2D.LinearGradientBrush]::new($rect, $blue, $indigo, [float]45)
+    $shape = [System.Drawing.Drawing2D.GraphicsPath]::new()
     try {
       $shape.AddArc(6, 6, 64, 64, 180, 90)
       $shape.AddArc(58, 6, 64, 64, 270, 90)
@@ -32,7 +32,7 @@ function New-CompanioImage([int]$size) {
       $brush.Dispose()
     }
 
-    $stroke = New-Object System.Drawing.Pen([System.Drawing.Color]::White, 17)
+    $stroke = [System.Drawing.Pen]::new([System.Drawing.Color]::White, [float]17)
     try {
       $stroke.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
       $stroke.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
@@ -41,7 +41,7 @@ function New-CompanioImage([int]$size) {
       $stroke.Dispose()
     }
 
-    $yellow = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(254, 240, 138))
+    $yellow = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(254, 240, 138))
     try { $graphics.FillEllipse($yellow, 94, 24, 16, 16) }
     finally { $yellow.Dispose() }
   } finally {
@@ -63,7 +63,7 @@ $sizes = @(16, 24, 32, 48, 64, 128, 256)
 $payloads = @()
 foreach ($size in $sizes) {
   $frame = New-CompanioImage $size
-  $buffer = New-Object System.IO.MemoryStream
+  $buffer = [System.IO.MemoryStream]::new()
   try {
     $frame.Save($buffer, [System.Drawing.Imaging.ImageFormat]::Png)
     $payloads += ,$buffer.ToArray()
@@ -73,8 +73,8 @@ foreach ($size in $sizes) {
   }
 }
 
-$file = New-Object System.IO.FileStream($icoPath, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write)
-$writer = New-Object System.IO.BinaryWriter($file)
+$file = [System.IO.FileStream]::new($icoPath, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write)
+$writer = [System.IO.BinaryWriter]::new($file)
 try {
   $writer.Write([UInt16]0)
   $writer.Write([UInt16]1)
