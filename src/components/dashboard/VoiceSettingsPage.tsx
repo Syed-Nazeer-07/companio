@@ -144,6 +144,34 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
             />
           </div>
 
+          {/* Speech recognition uses installed Windows language packs. */}
+          <div className="space-y-2">
+            <label htmlFor="companio-recognition-language" className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Recognition language
+            </label>
+            <select
+              id="companio-recognition-language"
+              value={settings.voice.recognitionLanguage || 'en-IN'}
+              onChange={(event) => onUpdateSettings({
+                voice: {
+                  ...settings.voice,
+                  recognitionLanguage: event.target.value as 'en-IN' | 'en-US' | 'en-GB' | 'en-AU'
+                }
+              })}
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800"
+            >
+              <option value="en-IN">English (India)</option>
+              <option value="en-US">English (United States)</option>
+              <option value="en-GB">English (United Kingdom)</option>
+              <option value="en-AU">English (Australia)</option>
+            </select>
+            <p className="text-xs leading-relaxed text-slate-500">
+              Windows must have an installed speech recognizer for your language.
+              If unavailable, Companio uses an installed English recognizer instead and reports the actual locale.
+              Recognition quality still depends on Windows speech support and microphone clarity.
+            </p>
+          </div>
+
           {/* Push to Talk Info */}
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
@@ -156,8 +184,8 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
           </div>
 
           <p className="text-xs text-slate-500 leading-relaxed">
-            The installed desktop app uses Windows speech recognition for a single request at a time.
-            This requires a working Windows speech engine and microphone. Continuous wake-word detection is not available.
+            Desktop dictation uses the installed Windows recognition engine for one request at a time.
+            Its transcript is shown for correction before a command runs. Continuous wake-word detection is not available.
             Speech recognition in browser previews may depend on the browser's online speech service.
           </p>
 
