@@ -33,3 +33,42 @@ test('malformed or non-web addresses are never verified', () => {
   assert.equal(verifyNavigation('file:///secrets.txt', 'file:///secrets.txt', 200).success, false);
   assert.equal(verifyNavigation('not a URL', 'https://example.com', 200).success, false);
 });
+
+test('opening a site verifies the response immediately without waiting for DOM hydration', async () => {
+  const { BrowserController } = require('../electron/automation/browserController.cjs');
+  const controller = new BrowserController();
+  let observedUrl = 'about:blank';
+  const calls = [];
+  controller.ensureBrowser = async () => ({
+    goto: async (target, options) => {
+      calls.push({target,options});
+      observedUrl = target;
+      return {status: () => 200};
+    },
+    url: () => observedUrl,
+    title: async () => { throw Error('Full page hydration should not be required'); }
+  });
+  const youtube = await controller.openYouTube();
+  assert.equal(youtube.success,true);
+  assert.equal(youtube.verified,true);
+  assert.match(youtube.message,/may still be loading/);
+  const site = await controller.openUrl('https://github.com');
+  assert.equal(site.success,true);
+  assert.ok(calls.every(c=>c.options.waitUntil==='commit'));
+  assert.ok(calls.every(c=>c.options.timeout===15000));
+});
+
+test('fast site navigation still refuses HTTP errors and untrusted redirects', async () => {
+  const { BrowserController } = require('../electron/automation/browserController.cjs');
+  const controller = new BrowserController();
+  controller.ensureBrowser = async () => ({
+    goto: async () => ({status:()=>503}),
+    url: () => 'https://www.youtube.com/'
+  });
+  assert.equal((await controller.openYouTube()).success,false);
+  controller.ensureBrowser = async () => ({
+    goto: async () => ({status:()=>200}),
+    url: () => 'https://youtube.com.evil.example/watch'
+  });
+  assert.equal((await controller.openYouTube()).verified,false);
+});
