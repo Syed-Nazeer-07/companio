@@ -76,7 +76,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       return;
     }
     clearTimeout(resetTimerRef.current);
-    clearTimeout(reactionTimerRef.current);
+    if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current);
     speechService.stopListening();
     speechService.stopSpeaking();
     setIsListeningVoice(false);
@@ -115,7 +115,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       window.removeEventListener('keydown', handleKeyDown);
       clearTimeout(resetTimerRef.current);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-      if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current);
+      if (reactionTimerRef.current) if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current);
       if (approvalResolverRef.current) {
         approvalResolverRef.current(false);
         approvalResolverRef.current = null;
@@ -145,7 +145,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       handleWakeAndActivate();
       return;
     }
-    clearTimeout(reactionTimerRef.current);
+    if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current);
     setIsPetted(true);
     reactionTimerRef.current = setTimeout(() => setIsPetted(false), 450);
     if (settings.overlay.soundEffects) speechService.playChime('activate');
@@ -267,10 +267,12 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       if (companion.kind === 'hide') { handleDismiss(); return; }
       if (companion.kind === 'sleep') { handleToggleSleep(); return; }
       if (companion.kind === 'wake' || companion.kind === 'open') { handleWakeAndActivate(); return; }
-      const result = await desktopBridge.moveCompanion(companion.direction);
-      setActivePlan(null);
-      setCharacterState(result.success ? 'idle' : 'confused');
-      setBubbleText(result.success ? (result.message || 'Moved Companio.') : (result.error || 'Could not move the companion.'));
+      if (companion.kind === 'move') {
+        const result = await desktopBridge.moveCompanion(companion.direction);
+        setActivePlan(null);
+        setCharacterState(result.success ? 'idle' : 'confused');
+        setBubbleText(result.success ? (result.message || 'Moved Companio.') : (result.error || 'Could not move the companion.'));
+      }
       return;
     }
     setActivePlan(null);
@@ -443,7 +445,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
 
   const handleToggleSleep = () => {
     clearTimeout(resetTimerRef.current);
-    clearTimeout(reactionTimerRef.current);
+    if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current);
     if (isSleeping) {
       handleWakeAndActivate();
       return;
