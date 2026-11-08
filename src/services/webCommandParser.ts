@@ -25,15 +25,32 @@ const WELL_KNOWN_SITES: Record<string, string> = {
   'hacker news': 'https://news.ycombinator.com',
   'quora': 'https://www.quora.com',
   'python documentation': 'https://docs.python.org/3/',
-  'microsoft learn': 'https://learn.microsoft.com'
+  'microsoft learn': 'https://learn.microsoft.com',
+  'khan academy': 'https://www.khanacademy.org',
+  'google sheets': 'https://sheets.google.com',
+  'google calendar': 'https://calendar.google.com',
+  'perplexity': 'https://www.perplexity.ai',
+  'freecodecamp': 'https://www.freecodecamp.org',
+  'free code camp': 'https://www.freecodecamp.org',
+  'mdn': 'https://developer.mozilla.org',
+  'hugging face': 'https://huggingface.co',
+  'arxiv': 'https://arxiv.org',
+  'figma': 'https://www.figma.com',
+  'canva': 'https://www.canva.com',
+  'npm': 'https://www.npmjs.com',
+  'pypi': 'https://pypi.org',
+  'twitter': 'https://x.com'
 };
 
 export function parseWebCommand(input: string): WebCommand | null {
   if (typeof input !== 'string' || input.length > 2048) return null;
   const trimmed = input.trim();
   if (!trimmed) return null;
+  // Spoken push-to-talk often starts with the character's name; remove only
+  // that exact wake prefix. The action guard separately checks the remainder.
+  const normalized = trimmed.replace(/^(?:(?:hey|hi|ok|okay)\s+)?companio(?:\s*[,:\-]\s*|\s+)(?=\S)/i, '').trim();
 
-  const search = trimmed.match(/^(?:please\s+)?(?:search\s+(?:the\s+)?web\s+for|search\s+for|look\s+up)\s+(.+?)[.!]?$/i);
+  const search = normalized.match(/^(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:search\s+(?:(?:the\s+)?web|(?:the\s+)?internet|google|on\s+google|(?:in\s+)?(?:my\s+)?default\s+browser)\s+for|search\s+for|look\s+up)\s+(.+?)\s*[.!?]?$/i);
   if (search) {
     const query = search[1].trim();
     if (query && query.length <= 1024) {
@@ -42,7 +59,7 @@ export function parseWebCommand(input: string): WebCommand | null {
     return null;
   }
 
-  const requested = trimmed.match(/^(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:open|visit|go\s+to|browse|launch)\s+(?:(?:the|website|site)\s+)?(.+?)\s*[.!?]?$/i);
+  const requested = normalized.match(/^(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:open|visit|go\s+to|browse|launch)\s+(?:(?:the|website|site)\s+)?(.+?)\s*[.!?]?$/i);
   if (!requested) return null;
   const address = requested[1].trim().replace(/[.!]$/, '');
   const known = WELL_KNOWN_SITES[address.toLowerCase()];

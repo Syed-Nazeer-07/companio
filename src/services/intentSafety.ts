@@ -3,7 +3,10 @@
 // they mention an application, device, media service or feature name.
 export function isCommandRequest(input: string): boolean {
   if (typeof input !== 'string') return false;
-  const request = input.trim().replace(/[?.!]+$/, '').trim().toLowerCase();
+  // A spoken request can address the companion by name. Strip only that
+  // explicit prefix, then apply the same safety guard to the actual command.
+  const utterance = input.trim().replace(/^(?:(?:hey|hi|ok|okay)\s+)?companio(?:\s*[,:\-]\s*|\s+)(?=\S)/i, '').trim();
+  const request = utterance.replace(/[?.!]+$/, '').trim().toLowerCase();
   if (!request || request.length > 1200) return false;
 
   if (/^(?:please\s+)?(?:don't|do not|never|avoid|without)\b/.test(request)) return false;

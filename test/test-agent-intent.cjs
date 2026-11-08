@@ -103,3 +103,21 @@ test('normal site URLs and general web searches plan default browser actions wit
   assert.equal(search.steps[0].tool,'browser.search_google');
   assert.equal(search.steps[0].params.query,'React TypeScript tutorial');
 });
+
+test('spoken wake-name commands run only explicit safe browser actions',async()=>{
+  const search=await engine.planTask('Hey Companio, search Google for Python DSA');
+  assert.equal(search.steps[0].tool,'browser.search_google');
+  assert.equal(search.steps[0].params.query,'Python DSA');
+  const site=await engine.planTask('Companio, open Khan Academy');
+  assert.equal(site.steps[0].tool,'browser.open_url');
+  assert.equal(site.steps[0].params.url,'https://www.khanacademy.org');
+  for (const query of [
+    'Hey Companio, what is Khan Academy?',
+    'Hey Companio, do not open YouTube',
+    'Companio, should I search for Python?'
+  ]) {
+    const result=await engine.planTask(query);
+    assert.equal(result.steps.length,0,query);
+    assert.equal(result.intent,'conversation',query);
+  }
+});

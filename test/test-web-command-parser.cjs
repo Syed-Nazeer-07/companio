@@ -63,3 +63,31 @@ test('common site names resolve locally without inventing destinations',()=>{
   }
   assert.equal(parseWebCommand('Open unknown random website'),null);
 });
+
+test('spoken Companio wake prefixes and natural default-browser searches are parsed',()=>{
+  const searches=[
+    'Hey Companio, search Google for Python DSA',
+    'Companio search on Google for Python DSA',
+    'Okay Companio, search in my default browser for Python DSA',
+    'Could you search the internet for Python DSA?'
+  ];
+  for (const command of searches) {
+    const result=parseWebCommand(command);
+    assert.equal(result?.tool,'browser.search_google',command);
+    assert.equal(result.params.query,'Python DSA',command);
+  }
+  for (const [command,url] of [
+    ['Companio, open Khan Academy','https://www.khanacademy.org'],
+    ['Hey Companio, open Perplexity','https://www.perplexity.ai'],
+    ['Visit MDN','https://developer.mozilla.org'],
+    ['Open Google Calendar','https://calendar.google.com'],
+    ['Open Figma','https://www.figma.com'],
+    ['Open pypi','https://pypi.org']
+  ]) {
+    const result=parseWebCommand(command);
+    assert.equal(result?.tool,'browser.open_url',command);
+    assert.equal(result.params.url,url,command);
+  }
+  assert.equal(parseWebCommand('Hey Companio, do not open github.com'),null);
+  assert.equal(parseWebCommand('Companio what is Khan Academy?'),null);
+});
