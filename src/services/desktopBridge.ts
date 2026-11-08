@@ -214,10 +214,10 @@ export const desktopBridge = {
     return () => {};
   },
 
-  async startNativeSpeech(timeoutSec: number = 6) {
+  async startNativeSpeech(timeoutSec: number = 6, language: string = 'en-IN') {
     const api = getDesktopAPI();
     if (api?.startNativeSpeech) {
-      return await api.startNativeSpeech(timeoutSec);
+      return await api.startNativeSpeech(timeoutSec, language);
     }
     return { success: false, error: 'Native speech only available in desktop Electron mode.' };
   },
