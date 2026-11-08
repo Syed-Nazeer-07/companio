@@ -98,12 +98,15 @@ function protectWindow(win) {
 }
 
 function createOverlayWindow() {
-  const primaryDisplay = screen.getPrimaryDisplay();
-  const { x: workX, y: workY, width, height } = primaryDisplay.workArea;
-  const saved = loadSavedPosition();
-
   const winWidth = 360;
   const winHeight = 440;
+  const saved = loadSavedPosition();
+  // Preserve position on a secondary monitor across restarts. If that
+  // monitor is disconnected, Electron selects the nearest available one.
+  const display = saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)
+    ? screen.getDisplayMatching({ x: saved.x, y: saved.y, width: winWidth, height: winHeight })
+    : screen.getPrimaryDisplay();
+  const { x: workX, y: workY, width, height } = display.workArea;
 
   // Default to bottom-right
   const defaultX = workX + width - winWidth - 24;

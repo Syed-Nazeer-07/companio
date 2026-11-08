@@ -147,7 +147,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     setBubbleText(wasSleeping ? "I'm awake. What shall we do?" : 'What can I help with?');
     setIsInputOpen(true);
     if (settings.overlay.soundEffects) speechService.playChime('activate');
-    if (settings.voice.wakePhraseEnabled && !isListeningVoice) handleVoiceToggle();
+    if (settings.voice.wakePhraseEnabled && !isListeningVoice) handleVoiceToggle(true);
   };
 
   // Click to open the input. A second click while open gives a gentle
@@ -182,8 +182,8 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     }, 1800);
   };
 
-  const handleVoiceToggle = () => {
-    if (isSleeping) {
+  const handleVoiceToggle = (allowFromSleeping = false) => {
+    if (isSleeping && !allowFromSleeping) {
       setBubbleText('Wake me first to use the microphone.');
       return;
     }
@@ -484,7 +484,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         <div className="w-full max-w-[328px] mb-3 z-30">
           <CompactInput
             onSend={handleExecuteQuery}
-            onVoiceToggle={handleVoiceToggle}
+            onVoiceToggle={() => handleVoiceToggle()}
             isListening={isListeningVoice}
             voiceTranscript={voiceTranscript}
             onOpenDashboard={onOpenDashboard}
@@ -509,6 +509,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         {/* The Companion Character */}
         <div
           onClick={handleCharacterTouch}
+          key={settings.characterId}
           className={`companio-character relative cursor-pointer app-no-drag ${
             isPetted ? 'scale-[1.035]' : ''
           }`}

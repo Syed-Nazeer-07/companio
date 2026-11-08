@@ -73,7 +73,7 @@ body {
 .companio-overlay { transition: opacity 170ms ease, transform 170ms ease; }
 .companio-overlay--closing { opacity: 0; transform: translateY(6px) scale(.985); pointer-events: none; }
 .companio-speech, .companio-input { animation: companioPanelIn 210ms cubic-bezier(.2,.8,.2,1) both; }
-.companio-character { transition: filter 260ms ease, opacity 260ms ease; }
+.companio-character { transition: filter 260ms ease, opacity 260ms ease; animation: companioPanelIn 230ms ease-out both; }
 .companio-character[data-state="sleeping"] { filter: saturate(.7) brightness(.92); }
 @keyframes companioPanelIn {
   from { opacity: 0; transform: translateY(7px) scale(.985); }
