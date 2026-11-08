@@ -46,3 +46,19 @@ test('conversational and malformed requests are not executable URL commands',()=
     'Open localhost:8000', 'Visit website.com and delete all files'
   ]) assert.equal(parseWebCommand(q),null,q);
 });
+
+test('common site names resolve locally without inventing destinations',()=>{
+  for(const [query,expected] of [
+    ['Open Instagram','https://www.instagram.com'],
+    ['Visit Stack Overflow','https://stackoverflow.com'],
+    ['Open LeetCode','https://leetcode.com'],
+    ['Open Google Drive','https://drive.google.com'],
+    ['Open Python documentation','https://docs.python.org/3/'],
+    ['Open Wikipedia','https://www.wikipedia.org']
+  ]){
+    const result=parseWebCommand(query);
+    assert.equal(result?.tool,'browser.open_url',query);
+    assert.equal(result.params.url,expected,query);
+  }
+  assert.equal(parseWebCommand('Open unknown random website'),null);
+});
