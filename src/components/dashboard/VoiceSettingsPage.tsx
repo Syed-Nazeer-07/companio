@@ -25,6 +25,33 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
   const [whisperStatus, setWhisperStatus] = useState<Awaited<ReturnType<typeof desktopBridge.getWhisperStatus>> | null>(null);
   const [whisperSetupError, setWhisperSetupError] = useState('');
   const [choosingWhisper, setChoosingWhisper] = useState(false);
+  const [downloadingWhisper, setDownloadingWhisper] = useState(false);
+  const [whisperDownloadPercent, setWhisperDownloadPercent] = useState<number | null>(null);
+
+  useEffect(() => desktopBridge.onWhisperModelProgress(progress => {
+    setWhisperDownloadPercent(progress.percent);
+  }), []);
+
+  const downloadRecommendedSpeechModel = async () => {
+    if (downloadingWhisper) return;
+    setDownloadingWhisper(true);
+    setWhisperSetupError('');
+    setWhisperDownloadPercent(0);
+    try {
+      const result = await desktopBridge.downloadWhisperModel();
+      if (!result.success) setWhisperSetupError(result.error || 'Speech model could not be downloaded.');
+      setWhisperStatus(await desktopBridge.getWhisperStatus());
+    } catch(error) {
+      setWhisperSetupError(error instanceof Error ? error.message : 'Speech model download failed.');
+    } finally {
+      setDownloadingWhisper(false);
+    }
+  };
+
+  const cancelRecommendedSpeechModel = async () => {
+    const result=await desktopBridge.cancelWhisperModelDownload();
+    if (!result.success) setWhisperSetupError('Could not cancel the speech model download.');
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -242,25 +269,46 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
             >
               <option value="windows">Windows dictation — ready to use</option>
-              <option value="whisper">Local Whisper — optional offline accuracy</option>
+              <option value="whisper">Local Whisper — privacy-focused offline mode</option>
             </select>
             {settings.voice.recognitionEngine === 'whisper' && (
               <div className="space-y-2 text-xs text-slate-600">
-                <p>Local Whisper runs speech recognition entirely on this PC, without an API key. One-time setup requires the official whisper.cpp CLI and a GGML speech model. Models can use hundreds of MB, and CPU transcription may take longer.</p>
+                <p>Local Whisper transcribes audio on your computer, without an API key. Setup requires the official Windows whisper.cpp CLI; you can download the compact English model here or select your own. A model takes disk space and inference may be slower on CPU.</p>
                 <p>Download from <a href="https://github.com/ggml-org/whisper.cpp/releases" target="_blank" rel="noopener noreferrer" className="font-semibold text-sky-700 underline">whisper.cpp releases</a> and <a href="https://huggingface.co/ggerganov/whisper.cpp/tree/main" target="_blank" rel="noopener noreferrer" className="font-semibold text-sky-700 underline">official GGML model files</a>. On ARM64, use a matching Windows ARM64 build; avoid experimental CUDA packages.</p>
                 <div className="flex flex-wrap gap-2">
-                  <button type="button" disabled={choosingWhisper || !isNativeDesktop()} onClick={() => void chooseWhisperFile('binary')}
+                  <button type="button" disabled={downloadingWhisper || choosingWhisper || !isNativeDesktop() || Boolean(whisperStatus?.model)}
+                    onClick={() => void downloadRecommendedSpeechModel()}
+                    className="rounded-lg bg-sky-600 px-3 py-2 font-semibold text-white hover:bg-sky-700 disabled:opacity-50">
+                    {whisperStatus?.model ? 'Speech model selected' : downloadingWhisper ? 'Downloading…' : 'Download compact English model (~32 MB)'}
+                  </button>
+                  {downloadingWhisper && (
+                    <button type="button" onClick={() => void cancelRecommendedSpeechModel()}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-700 hover:bg-slate-50">
+                      Cancel download
+                    </button>
+                  )}
+                  <button type="button" disabled={choosingWhisper || downloadingWhisper || !isNativeDesktop()} onClick={() => void chooseWhisperFile('binary')}
                     className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-50">
                     Choose whisper-cli.exe
                   </button>
-                  <button type="button" disabled={choosingWhisper || !isNativeDesktop()} onClick={() => void chooseWhisperFile('model')}
+                  <button type="button" disabled={choosingWhisper || downloadingWhisper || !isNativeDesktop()} onClick={() => void chooseWhisperFile('model')}
                     className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-50">
                     Choose speech model
                   </button>
                 </div>
+                {downloadingWhisper && (
+                  <div role="status" className="space-y-1">
+                    <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+                      <div className="h-full bg-sky-600 transition-[width] duration-200" style={{width:(whisperDownloadPercent || 0)+'%'}} />
+                    </div>
+                    <p>Downloading and verifying model — {whisperDownloadPercent ?? 0}%</p>
+                  </div>
+                )}
                 <p role="status">{whisperStatus?.configured
                   ? 'Ready: ' + whisperStatus.model + ' — audio remains on this device.'
-                  : (whisperStatus?.message || 'Whisper setup not completed.')}</p>
+                  : (whisperStatus?.executable ? 'Executable: ' + whisperStatus.executable + '. ' : '') +
+                    (whisperStatus?.model ? 'Model: ' + whisperStatus.model + '. ' : '') +
+                    (whisperStatus?.message || 'Whisper setup not completed.')}</p>
                 {whisperSetupError && <p role="alert" className="text-rose-700">{whisperSetupError}</p>}
                 <p>Whisper does not provide a calibrated speech-confidence value here, so spoken commands always remain editable before Send, even with hands-free messages enabled.</p>
               </div>
