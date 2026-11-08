@@ -91,3 +91,27 @@ test('spoken Companio wake prefixes and natural default-browser searches are par
   assert.equal(parseWebCommand('Hey Companio, do not open github.com'),null);
   assert.equal(parseWebCommand('Companio what is Khan Academy?'),null);
 });
+
+test('search specific sites immediately in the default browser',()=>{
+  const expected=[
+    ['Hey Companio, search YouTube for CarryMinati latest video','https://www.youtube.com/results?search_query=CarryMinati%20latest%20video'],
+    ['Search on YouTube for Python DSA','https://www.youtube.com/results?search_query=Python%20DSA'],
+    ['Search for React tutorials on YouTube','https://www.youtube.com/results?search_query=React%20tutorials'],
+    ['Search Wikipedia for Alan Turing','https://en.wikipedia.org/wiki/Special:Search?search=Alan%20Turing'],
+    ['Search on GitHub for project templates','https://github.com/search?q=project%20templates&type=repositories'],
+    ['Search Reddit for ARM laptop reviews','https://www.reddit.com/search/?q=ARM%20laptop%20reviews'],
+    ['Search Google Maps for Chennai cafes','https://www.google.com/maps/search/Chennai%20cafes'],
+    ['Search Stack Overflow for Python async','https://stackoverflow.com/search?q=Python%20async'],
+    ['Find videos about Windows 11 on YouTube','https://www.youtube.com/results?search_query=Windows%2011']
+  ];
+  for(const [query,url] of expected) {
+    const result=parseWebCommand(query);
+    assert.equal(result?.tool,'browser.open_url',query);
+    assert.equal(result.params.url,url,query);
+  }
+});
+test('site-specific navigation is never inferred from conversational mentions',()=>{
+  for (const query of ['What videos are on YouTube?', 'Do not search YouTube for kittens','Should I search GitHub?','Where do I find tutorials?', 'Search GitHub for']) {
+    assert.equal(parseWebCommand(query),null,query);
+  }
+});

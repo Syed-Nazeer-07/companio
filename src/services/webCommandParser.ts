@@ -50,6 +50,35 @@ export function parseWebCommand(input: string): WebCommand | null {
   // that exact wake prefix. The action guard separately checks the remainder.
   const normalized = trimmed.replace(/^(?:(?:hey|hi|ok|okay)\s+)?companio(?:\s*[,:\-]\s*|\s+)(?=\S)/i, '').trim();
 
+  // Direct searches on popular sites use the user's real default browser,
+  // without opening an isolated Edge automation profile or using an LLM.
+  const destinations: Record<string, (query: string) => string> = {
+    youtube: q => 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q),
+    wikipedia: q => 'https://en.wikipedia.org/wiki/Special:Search?search=' + encodeURIComponent(q),
+    github: q => 'https://github.com/search?q=' + encodeURIComponent(q) + '&type=repositories',
+    reddit: q => 'https://www.reddit.com/search/?q=' + encodeURIComponent(q),
+    'google maps': q => 'https://www.google.com/maps/search/' + encodeURIComponent(q),
+    'stack overflow': q => 'https://stackoverflow.com/search?q=' + encodeURIComponent(q)
+  };
+  const lead = normalized.replace(/^(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:please\s+)?/i, '');
+  const siteFirst = lead.match(/^search\s+(?:(?:on|in)\s+)?(youtube|wikipedia|github|reddit|google maps|stack overflow)\s+(?:for|about)\s+(.+?)\s*[.!?]?$/i);
+  const termFirst = lead.match(/^(?:search\s+for|look\s+up|find)\s+(.+?)\s+(?:on|in)\s+(youtube|wikipedia|github|reddit|google maps|stack overflow)\s*[.!?]?$/i);
+  const videoSearch = lead.match(/^find\s+(?:videos?|tutorials?)\s+(?:about|for|on)\s+(.+?)\s+on\s+youtube\s*[.!?]?$/i);
+  const provider = siteFirst?.[1] || termFirst?.[2] || (videoSearch ? 'youtube' : null);
+  const term = siteFirst?.[2] || termFirst?.[1] || videoSearch?.[1];
+  if (provider && term) {
+    const query = term.trim().replace(/[!?]+$/, '').trim();
+    const site = provider.toLowerCase();
+    if (!query || query.length > 500) return null;
+    const destination = destinations[site];
+    if (!destination) return null;
+    return {
+      tool: 'browser.open_url',
+      params: { url: destination(query) },
+      description: 'Search ' + provider + ' for ' + query
+    };
+  }
+
   const search = normalized.match(/^(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:search\s+(?:(?:the\s+)?web|(?:the\s+)?internet|google|on\s+google|(?:in\s+)?(?:my\s+)?default\s+browser)\s+for|search\s+for|look\s+up)\s+(.+?)\s*[.!?]?$/i);
   if (search) {
     const query = search[1].trim();

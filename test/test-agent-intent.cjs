@@ -121,3 +121,13 @@ test('spoken wake-name commands run only explicit safe browser actions',async()=
     assert.equal(result.intent,'conversation',query);
   }
 });
+
+test('explicit YouTube and GitHub searches plan one default-browser handoff',async()=>{
+  const yt=await engine.planTask('Search YouTube for Python DSA');
+  assert.equal(yt.steps.length,1);
+  assert.equal(yt.steps[0].tool,'browser.open_url');
+  assert.equal(yt.steps[0].params.url,'https://www.youtube.com/results?search_query=Python%20DSA');
+  const gh=await engine.planTask('Search GitHub for react dashboard');
+  assert.equal(gh.steps[0].tool,'browser.open_url');
+  assert.equal(gh.steps[0].params.url,'https://github.com/search?q=react%20dashboard&type=repositories');
+});
