@@ -856,6 +856,23 @@ app.whenReady().then(async () => {
       }
       smokeReport({ stage: 'startup-ipc-verified' });
 
+      // The optional offline speech bridge must be available without
+      // downloading a model, recording audio or launching an executable.
+      const whisperState = await win.webContents.executeJavaScript(
+        "window.companioDesktop.getWhisperStatus()"
+      );
+      if (!whisperState?.supported || typeof whisperState.configured !== 'boolean' ||
+          !whisperState.download || whisperState.download.downloading !== false) {
+        throw new Error('Packaged Whisper setup status IPC is unavailable.');
+      }
+      const invalidWhisper = await win.webContents.executeJavaScript(
+        "window.companioDesktop.transcribeWithWhisper(new Uint8Array([1, 2, 3]))"
+      );
+      if (invalidWhisper?.success !== false) {
+        throw new Error('Unconfigured or malformed Whisper IPC accepted invalid audio.');
+      }
+      smokeReport({ stage: 'offline-speech-ipc-verified' });
+
       const deviceCheck = await win.webContents.executeJavaScript(
         "window.companioDesktop.getDesktopDiagnostics()"
       );
