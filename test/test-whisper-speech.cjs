@@ -88,3 +88,19 @@ test('cancellation suppresses late results and removes the captured microphone a
   assert.equal(fs.existsSync(recording),false);
  }finally{fs.rmSync(h.dir,{recursive:true,force:true});}
 });
+
+test('partial Whisper setup shows what is selected without falsely claiming readiness',()=>{
+ const h=fixture(()=>fakeChild());
+ try{
+  const state=h.controller.status();
+  assert.equal(state.configured,true);
+  assert.equal(state.executable,'whisper-cli.exe');
+  assert.equal(state.model,'ggml-tiny.en.bin');
+  fs.unlinkSync(path.join(h.dir,'ggml-tiny.en.bin'));
+  const missing=h.controller.status();
+  assert.equal(missing.configured,false);
+  assert.equal(missing.executable,'whisper-cli.exe');
+  assert.equal(missing.model,null);
+  assert.match(missing.message,/GGML speech model/);
+ }finally{fs.rmSync(h.dir,{recursive:true,force:true});}
+});

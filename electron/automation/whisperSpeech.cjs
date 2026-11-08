@@ -57,26 +57,34 @@ class WhisperSpeechController {
     this.active = null;
   }
 
+  selections() {
+    let obj;
+    try {obj=JSON.parse(this.fileSystem.readFileSync(this.configPath,'utf8'));}
+    catch{return {binary:null,model:null};}
+    const valid=kind=>{
+      try{return safeSelection(kind,obj[kind],this.fileSystem);}
+      catch{return null;}
+    };
+    return {binary:valid('binary'),model:valid('model')};
+  }
+
   readConfig() {
-    try {
-      const obj = JSON.parse(this.fileSystem.readFileSync(this.configPath, 'utf8'));
-      return {
-        binary: safeSelection('binary',obj.binary,this.fileSystem),
-        model: safeSelection('model',obj.model,this.fileSystem)
-      };
-    } catch { return null; }
+    const selected=this.selections();
+    return selected.binary && selected.model ? selected : null;
   }
 
   status() {
-    const selected = this.readConfig();
+    const selected=this.selections();
+    const configured=!!selected.binary && !!selected.model && this.platform==='win32';
     return {
       supported: this.platform === 'win32',
-      configured: !!selected && this.platform === 'win32',
+      configured,
       busy: !!this.active,
-      executable: selected ? path.basename(selected.binary) : null,
-      model: selected ? path.basename(selected.model) : null,
-      message: selected ? 'Local whisper.cpp is configured. Audio stays on this computer.'
-        : 'Choose a whisper-cli.exe and ggml speech model to enable local Whisper.'
+      executable: selected.binary ? path.basename(selected.binary) : null,
+      model: selected.model ? path.basename(selected.model) : null,
+      message: configured ? 'Local whisper.cpp is configured. Audio stays on this computer.'
+        : !selected.binary ? 'Select whisper-cli.exe from the official Windows whisper.cpp release.'
+        : 'Choose or download an English GGML speech model to finish setup.'
     };
   }
 
