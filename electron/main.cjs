@@ -877,7 +877,7 @@ app.whenReady().then(async () => {
         "window.companioDesktop.getDesktopDiagnostics()"
       );
       if (!deviceCheck?.success || deviceCheck.platform !== 'win32' ||
-          deviceCheck.architecture !== 'x64' ||
+          deviceCheck.architecture !== process.arch ||
           deviceCheck.history?.available !== true ||
           typeof deviceCheck.shortcutRegistered !== 'boolean' ||
           typeof deviceCheck.audio?.available !== 'boolean') {
