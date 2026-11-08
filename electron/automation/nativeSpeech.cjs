@@ -23,6 +23,18 @@ function buildRecognitionScript(timeoutSec, requestedLanguage = 'en-US') {
     '  $engine.MaxAlternates = 5',
     '  $engine.EndSilenceTimeout = [TimeSpan]::FromMilliseconds(500)',
     '  $engine.EndSilenceTimeoutAmbiguous = [TimeSpan]::FromMilliseconds(900)',
+    // Strict, known spoken commands get a separate lightweight grammar.
+    // The general dictation grammar remains available for arbitrary questions.
+    // This does not run any commands: it only improves candidate recognition.
+    '  try {',
+    '    $phrases = [string[]]@("Open YouTube", "Open Notepad", "Open Calculator", "Open GitHub", "Open ChatGPT", "Open Google", "Open Gmail", "Open VS Code", "Open Spotify", "Take a screenshot", "Pause YouTube", "Play YouTube", "Set volume to fifty percent", "Companio wake up", "Hey Companio wake up", "Companio go to sleep", "Move Companio left", "Move Companio right", "Move Companio up", "Move Companio down", "Search Google", "Search YouTube", "Close Companio")',
+    '    $choices = [System.Speech.Recognition.Choices]::new()',
+    '    $choices.Add($phrases)',
+    '    $builder = [System.Speech.Recognition.GrammarBuilder]::new()',
+    '    $builder.Culture = $selected.Culture',
+    '    $builder.Append($choices)',
+    '    $engine.LoadGrammar([System.Speech.Recognition.Grammar]::new($builder))',
+    '  } catch { Write-Output "SPEECH_COMMAND_GRAMMAR_UNAVAILABLE" }',
     '  $engine.LoadGrammar((New-Object System.Speech.Recognition.DictationGrammar))',
     '  $engine.SetInputToDefaultAudioDevice()',
     '  $result = $engine.Recognize([TimeSpan]::FromSeconds(' + timeoutSec + '))',

@@ -160,3 +160,14 @@ test('malformed or empty alternate suggestions are ignored',async()=>{
   });
   assert.deepEqual(await pending,{success:true,text:'Hello'});
 });
+
+test('Windows grammar boosts common Companio commands without removing free dictation',()=>{
+ const {buildRecognitionScript}=require('../electron/automation/nativeSpeech.cjs');
+ const script=buildRecognitionScript(6,'en-IN');
+ assert.match(script,/GrammarBuilder/);
+ assert.match(script,/Companio go to sleep/);
+ assert.match(script,/Open YouTube/);
+ assert.match(script,/DictationGrammar/);
+ assert.match(script,/\$builder.Culture = \$selected.Culture/);
+ assert.match(script,/SPEECH_COMMAND_GRAMMAR_UNAVAILABLE/);
+});
