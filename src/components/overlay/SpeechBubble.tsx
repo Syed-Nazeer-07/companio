@@ -1,7 +1,7 @@
 import React from 'react';
 import { TaskPlan, CharacterState } from '../../types';
 import { AudioVisualizer } from './AudioVisualizer';
-import { CheckCircle2, AlertCircle, Square, Sparkles } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Square, LoaderCircle, Mic2, Moon } from 'lucide-react';
 
 interface Props {
   text: string;
@@ -11,109 +11,62 @@ interface Props {
   audioLevel?: number;
 }
 
-export const SpeechBubble: React.FC<Props> = ({
-  text,
-  state,
-  activePlan,
-  onCancel,
-  audioLevel = 0
-}) => {
-  if (!text && !activePlan && state === 'idle') {
-    return null;
-  }
+export const SpeechBubble: React.FC<Props> = ({ text, state, activePlan, onCancel }) => {
+  if (!text && (!activePlan || activePlan.steps.length === 0) && state === 'idle') return null;
 
-  const isExecuting = activePlan && activePlan.status === 'executing';
-  const isFailed = activePlan && activePlan.status === 'failed';
-  const isCompleted = activePlan && activePlan.status === 'completed';
-  const wasBrowserHandoff = !!(isCompleted && activePlan.steps.some(step => step.result?.handoffOnly === true));
+  const isExecuting = activePlan?.status === 'executing';
+  const isFailed = activePlan?.status === 'failed' || state === 'confused';
+  const isCompleted = !!(activePlan && activePlan.steps.length > 0 && activePlan.status === 'completed');
+  const isBrowserHandoff = !!(isCompleted && activePlan?.steps.every(step => step.result?.handoffOnly === true));
+  const isListening = state === 'listening';
+  const isThinking = state === 'thinking';
 
   return (
-    <div className="relative mb-3 max-w-[320px] transition-all duration-300 animate-in fade-in zoom-in-95">
-      <div className="glass-panel rounded-2xl p-3.5 shadow-[0_12px_32px_rgba(0,0,0,0.12)] border border-slate-200/90 text-slate-800">
-        {/* Status header badge */}
-        <div className="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-slate-200/70 text-xs font-medium">
+    <div className="companio-speech relative mb-3 w-full max-w-[320px] app-no-drag" role="status" aria-live="polite" aria-atomic="true">
+      <div className="rounded-2xl border border-slate-200/90 bg-white/95 px-3.5 py-3 text-slate-800 shadow-[0_6px_24px_rgba(15,23,42,0.10)]">
+        <div className="mb-2 flex items-center justify-between gap-2 text-[11px] font-semibold tracking-wide">
           <div className="flex items-center gap-1.5">
-            {state === 'listening' ? (
-              <span className="flex items-center gap-1 text-emerald-600 font-semibold">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                Listening...
-              </span>
-            ) : state === 'thinking' ? (
-              <span className="flex items-center gap-1 text-sky-600 font-semibold">
-                <Sparkles className="w-3.5 h-3.5 animate-spin" />
-                Planning actions...
-              </span>
-            ) : isExecuting ? (
-              <span className="flex items-center gap-1 text-sky-600 font-semibold">
-                <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
-                Executing Action
-              </span>
-            ) : isCompleted ? (
-              <span className="flex items-center gap-1 text-emerald-600 font-semibold">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                {wasBrowserHandoff ? 'Sent to Default Browser' : 'Verified & Complete ✨'}
-              </span>
+            {isExecuting ? (
+              <><LoaderCircle className="h-3.5 w-3.5 animate-spin text-sky-600" /><span className="text-sky-700">Working</span></>
+            ) : isThinking ? (
+              <><LoaderCircle className="h-3.5 w-3.5 animate-spin text-sky-600" /><span className="text-sky-700">Thinking</span></>
+            ) : isListening ? (
+              <><Mic2 className="h-3.5 w-3.5 text-emerald-600" /><span className="text-emerald-700">Listening</span></>
             ) : isFailed ? (
-              <span className="flex items-center gap-1 text-rose-600 font-semibold">
-                <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
-                Task Issue
-              </span>
-            ) : (
-              <span className="text-slate-500 font-medium">Companio</span>
-            )}
+              <><AlertCircle className="h-3.5 w-3.5 text-rose-600" /><span className="text-rose-700">Needs attention</span></>
+            ) : isCompleted ? (
+              <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /><span className="text-emerald-700">{isBrowserHandoff ? 'Sent to browser' : 'Done'}</span></>
+            ) : state === 'sleeping' ? (
+              <><Moon className="h-3.5 w-3.5 text-slate-400" /><span className="text-slate-600">Resting</span></>
+            ) : <span className="text-slate-500">Companio</span>}
           </div>
-
-          {/* Audio reactive bars or cancel button */}
-          <div className="flex items-center gap-1">
-            {(state === 'talking' || state === 'listening') && (
-              <AudioVisualizer active={true} color={state === 'listening' ? 'bg-emerald-500' : 'bg-sky-500'} />
-            )}
+          <div className="flex items-center gap-2">
+            {(state === 'talking' || isListening) && <AudioVisualizer active={true} color={isListening ? 'bg-emerald-500' : 'bg-sky-500'} />}
             {isExecuting && onCancel && (
-              <button
-                onClick={onCancel}
-                title="Cancel Task (Esc)"
-                className="flex items-center gap-1 px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-[10px] font-medium transition-colors"
-              >
-                <Square className="w-2.5 h-2.5 fill-current" />
-                Stop
+              <button type="button" onClick={onCancel} title="Stop the current task"
+                className="app-no-drag inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100">
+                <Square className="h-2.5 w-2.5 fill-current" /> Stop
               </button>
             )}
           </div>
         </div>
-
-        {/* Main message text */}
-        <p className="text-sm font-normal leading-relaxed text-slate-800 select-text">
-          {text || (activePlan?.status === 'executing' ? activePlan.steps[activePlan.currentStepIndex]?.description : (state === 'listening' ? 'Listening to your voice...' : ''))}
+        <p className="max-h-[150px] overflow-y-auto whitespace-pre-wrap break-words text-[13px] font-normal leading-[1.55] text-slate-800 select-text">
+          {text || (isExecuting ? activePlan?.steps[activePlan?.currentStepIndex ?? 0]?.description : '')}
         </p>
-
-        {/* Multi-step progress list */}
-        {activePlan && activePlan.steps.length > 1 && (
-          <div className="mt-2.5 pt-2 border-t border-slate-200/70 space-y-1.5">
+        {activePlan && activePlan.steps.length > 1 && (isExecuting || activePlan.status === 'planning') && (
+          <div className="mt-2.5 space-y-1 border-t border-slate-100 pt-2">
             {activePlan.steps.map((step, idx) => (
-              <div key={step.id} className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-1.5 truncate text-slate-700">
-                  <span className="text-[10px] text-slate-400 font-mono">{idx + 1}.</span>
-                  <span className="truncate">{step.description}</span>
-                </span>
-                <span className="text-[10px] shrink-0 font-medium">
-                  {step.status === 'success' ? (
-                    <span className="text-emerald-600 font-semibold">✓ Done</span>
-                  ) : step.status === 'running' ? (
-                    <span className="text-sky-600 font-semibold animate-pulse">Running...</span>
-                  ) : step.status === 'failed' ? (
-                    <span className="text-rose-600 font-semibold">Failed</span>
-                  ) : (
-                    <span className="text-slate-400">Queued</span>
-                  )}
+              <div key={step.id} className="flex items-center justify-between gap-3 text-[11px]">
+                <span className="min-w-0 truncate text-slate-600">{idx + 1}. {step.description}</span>
+                <span className="shrink-0 font-medium text-slate-500">
+                  {step.status === 'success' ? 'Done' : step.status === 'running' ? 'Working' : step.status === 'failed' ? 'Failed' : 'Queued'}
                 </span>
               </div>
             ))}
           </div>
         )}
       </div>
-
-      {/* Speech bubble tail pointing towards character */}
-      <div className="absolute -bottom-2 right-12 w-4 h-4 glass-panel rotate-45 border-t-0 border-l-0" />
+      <div className="absolute -bottom-[5px] right-14 h-2.5 w-2.5 rotate-45 border-b border-r border-slate-200 bg-white/95" aria-hidden="true" />
     </div>
   );
 };

@@ -35,37 +35,22 @@ export const CompactInput: React.FC<Props> = ({
     }
   }, [voiceTranscript]);
 
-  useEffect(() => {
-    inputRef.current?.focus();
-
-    // Close on Escape key
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  // The overlay owns Escape once. Duplicate key handlers previously
+  // dismissed both an approval and the entire companion on one keypress.
+  useEffect(() => { inputRef.current?.focus(); }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (text.trim()) {
+    if (text.trim() && !isListening) {
       onSend(text.trim());
       setText('');
     }
   };
 
-  const suggestions = [
-    'Open ChatGPT',
-    'Open YouTube',
-    'Set volume to 60%',
-    'Open Notepad',
-    'Take a screenshot'
-  ];
+  const suggestions = ['Open YouTube', 'Search for Python tutorials', 'Open Notepad'];
 
   return (
-    <div className="w-full max-w-[328px] mx-auto glass-panel rounded-2xl p-2 shadow-[0_16px_40px_rgba(0,0,0,0.12)] border border-slate-200 text-slate-800 animate-in fade-in slide-in-from-bottom-2 duration-200 box-border">
+    <div className="companio-input w-full max-w-[328px] mx-auto rounded-2xl border border-slate-200 bg-white/95 p-2.5 text-slate-800 shadow-[0_8px_28px_rgba(15,23,42,0.12)] box-border">
       <form onSubmit={handleSubmit} className="flex items-center gap-1.5">
         {/* Push-to-Talk Mic Button */}
         <button
@@ -88,15 +73,15 @@ export const CompactInput: React.FC<Props> = ({
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={isListening ? "Listening..." : "Ask Companio..."}
-          className="min-w-0 flex-1 bg-transparent border-0 text-xs placeholder-slate-400 focus:outline-none text-slate-800 px-1 font-medium"
+          className="min-w-0 flex-1 bg-transparent border-0 text-[13px] placeholder-slate-400 focus:outline-none text-slate-800 px-1 font-medium"
         />
 
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={!text.trim()}
+          disabled={!text.trim() || isListening}
           title="Send command (Enter)"
-          className="shrink-0 p-2 rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-30 disabled:hover:bg-sky-500 text-white transition-all shadow-sm"
+          className="shrink-0 p-2 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-30 disabled:hover:bg-sky-600 text-white transition-colors shadow-sm"
         >
           <Send className="w-3.5 h-3.5" />
         </button>
@@ -132,8 +117,8 @@ export const CompactInput: React.FC<Props> = ({
         </button>
       </form>
 
-      {/* Quick Suggestion Chips */}
-      <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-100 overflow-x-auto no-scrollbar">
+      {/* Suggestions are quiet while composing or dictating. */}
+      {!text.trim() && !isListening && <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-100 overflow-x-auto no-scrollbar">
         {suggestions.map((s, idx) => (
           <button
             key={idx}
@@ -144,7 +129,7 @@ export const CompactInput: React.FC<Props> = ({
             {s}
           </button>
         ))}
-      </div>
+      </div>}
     </div>
   );
 };

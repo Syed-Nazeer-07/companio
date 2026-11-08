@@ -32,9 +32,9 @@ export const CharacterRenderer: React.FC<Props> = ({
           src={customAssetUrl} 
           alt="Custom Character" 
           className={`w-36 h-36 object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.2)] ${
-            state === 'success' ? 'animate-bounce' : 
+            state === 'success' ? 'animate-companio-celebrate' : 
             state === 'thinking' ? 'animate-pulse' : 
-            state === 'sleeping' ? 'opacity-70' : 'animate-float'
+            state === 'sleeping' ? 'opacity-70' : 'animate-companio-idle'
           }`}
         />
       </div>
