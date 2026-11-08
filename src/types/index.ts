@@ -37,6 +37,7 @@ export interface VoiceConfig {
   wakePhrase: string;
   pushToTalkKey: string;
   sttEngine: 'browser' | 'cloud' | 'push_only';
+  recognitionLanguage?: 'en-IN' | 'en-US' | 'en-GB' | 'en-AU';
   ttsVoice: string;
   ttsRate: number;
   ttsPitch: number;
