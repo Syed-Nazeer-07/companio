@@ -9,6 +9,7 @@ import { agentEngine } from '../../services/agentEngine';
 import { speechService } from '../../services/speechService';
 import { desktopBridge, isNativeDesktop } from '../../services/desktopBridge';
 import { dbService } from '../../services/dbService';
+import { requiresActionReview } from '../../services/actionApprovalPolicy';
 import { GripHorizontal, MessageSquare, Mic, X } from 'lucide-react';
 
 interface Props {
@@ -261,9 +262,10 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         return;
       }
 
-      // Never run locally suggested workflows without the user's click
-      // in the explicit action-review dialog.
-      if (plan.intent === 'local_ai_actions' || plan.intent === 'builtin_sequence') {
+      // Routine, explicitly requested single app/site launches need no second
+      // click. Multiple actions and model-suggested nontrivial actions still
+      // require review, even after native allowlist validation.
+      if (requiresActionReview(plan)) {
         const approved = await requestApproval(plan);
         if (!approved) {
           plan.status = 'cancelled';
