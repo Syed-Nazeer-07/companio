@@ -56,9 +56,12 @@ export const DashboardLayout: React.FC<Props> = ({
         <div>
           {/* Brand Header */}
           <div className="flex items-center gap-3 px-2 py-3 mb-4">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-md shadow-sky-500/20">
-              <span className="font-bold text-white text-base tracking-wider">C</span>
-            </div>
+            <img
+              src={`${import.meta.env.BASE_URL}companio-icon.svg`}
+              alt=""
+              aria-hidden="true"
+              className="w-9 h-9 rounded-xl shadow-md shadow-sky-500/20"
+            />
             <div>
               <h1 className="font-bold text-base leading-tight tracking-wide text-slate-900">Companio</h1>
               <p className="text-[11px] text-sky-600 font-semibold">Personal AI Companion</p>
