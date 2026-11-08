@@ -25,6 +25,7 @@ export const SpeechBubble: React.FC<Props> = ({
   const isExecuting = activePlan && activePlan.status === 'executing';
   const isFailed = activePlan && activePlan.status === 'failed';
   const isCompleted = activePlan && activePlan.status === 'completed';
+  const wasBrowserHandoff = !!(isCompleted && activePlan.steps.some(step => step.result?.handoffOnly === true));
 
   return (
     <div className="relative mb-3 max-w-[320px] transition-all duration-300 animate-in fade-in zoom-in-95">
@@ -50,7 +51,7 @@ export const SpeechBubble: React.FC<Props> = ({
             ) : isCompleted ? (
               <span className="flex items-center gap-1 text-emerald-600 font-semibold">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                Verified & Complete ✨
+                {wasBrowserHandoff ? 'Sent to Default Browser' : 'Verified & Complete ✨'}
               </span>
             ) : isFailed ? (
               <span className="flex items-center gap-1 text-rose-600 font-semibold">
