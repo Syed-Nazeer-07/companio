@@ -19,5 +19,8 @@ export function shouldAutoSubmitVoice(
   // Only the small, reversible Companio control grammar may run without
   // the manual review needed for Windows apps, websites and system commands.
   if (parseCompanionCommand(command)) return true;
+  // Stay conservative even if the current deterministic desktop planner
+  // does not recognize an imperative verb yet.
+  if (/^(?:(?:hey|ok|okay)\s+companio[,!:]?\s*)?(?:please\s+)?(?:move|send|type|click|delete|erase|install|download|run|execute|restart|shutdown|open|close|launch|play|pause|search|find|navigate|visit|browse|mute|unmute|set|change)\b/i.test(command)) return false;
   return !isCommandRequest(command);
 }

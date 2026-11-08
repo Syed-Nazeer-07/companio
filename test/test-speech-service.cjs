@@ -154,3 +154,17 @@ test('explicit user microphone cancellation still aborts one active native sessi
   await active;
   assert.equal(h.api.cancels,1);
 });
+
+test('browser dictation exposes real confidence where the engine supplies it',async()=>{
+  const h=setup({browserRecognition:true});
+  const received=[];
+  await h.service.startListening(()=>{},(text,metadata)=>received.push({text,metadata}),()=>{},undefined,undefined,'en-IN');
+  const recognition=h.getRecognition();
+  recognition.onresult({
+    resultIndex:0,
+    results:[{isFinal:true,0:{transcript:'Good morning',confidence:0.92}}]
+  });
+  assert.equal(received[0].text,'Good morning');
+  assert.equal(received[0].metadata.confidence,0.92);
+  assert.equal(received[0].metadata.language,'en-IN');
+});

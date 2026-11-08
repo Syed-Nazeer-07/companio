@@ -138,13 +138,20 @@ export class SpeechService {
       if (!active()) return;
       let interim = '';
       let final = '';
+      let confidence: number | undefined;
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
-        if (result.isFinal) final += result[0].transcript;
-        else interim += result[0].transcript;
+        if (result.isFinal) {
+          final += result[0].transcript;
+          const reported = result[0]?.confidence;
+          if (typeof reported === 'number' && Number.isFinite(reported) && reported >= 0 && reported <= 1) {
+            // Multiple final segments use the least-certain segment.
+            confidence = confidence === undefined ? reported : Math.min(confidence, reported);
+          }
+        } else interim += result[0].transcript;
       }
       if (interim) onInterim(interim);
-      if (final.trim()) complete('result', final);
+      if (final.trim()) complete('result', final, { language: recognitionLanguage, confidence });
     };
     this.recognition.onerror = (event: any) => {
       if (!active()) return;

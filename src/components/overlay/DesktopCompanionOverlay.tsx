@@ -11,6 +11,7 @@ import { dbService } from '../../services/dbService';
 import { requiresActionReview } from '../../services/actionApprovalPolicy';
 import { GripHorizontal, MessageSquare, Moon, Sun, X } from 'lucide-react';
 import { parseCompanionCommand } from '../../services/companionCommands';
+import { shouldAutoSubmitVoice } from '../../services/voiceAutoSend';
 
 interface Props {
   settings: AppSettings;
@@ -131,6 +132,12 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     const wasSleeping = isSleeping;
     if (wasSleeping) setIsSleeping(false);
     setCharacterState(wasSleeping ? 'waking' : 'idle');
+    if (wasSleeping) {
+      if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current);
+      reactionTimerRef.current = setTimeout(() => {
+        setCharacterState(previous => previous === 'waking' ? 'idle' : previous);
+      }, 520);
+    }
     setActivePlan(null);
     setBubbleText(wasSleeping ? "I'm awake. What shall we do?" : 'What can I help with?');
     setIsInputOpen(true);
@@ -229,7 +236,14 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
           setIsListeningVoice(false);
           setAudioLevel(0);
           setCharacterState('idle');
-          // Never silently execute a possibly misheard native transcript.
+          // An explicit opt-in may auto-send only clear conversation and
+          // reversible Companio-only controls. Windows/browser actions still
+          // require a visible, editable transcript and Send.
+          if (shouldAutoSubmitVoice(final, details?.confidence, settings.voice.autoSendSafeSpeech === true)) {
+            setVoiceTranscript(null);
+            void handleExecuteQuery(final);
+            return;
+          }
           setVoiceTranscript(final);
           setIsInputOpen(true);
           const source = details?.language ? ' (' + details.language + ')' : '';
