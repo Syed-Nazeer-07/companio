@@ -14,12 +14,15 @@ function transpile(relative) {
 }
 const safe={};
 vm.runInNewContext(transpile('src/services/intentSafety.ts'),{exports:safe});
+const webCommands={};
+vm.runInNewContext(transpile('src/services/webCommandParser.ts'),{exports:webCommands});
 let offlineCalls=0;
 const engineExports={};
 vm.runInNewContext(transpile('src/services/agentEngine.ts'),{
   exports:engineExports,
   require(name) {
     if(name==='./intentSafety') return safe;
+    if(name==='./webCommandParser') return webCommands;
     if(name==='./desktopBridge') return {desktopBridge:{
       planOfflineSequence:async()=>{offlineCalls++;return {success:false,recognized:false,steps:[]};},
       planLocalActions:async()=>({success:false,error:'Model not running'})
@@ -83,4 +86,20 @@ test('a latest-video command requests creator-channel verification', async () =>
   assert.equal(latest.steps[0].params.latest,true);
   const carry=await engine.planTask('Play CarryMinati new video');
   assert.equal(carry.steps[0].params.latest,true);
+});
+
+test('normal site URLs and general web searches plan default browser actions without a model',async()=>{
+  for(const [query,url] of [
+    ['Open github.com/Syed-Nazeer-07/companio','github.com/Syed-Nazeer-07/companio'],
+    ['Visit https://developer.mozilla.org','https://developer.mozilla.org'],
+    ['Please open www.wikipedia.org','www.wikipedia.org']
+  ]){
+    const p=await engine.planTask(query);
+    assert.equal(p.steps.length,1,query);
+    assert.equal(p.steps[0].tool,'browser.open_url',query);
+    assert.equal(p.steps[0].params.url,url,query);
+  }
+  const search=await engine.planTask('Search for React TypeScript tutorial');
+  assert.equal(search.steps[0].tool,'browser.search_google');
+  assert.equal(search.steps[0].params.query,'React TypeScript tutorial');
 });
