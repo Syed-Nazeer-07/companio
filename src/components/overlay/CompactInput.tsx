@@ -9,6 +9,7 @@ interface Props {
   isSleeping: boolean;
   onToggleSleep: () => void;
   onClose: () => void;
+  voiceTranscript?: string | null;
 }
 
 export const CompactInput: React.FC<Props> = ({
@@ -18,10 +19,21 @@ export const CompactInput: React.FC<Props> = ({
   onOpenDashboard,
   isSleeping,
   onToggleSleep,
-  onClose
+  onClose,
+  voiceTranscript
 }) => {
   const [text, setText] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // A native transcription is only a draft, never authorization to run a
+  // Windows command. The user can correct it before pressing Enter.
+  useEffect(() => {
+    if (voiceTranscript?.trim()) {
+      setText(voiceTranscript.trim());
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [voiceTranscript]);
 
   useEffect(() => {
     inputRef.current?.focus();
