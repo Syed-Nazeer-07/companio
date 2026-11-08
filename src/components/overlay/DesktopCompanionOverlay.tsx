@@ -79,6 +79,10 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       resolveApproval(false);
       return;
     }
+    requestIdRef.current++;
+    // Hiding the companion must also stop follow-up steps and suppress any
+    // stale result from an action which Windows has already started.
+    agentEngine.cancelActiveTask();
     clearTimeout(resetTimerRef.current);
     if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current);
     if (petTimerRef.current) clearTimeout(petTimerRef.current);
@@ -251,6 +255,8 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
   };
 
   const handleExecuteQuery = async (query: string) => {
+    // Only one automation may be active in this overlay at a time.
+    agentEngine.cancelActiveTask();
     setVoiceTranscript(null);
     setVoiceAlternatives([]);
     clearTimeout(resetTimerRef.current);
@@ -438,10 +444,12 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       resolveApproval(false);
       return;
     }
+    requestIdRef.current++;
     agentEngine.cancelActiveTask();
     speechService.stopSpeaking();
-    setCharacterState('confused');
-    setBubbleText('Aborting active task...');
+    setActivePlan(previous => previous ? { ...previous, status: 'cancelled' } : null);
+    setCharacterState('idle');
+    setBubbleText('Stopped. Remaining steps will not run; an already-started Windows action may still finish.');
   };
 
   const handleToggleSleep = () => {

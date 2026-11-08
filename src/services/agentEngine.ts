@@ -1235,9 +1235,13 @@ export class AgentEngine {
       return plan;
     }
 
-    this.activeAbortController = new AbortController();
-    const { signal } = this.activeAbortController;
+    const controller = new AbortController();
+    this.activeAbortController = controller;
+    const { signal } = controller;
 
+    // Release the active controller on every outcome, including early failure
+    // and cancellation; otherwise old requests look live after completion.
+    try {
     plan.status = 'executing';
     onProgress({ ...plan });
 
@@ -1347,9 +1351,11 @@ export class AgentEngine {
 
     plan.status = 'completed';
     plan.finalMessage = this.getDelightfulSuccessMessage(plan);
-    this.activeAbortController = null;
     onProgress({ ...plan });
     return plan;
+    } finally {
+      if (this.activeAbortController === controller) this.activeAbortController = null;
+    }
   }
 }
 
