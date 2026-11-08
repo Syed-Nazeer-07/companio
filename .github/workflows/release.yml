@@ -50,6 +50,9 @@ jobs:
         run: npm run test:unit
       - name: Build Web Application
         run: npm run build
+      - name: Regenerate multi-resolution Windows icons
+        shell: pwsh
+        run: ./scripts/generate-icon.ps1
       - name: Verify no high-severity advisories
         run: npm audit --audit-level=high
 
