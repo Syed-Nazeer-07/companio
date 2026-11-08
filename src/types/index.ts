@@ -35,6 +35,8 @@ export interface AiConfig {
 export interface VoiceConfig {
   wakePhraseEnabled: boolean;
   wakePhrase: string;
+  /** Opt-in: only high-confidence non-automation dictation can auto-send. */
+  autoSendSafeSpeech?: boolean;
   pushToTalkKey: string;
   sttEngine: 'browser' | 'cloud' | 'push_only';
   recognitionLanguage?: 'en-IN' | 'en-US' | 'en-GB' | 'en-AU';
