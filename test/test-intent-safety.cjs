@@ -43,3 +43,10 @@ test('only well-bounded requests reach the keyword planner',()=>{
   assert.equal(isCommandRequest('x'.repeat(1201)),false);
   assert.equal(isCommandRequest('notepad'),true);
 });
+
+test('spoken companion name is stripped for explicit actions, but not for questions',()=>{
+  assert.equal(isCommandRequest('Hey companion, search YouTube for Python DSA'),true);
+  assert.equal(isCommandRequest('Companion, open Github'),true);
+  assert.equal(isCommandRequest('Hey companion, what is GitHub?'),false);
+  assert.equal(isCommandRequest('Hey companion, do not open GitHub'),false);
+});

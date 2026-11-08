@@ -115,3 +115,10 @@ test('site-specific navigation is never inferred from conversational mentions',(
     assert.equal(parseWebCommand(query),null,query);
   }
 });
+
+test('common speech transcription of companion name works for direct website searches',()=>{
+  const p=parseWebCommand('Hey companion, search on YouTube for CarryMinati');
+  assert.equal(p?.tool,'browser.open_url');
+  assert.equal(p.params.url,'https://www.youtube.com/results?search_query=CarryMinati');
+  assert.equal(parseWebCommand('Hey companion, do not search YouTube for music'),null);
+});

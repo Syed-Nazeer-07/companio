@@ -7,7 +7,7 @@ export type CompanionCommand =
 export function parseCompanionCommand(input: string): CompanionCommand | null {
   if (typeof input !== 'string' || input.length > 160) return null;
   const command = input.trim()
-    .replace(/^(?:(?:hey|hi|ok|okay)\s+)?companio(?:\s*[,!:;-]\s*|\s+)(?=\S)/i, '')
+    .replace(/^(?:(?:hey|hi|ok|okay)\s+)?(?:companio|companion)(?:\s*[,!:;-]\s*|\s+)(?=\S)/i, '')
     .replace(/[.!?]+$/, '').trim().toLowerCase();
   if (!command || /^(?:don't|do not|never|without|please don't)\b/.test(command)) return null;
   const action = command.replace(/^(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:please\s+)?/, '');

@@ -38,3 +38,14 @@ test('questions, negatives, Windows commands and incidental phrases have no side
   'Can you explain how to wake up early?','Where is the companion?'
  ]) assert.equal(parse(query),null,query);
 });
+
+test('spoken companion name alias supports safe local controls',()=>{
+  for(const [phrase,kind] of [
+    ['Hey companion, sleep','sleep'],
+    ['Okay companion wake up','wake'],
+    ['Companion move left','move'],
+    ['Hey companion, close the assistant','hide']
+  ]) assert.equal(parse(phrase)?.kind,kind,phrase);
+  assert.equal(parse('Hey companion, do not go to sleep'),null);
+  assert.equal(parse('Who is my companion?'),null);
+});

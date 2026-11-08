@@ -21,6 +21,6 @@ export function shouldAutoSubmitVoice(
   if (parseCompanionCommand(command)) return true;
   // Stay conservative even if the current deterministic desktop planner
   // does not recognize an imperative verb yet.
-  if (/^(?:(?:hey|ok|okay)\s+companio[,!:]?\s*)?(?:please\s+)?(?:move|send|type|click|delete|erase|install|download|run|execute|restart|shutdown|open|close|launch|play|pause|search|find|navigate|visit|browse|mute|unmute|set|change)\b/i.test(command)) return false;
+  if (/^(?:(?:hey|ok|okay)\s+(?:companio|companion)[,!:]?\s*)?(?:please\s+)?(?:move|send|type|click|delete|erase|install|download|run|execute|restart|shutdown|open|close|launch|play|pause|search|find|navigate|visit|browse|mute|unmute|set|change)\b/i.test(command)) return false;
   return !isCommandRequest(command);
 }

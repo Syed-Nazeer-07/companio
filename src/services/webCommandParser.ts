@@ -48,7 +48,7 @@ export function parseWebCommand(input: string): WebCommand | null {
   if (!trimmed) return null;
   // Spoken push-to-talk often starts with the character's name; remove only
   // that exact wake prefix. The action guard separately checks the remainder.
-  const normalized = trimmed.replace(/^(?:(?:hey|hi|ok|okay)\s+)?companio(?:\s*[,:\-]\s*|\s+)(?=\S)/i, '').trim();
+  const normalized = trimmed.replace(/^(?:(?:hey|hi|ok|okay)\s+)?(?:companio|companion)(?:\s*[,:\-]\s*|\s+)(?=\S)/i, '').trim();
 
   // Direct searches on popular sites use the user's real default browser,
   // without opening an isolated Edge automation profile or using an LLM.
