@@ -60,7 +60,8 @@ export class SpeechService {
     onError: (err: string) => void,
     onAudioLevel?: (level: number) => void,
     onStop?: () => void,
-    recognitionLanguage: 'en-IN' | 'en-US' | 'en-GB' | 'en-AU' = 'en-IN'
+    recognitionLanguage: 'en-IN' | 'en-US' | 'en-GB' | 'en-AU' = 'en-IN',
+    playActivationChime = true
   ): Promise<void> {
     this.stopListening();
     const token = ++this.listenToken;
@@ -80,7 +81,7 @@ export class SpeechService {
       else onStop?.();
     };
 
-    this.playChime('activate');
+    if (playActivationChime) this.playChime('activate');
     onInterim('Listening…');
 
     if (isNativeDesktop()) {

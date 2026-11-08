@@ -25,7 +25,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
   onUpdateSettings
 }) => {
   const [characterState, setCharacterState] = useState<CharacterState>('idle');
-  const [bubbleText, setBubbleText] = useState<string>(`Hello! Click me or press ${settings.activationShortcut} ✨`);
+  const [bubbleText, setBubbleText] = useState<string>('');
   const [activePlan, setActivePlan] = useState<TaskPlan | null>(null);
   const [pendingApproval, setPendingApproval] = useState<TaskPlan | null>(null);
   const approvalResolverRef = useRef<((approved: boolean) => void) | null>(null);
@@ -38,6 +38,8 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
   const [isClosing, setIsClosing] = useState(false);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reactionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const petTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestIdRef = useRef(0);
 
   const resetTimerRef = useRef<any>(null);
   // Keep native shortcut handlers registered once. Ref callbacks always use the
@@ -78,6 +80,8 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     }
     clearTimeout(resetTimerRef.current);
     if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current);
+    if (petTimerRef.current) clearTimeout(petTimerRef.current);
+    setIsPetted(false);
     speechService.stopListening();
     speechService.stopSpeaking();
     setIsListeningVoice(false);
@@ -116,7 +120,8 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       window.removeEventListener('keydown', handleKeyDown);
       clearTimeout(resetTimerRef.current);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-      if (reactionTimerRef.current) if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current);
+      if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current);
+      if (petTimerRef.current) clearTimeout(petTimerRef.current);
       if (approvalResolverRef.current) {
         approvalResolverRef.current(false);
         approvalResolverRef.current = null;
@@ -154,54 +159,20 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     }
     if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current);
     setIsPetted(true);
-    reactionTimerRef.current = setTimeout(() => setIsPetted(false), 450);
+    if (petTimerRef.current) clearTimeout(petTimerRef.current);
+    petTimerRef.current = setTimeout(() => setIsPetted(false), 450);
     if (settings.overlay.soundEffects) speechService.playChime('activate');
 
     // Character-specific playful dialog reactions
     const dialogues: Record<string, string[]> = {
-      sparky: [
-        "Beep boop! Systems at 100%! 🤖",
-        "Charging up! Ready to automate ✨",
-        "Power level over 9000! ⚡",
-        "Boop! At your service! 🚀"
-      ],
-      pixel: [
-        "1-UP! Ready for the next quest! 🦊",
-        "Press Start to continue! 🎮",
-        "Pixel power activated! 🌟",
-        "High score unlocked! 🏆"
-      ],
-      mochi: [
-        "Squish! Hehe, that tickles! 🥰",
-        "Bouncing with joy! 💖",
-        "So soft and happy to see you! 🌸",
-        "Yay! Best friends forever! ✨"
-      ],
-      cloudie: [
-        "Floaty and relaxed! Sending soft starry vibes~ ☁️✨",
-        "Warm rainbow sparkles for you! 🌈",
-        "Floating along happily~ 💫",
-        "Dream big today! 🌟"
-      ],
-      kiko: [
-        "Purrrr~ boop received! 🐾💖",
-        "Meow! You're my favorite human! 🐱✨",
-        "Happy kitten paws! 🥰",
-        "Nya~ ready to help you! 🌸"
-      ],
-      boba: [
-        "Sweet as boba tea! 🧋",
-        "Bubbly and smiling! What's our plan? 🐻",
-        "Tapioca pearl high five! ✨",
-        "Cozy bear hugs for you! 🍯"
-      ]
+      sparky: ['Systems ready.', 'Ready when you are.', 'What shall we work on?'],
+      pixel: ['Ready for the next level.', 'Nice to see you.', 'What is our next move?'],
+      mochi: ['That tickles!', 'Hello again!', 'A little break is nice.'],
+      cloudie: ['Floating along.', 'A calm moment.', 'Here whenever you need me.'],
+      kiko: ['Purr… hello.', 'A friendly little nudge.', 'All ears.'],
+      boba: ['A little boba break?', 'Glad you are here.', 'What is the plan?']
     };
-
-    const pool = dialogues[settings.characterId] || [
-      "Hehe, that tickles! 🥰",
-      "Boop! Ready for action! ✨",
-      "Always here for you! 💖"
-    ];
+    const pool = dialogues[settings.characterId] || ['Hello again.', 'Ready to help.'];
     const reaction = pool[Math.floor(Math.random() * pool.length)];
     setBubbleText(reaction);
     setCharacterState('talking');
@@ -268,7 +239,8 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
           setCharacterState('idle');
           setBubbleText('No speech detected. Check microphone and speech language, then retry.');
         },
-        settings.voice.recognitionLanguage || 'en-IN'
+        settings.voice.recognitionLanguage || 'en-IN',
+        settings.overlay.soundEffects
       );
     }
   };
@@ -289,6 +261,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       }
       return;
     }
+    const requestId = ++requestIdRef.current;
     setActivePlan(null);
     setCharacterState('thinking');
     setBubbleText('Working on your request…');
@@ -305,6 +278,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     try {
       // 1. Plan task
       const plan = await agentEngine.planTask(query, settings.ai);
+      if (requestId !== requestIdRef.current) return;
       setActivePlan(plan);
 
       // If purely conversational
@@ -328,6 +302,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       // require review, even after native allowlist validation.
       if (requiresActionReview(plan)) {
         const approved = await requestApproval(plan);
+        if (requestId !== requestIdRef.current) return;
         if (!approved) {
           plan.status = 'cancelled';
           plan.steps.forEach((step) => { step.status = 'cancelled'; });
@@ -348,6 +323,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
 
       // 2. Execute plan
       const finalPlan = await agentEngine.executePlan(plan, (updated) => {
+        if (requestId !== requestIdRef.current) return;
         setActivePlan({ ...updated });
         if (updated.status === 'executing') {
           const currentStep = updated.steps[updated.currentStepIndex];
@@ -355,6 +331,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         }
       });
 
+      if (requestId !== requestIdRef.current) return;
       if (finalPlan.status === 'completed') {
         const browserHandoffOnly = finalPlan.steps.length > 0 &&
           finalPlan.steps.every(step => step.result?.handoffOnly === true);
@@ -388,7 +365,8 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         setBubbleText('Task cancelled.');
         speakReply('Task cancelled.');
         resetTimerRef.current = setTimeout(() => {
-          setCharacterState('idle');
+          setCharacterState(previous => previous === 'sleeping' ? previous : 'idle');
+          setActivePlan(null);
           setBubbleText('');
         }, 4000);
       } else {
@@ -408,11 +386,13 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         });
 
         resetTimerRef.current = setTimeout(() => {
-          setCharacterState('idle');
+          setCharacterState(previous => previous === 'sleeping' ? previous : 'idle');
+          setActivePlan(null);
           setBubbleText('');
         }, 10000);
       }
     } catch (err: unknown) {
+      if (requestId !== requestIdRef.current) return;
       const message = err instanceof Error ? err.message : 'Could not process this request.';
       const text = 'Error: ' + message;
       setCharacterState('confused');
@@ -426,7 +406,8 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         status: 'error'
       });
       resetTimerRef.current = setTimeout(() => {
-        setCharacterState('idle');
+        setCharacterState(previous => previous === 'sleeping' ? previous : 'idle');
+        setActivePlan(null);
         setBubbleText('');
       }, 10000);
     }
@@ -468,6 +449,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     // It does not register a background wake-word listener.
     speechService.stopListening();
     speechService.stopSpeaking();
+    requestIdRef.current++;
     agentEngine.cancelActiveTask();
     if (approvalResolverRef.current) resolveApproval(false);
     setIsListeningVoice(false);
