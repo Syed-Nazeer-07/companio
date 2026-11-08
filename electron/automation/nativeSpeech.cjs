@@ -3,22 +3,30 @@
 const { spawn } = require('node:child_process');
 
 const MAX_OUTPUT = 32 * 1024;
+const SUPPORTED_LANGUAGES = Object.freeze(['en-IN', 'en-US', 'en-GB', 'en-AU']);
 
 // Only a numeric timeout enters the script; no renderer text is interpolated.
-function buildRecognitionScript(timeoutSec) {
+function buildRecognitionScript(timeoutSec, requestedLanguage = 'en-US') {
   return [
     "$ErrorActionPreference = 'Stop'",
     '$engine = $null',
     'try {',
     '  Add-Type -AssemblyName System.Speech',
-    '  $culture = [System.Globalization.CultureInfo]::GetCultureInfo("en-US")',
-    '  $engine = New-Object System.Speech.Recognition.SpeechRecognitionEngine($culture)',
+    '  $requested = [System.Globalization.CultureInfo]::GetCultureInfo("' + requestedLanguage + '")',
+    '  $installed = [System.Speech.Recognition.SpeechRecognitionEngine]::InstalledRecognizers()',
+    '  $selected = $installed | Where-Object { $_.Culture.Name -eq $requested.Name } | Select-Object -First 1',
+    '  if (-not $selected) { $selected = $installed | Where-Object { $_.Culture.Name -eq "en-US" } | Select-Object -First 1 }',
+    '  if (-not $selected) { $selected = $installed | Where-Object { $_.Culture.TwoLetterISOLanguageName -eq "en" } | Select-Object -First 1 }',
+    '  if (-not $selected) { throw "No installed English Windows speech recognition engine. Install an English speech language pack or use text input." }',
+    '  $engine = [System.Speech.Recognition.SpeechRecognitionEngine]::new($selected)',
+    '  Write-Output ("SPEECH_LOCALE:" + $selected.Culture.Name)',
     '  $engine.LoadGrammar((New-Object System.Speech.Recognition.DictationGrammar))',
     '  $engine.SetInputToDefaultAudioDevice()',
     '  $result = $engine.Recognize([TimeSpan]::FromSeconds(' + timeoutSec + '))',
     '  if ($result -and $result.Text) {',
     '    $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($result.Text))',
     '    Write-Output ("SPEECH_RESULT_B64:" + $encoded)',
+    '    Write-Output ("SPEECH_CONFIDENCE:" + $result.Confidence.ToString("0.000", [System.Globalization.CultureInfo]::InvariantCulture))',
     '  } else { Write-Output "SPEECH_SILENCE" }',
     '} catch {',
     '  $reason = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($_.Exception.Message))',
@@ -34,7 +42,15 @@ function decodeResult(output) {
   const result = text.match(/(?:^|\r?\n)SPEECH_RESULT_B64:([A-Za-z0-9+/=]+)(?:\r?\n|$)/);
   if (result) {
     const words = Buffer.from(result[1], 'base64').toString('utf8').trim();
-    return words ? { success: true, text: words } : { success: true, silence: true, text: '' };
+    const locale = text.match(/(?:^|\r?\n)SPEECH_LOCALE:([a-z]{2}-[A-Z]{2})(?:\r?\n|$)/);
+    const confidence = text.match(/(?:^|\r?\n)SPEECH_CONFIDENCE:(0(?:\.\d+)?|1(?:\.0+)?)(?:\r?\n|$)/);
+    return words
+      ? {
+          success: true, text: words,
+          ...(locale ? { language: locale[1] } : {}),
+          ...(confidence ? { confidence: Number(confidence[1]) } : {})
+        }
+      : { success: true, silence: true, text: '' };
   }
   if (/(?:^|\r?\n)SPEECH_SILENCE(?:\r?\n|$)/.test(text)) {
     return { success: true, silence: true, text: '' };
@@ -53,16 +69,19 @@ class NativeSpeechRecognizer {
     this.activeRequest = null;
   }
 
-  recognizeOnce(timeoutSec = 6) {
+  recognizeOnce(timeoutSec = 6, requestedLanguage = 'en-US') {
     if (!Number.isInteger(timeoutSec) || timeoutSec < 1 || timeoutSec > 15) {
       return Promise.resolve({ success: false, error: 'Speech timeout must be between 1 and 15 seconds.' });
+    }
+    if (!SUPPORTED_LANGUAGES.includes(requestedLanguage)) {
+      return Promise.resolve({ success: false, error: 'Unsupported recognition language.' });
     }
     if (this.activeRequest) {
       return Promise.resolve({ success: false, error: 'Voice recognition is already listening.' });
     }
 
     return new Promise(resolve => {
-      const script = buildRecognitionScript(timeoutSec);
+      const script = buildRecognitionScript(timeoutSec, requestedLanguage);
       const encoded = Buffer.from(script, 'utf16le').toString('base64');
       let child;
       try {
@@ -136,3 +155,4 @@ class NativeSpeechRecognizer {
 module.exports = new NativeSpeechRecognizer();
 module.exports.NativeSpeechRecognizer = NativeSpeechRecognizer;
 module.exports.buildRecognitionScript = buildRecognitionScript;
+module.exports.SUPPORTED_LANGUAGES = SUPPORTED_LANGUAGES;
