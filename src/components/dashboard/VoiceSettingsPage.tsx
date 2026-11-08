@@ -18,6 +18,8 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
   const micAudioCtxRef = React.useRef<AudioContext | null>(null);
   const micRequestRef = React.useRef(0);
   const [micError, setMicError] = useState<string | null>(null);
+  const [testingRecognition, setTestingRecognition] = useState(false);
+  const [recognitionFeedback, setRecognitionFeedback] = useState('');
 
   useEffect(() => {
     const loadVoices = () => {
@@ -38,6 +40,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
         window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
       }
       speechService.stopSpeaking();
+      speechService.stopListening();
     };
   }, []);
 
@@ -94,6 +97,38 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
       micAudioCtxRef.current = null;
       micStreamRef.current = null;
     }
+  };
+
+  const handleRecognitionTest = () => {
+    if (testingRecognition) {
+      speechService.stopListening();
+      setTestingRecognition(false);
+      setRecognitionFeedback('Recognition test stopped.');
+      return;
+    }
+    setTestingRecognition(true);
+    setRecognitionFeedback('Listening for a short phrase…');
+    void speechService.startListening(
+      interim => setRecognitionFeedback(interim),
+      (text, details) => {
+        setTestingRecognition(false);
+        const language = details?.language ? ' (' + details.language + ')' : '';
+        const confidence = typeof details?.confidence === 'number'
+          ? ' · confidence ' + Math.round(details.confidence * 100) + '%'
+          : '';
+        setRecognitionFeedback('Recognized' + language + ': "' + text + '"' + confidence);
+      },
+      error => {
+        setTestingRecognition(false);
+        setRecognitionFeedback(error);
+      },
+      undefined,
+      () => {
+        setTestingRecognition(false);
+        setRecognitionFeedback('No words recognized. Check your microphone or Windows speech language pack.');
+      },
+      settings.voice.recognitionLanguage || 'en-IN'
+    );
   };
 
   const handleTestVoice = () => {
@@ -188,6 +223,22 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
             Its transcript is shown for correction before a command runs. Continuous wake-word detection is not available.
             Speech recognition in browser previews may depend on the browser's online speech service.
           </p>
+
+          <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-3.5 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold text-slate-800">Test Speech Recognition</p>
+                <p className="text-[11px] text-slate-600">Shows actual transcript, locale and confidence where supported</p>
+              </div>
+              <button type="button" onClick={handleRecognitionTest}
+                className="shrink-0 rounded-lg bg-sky-600 px-3 py-2 text-xs font-bold text-white hover:bg-sky-700">
+                {testingRecognition ? 'Stop' : 'Try Dictation'}
+              </button>
+            </div>
+            <p role="status" aria-live="polite" className="min-h-5 text-xs text-slate-700 break-words">
+              {recognitionFeedback || 'Speak a simple command, such as “Open YouTube”. Nothing will run.'}
+            </p>
+          </div>
 
           {/* Test Live Microphone Meter */}
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
