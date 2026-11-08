@@ -58,21 +58,20 @@ jobs:
         run: npm ci
       - name: Build production assets
         run: npm run build
-      - name: Package preview installer and portable application
-        run: npx electron-builder --win --${{ matrix.arch }} --publish never
-      - name: Generate SHA-256 checksums
+      - name: Package installer only
+        run: npx electron-builder --win nsis --${{ matrix.arch }} --publish never
+      - name: Show installer SHA-256 in the workflow summary
         shell: pwsh
         run: |
-          Get-ChildItem release -Filter '*.exe' | Get-FileHash -Algorithm SHA256 | ForEach-Object {
-            "$($_.Hash.ToLowerInvariant())  $([System.IO.Path]::GetFileName($_.Path))"
-          } | Set-Content "release/SHA256SUMS-${{ matrix.arch }}.txt"
-      - name: Upload unsigned Windows preview
+          $file = Get-ChildItem release -Filter 'Companio-Setup-*.exe' | Select-Object -First 1
+          if (-not $file) { throw "Installer not found" }
+          $hash = (Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "Companio ${{ matrix.arch }} installer: `$($file.Name)`" | Out-File $env:GITHUB_STEP_SUMMARY -Append
+          "SHA-256: `$hash`" | Out-File $env:GITHUB_STEP_SUMMARY -Append
+      - name: Upload clean installer ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: companio-${{ matrix.arch }}-${{ github.sha }}
-          path: |
-            release/*.exe
-            release/*.blockmap
-            release/SHA256SUMS-${{ matrix.arch }}.txt
+          name: Companio-${{ matrix.arch }}
+          path: release/Companio-Setup-*.exe
           if-no-files-found: error
           retention-days: 14
