@@ -42,7 +42,7 @@ const desktopAPI = {
   },
 
   // Native Speech
-  startNativeSpeech: (timeoutSec = 5) => ipcRenderer.invoke('start-native-speech', { timeoutSec }),
+  startNativeSpeech: (timeoutSec = 5, language = 'en-IN') => ipcRenderer.invoke('start-native-speech', { timeoutSec, language }),
   cancelNativeSpeech: () => ipcRenderer.invoke('cancel-native-speech'),
 
   // Local inference (loopback-only, validated in Electron main process)
