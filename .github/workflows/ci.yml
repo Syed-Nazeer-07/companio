@@ -31,6 +31,9 @@ jobs:
         run: npm run test:unit
       - name: Typecheck and production bundle
         run: npm run build
+      - name: Regenerate multi-resolution Windows icons
+        shell: pwsh
+        run: ./scripts/generate-icon.ps1
       - name: Package the actual Windows x64 app for smoke testing
         run: npx electron-builder --win --x64 --dir --publish never
       - name: Smoke test packaged Electron UI and IPC
@@ -58,6 +61,9 @@ jobs:
         run: npm ci
       - name: Build production assets
         run: npm run build
+      - name: Regenerate multi-resolution Windows icons
+        shell: pwsh
+        run: ./scripts/generate-icon.ps1
       - name: Package installer only
         run: npx electron-builder --win nsis --${{ matrix.arch }} --publish never
       - name: Show installer SHA-256 in the workflow summary
