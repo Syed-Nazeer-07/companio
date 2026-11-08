@@ -141,7 +141,7 @@ This preview adds a **single validated local AI path** for Ollama and LM Studio,
 | **System tools** | Node.js, PowerShell, Windows APIs | Application launching, system controls, screenshots |
 | **Speech** | Windows System.Speech + Web Speech APIs | One-shot native STT, browser fallback in web preview, system text-to-speech |
 | **Storage** | Electron user-data JSON, localStorage, sql.js | Atomic native history file, browser cache, and experimental in-memory SQL |
-| **Alternative prototype** | Tauri / Rust source | Experimental shell, not the main release path |
+| **Windows packaging** | Electron Builder / NSIS | One installer per CPU architecture; portable build is an optional developer command |
 
 ## 🏗️ Architecture
 
@@ -245,7 +245,7 @@ Electron Builder writes the output under `release/`. Generated filenames depend 
 
 ### 5. GitHub Releases
 
-The repository includes [`release.yml`](.github/workflows/release.yml), which is configured to build Windows x64/ARM64 artifacts when a `v*` tag is pushed, then publish a GitHub Release. The existing [v1.0.0 release](https://github.com/Syed-Nazeer-07/companio/releases/tag/v1.0.0) was built **before Phase 1**. The **v1.1.0-rc.8** candidate produces separate unsigned x64 and ARM64 CI artifacts only after its Windows checks pass; these are not public signed releases. View [Actions](https://github.com/Syed-Nazeer-07/companio/actions/workflows/ci.yml), open the matching successful release-candidate workflow run, and download your architecture's artifact. Artifacts expire after 14 days. They contain installers, portable executables, and SHA-256 checksums. Tagged releases also require a matching package version and passing x64 desktop smoke test. Workflow presence does **not** guarantee that a particular release build has passed or that an installer has been published.
+The repository includes [`release.yml`](.github/workflows/release.yml), which is configured to build Windows x64/ARM64 artifacts when a `v*` tag is pushed, then publish a GitHub Release. The existing [v1.0.0 release](https://github.com/Syed-Nazeer-07/companio/releases/tag/v1.0.0) was built **before Phase 1**. The **v1.1.0-rc.11** candidate produces separate unsigned x64 and ARM64 CI artifacts only after its Windows checks pass; these are not public signed releases. View [Actions](https://github.com/Syed-Nazeer-07/companio/actions/workflows/ci.yml), open the matching successful release-candidate workflow run, and download your architecture's artifact. Artifacts expire after 14 days. New preview ZIPs contain **only one architecture-specific setup executable** (`Companio-Setup-<version>-arm64.exe` or `-x64.exe`). Checksums are printed in the GitHub Actions summary; the portable app remains an explicit local developer build. Older preview ZIPs and the historical v1.0.0 GitHub Release retain their original contents. Tagged releases also require a matching package version and passing x64 desktop smoke test. Workflow presence does **not** guarantee that a particular release build has passed or that an installer has been published.
 
 ## 📁 Project Structure
 
@@ -264,7 +264,6 @@ companio/
 │   ├── services/               # Planner, speech, bridge and local data
 │   ├── types/
 │   └── App.tsx
-├── src-tauri/                  # Experimental alternate shell
 ├── test/
 │   └── test-automation.cjs     # Native automation scenarios
 ├── .github/workflows/
@@ -414,6 +413,14 @@ Shortcut changes are applied to the native global hotkey, always-on-top and edge
 The prior state is preserved in [`rollback/pre-phase1-2026-11-07`](https://github.com/Syed-Nazeer-07/companio/tree/rollback/pre-phase1-2026-11-07). The pre-local-AI baseline is additionally saved as [`rollback/pre-local-ai-2026-11-08`](https://github.com/Syed-Nazeer-07/companio/tree/rollback/pre-local-ai-2026-11-08).
 
 **Not yet verified:** real-device microphone permission behavior, YouTube site changes, interactive Windows automation, model downloads, and ARM64 installer runtime compatibility.
+
+### Windows installer and branding notes
+
+The setup executable ships with Companio's Windows icon, while the desktop window, system tray, Control Center and favicon use the matching app branding. Packaging now regenerates the icon assets as multiple Windows-compatible resolutions; the old icon script's machine-specific output path has been removed.
+
+A **Microsoft Defender SmartScreen 'unrecognized app' warning** can still appear because preview installers are **unsigned**. This is Windows reputation protection, not an in-app permission screen. Companio does not bypass Windows security warnings or turn off antivirus. Code signing and reputation are needed for normal public distribution.
+
+**Action reviews:** an explicitly requested, low-risk single launch such as `Open YouTube` should run without a second confirmation. Multi-step plans and higher-risk model-proposed actions still require review. Windows itself may request microphone access as appropriate. Existing users normally keep their completed onboarding state after upgrading; use **Help & Docs → Rerun Setup Wizard** to view the first-run flow again.
 
 ## ⚠️ Known Limitations
 
