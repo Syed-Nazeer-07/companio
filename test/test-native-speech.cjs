@@ -92,3 +92,30 @@ test('child process failures settle a single time', async () => {
   assert.equal(result.success,false);
   assert.match(result.error,/microphone unavailable/);
 });
+
+test('native recognizer chooses installed English locale and exposes confidence when Windows reports it', async () => {
+  let script;
+  const child=fakeChild();
+  const recognizer=new NativeSpeechRecognizer((_command,args)=>{
+    script=Buffer.from(args[args.indexOf('-EncodedCommand')+1],'base64').toString('utf16le');
+    return child;
+  });
+  const pending=recognizer.recognizeOnce(6,'en-IN');
+  assert.match(script,/InstalledRecognizers/);
+  assert.match(script,/GetCultureInfo\("en-IN"\)/);
+  assert.match(script,/SPEECH_CONFIDENCE/);
+  process.nextTick(()=>{
+    child.stdout.write('SPEECH_LOCALE:en-US\nSPEECH_RESULT_B64:'+encoded('Open YouTube')+'\nSPEECH_CONFIDENCE:0.480\n');
+    child.emit('close',0);
+  });
+  assert.deepEqual(await pending,{success:true,text:'Open YouTube',language:'en-US',confidence:0.48});
+});
+
+test('native speech rejects untrusted locale before creating PowerShell', async () => {
+  let spawned=false;
+  const recognizer=new NativeSpeechRecognizer(()=>{spawned=true;throw Error('unexpected')});
+  const result=await recognizer.recognizeOnce(6,'en-US"; Remove-Item C:\\');
+  assert.equal(result.success,false);
+  assert.match(result.error,/Unsupported recognition language/);
+  assert.equal(spawned,false);
+});
