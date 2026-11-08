@@ -5,8 +5,9 @@ const { safeHttpUrl } = require('./requestValidation.cjs');
 // The OS chooses the browser; a successful openExternal promise verifies only
 // that Windows accepted the request. It does not verify page content or login.
 class DefaultBrowserController {
-  constructor(shellImpl) {
+  constructor(shellImpl, { handoffTimeoutMs = 8000 } = {}) {
     this.shell = shellImpl;
+    this.handoffTimeoutMs = handoffTimeoutMs;
   }
 
   async open(url, description = 'website') {
@@ -15,7 +16,22 @@ class DefaultBrowserController {
       if (!this.shell || typeof this.shell.openExternal !== 'function') {
         throw new Error('Windows default-browser handoff is unavailable.');
       }
-      await this.shell.openExternal(destination, { activate: true });
+      // Windows shell.openExternal normally settles quickly, but a stalled
+      // browser association or shell must not leave Companio thinking forever.
+      // Timing out is NOT proof that a browser did not eventually open.
+      let timer;
+      try {
+        await Promise.race([
+          Promise.resolve().then(() => this.shell.openExternal(destination, { activate: true })),
+          new Promise((_, reject) => {
+            timer = setTimeout(() => reject(new Error(
+              'Windows did not acknowledge the browser request in time. The website may still open; check your browser before trying again.'
+            )), this.handoffTimeoutMs);
+          })
+        ]);
+      } finally {
+        clearTimeout(timer);
+      }
       return {
         success: true,
         verified: true,

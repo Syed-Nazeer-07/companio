@@ -43,3 +43,14 @@ test('invalid URLs and failed shell calls cannot report success',async()=>{
   assert.match(unavailable.error,/No browser registered/);
   assert.equal(calls,1);
 });
+
+test('an unresponsive Windows browser association times out without false success',async()=>{
+  const browser=new DefaultBrowserController({
+    openExternal:()=>new Promise(()=>{})
+  },{handoffTimeoutMs:20});
+  const result=await browser.open('https://example.com');
+  assert.equal(result.success,false);
+  assert.equal(result.verified,false);
+  assert.equal(result.handoffOnly,false);
+  assert.match(result.error,/may still open/);
+});
