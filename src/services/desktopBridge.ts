@@ -28,6 +28,9 @@ interface CompanioDesktopAPI {
   chooseWhisperFile?: (kind:'binary'|'model') => Promise<{success:boolean; cancelled?:boolean; configured?:boolean; error?:string}>;
   transcribeWithWhisper?: (wav:Uint8Array) => Promise<{success:boolean; text?:string; silence?:boolean; cancelled?:boolean; language?:string; error?:string}>;
   cancelWhisper?: () => Promise<{success:boolean;cancelled:boolean}>;
+  downloadWhisperModel?: () => Promise<{success:boolean;configured?:boolean;reused?:boolean;error?:string}>;
+  cancelWhisperModelDownload?: () => Promise<{success:boolean;cancelled:boolean}>;
+  onWhisperModelProgress?: (callback:(progress:{received:number;total:number;percent:number})=>void) => () => void;
   onStateUpdate: (callback: (state: any) => void) => () => void;
   sendStateUpdate: (state: any) => void;
   listLocalAiModels?: (options: { endpoint?: string }) => Promise<{ success: boolean; models: string[]; error?: string }>;
@@ -270,6 +273,20 @@ export const desktopBridge = {
   async cancelWhisper() {
     const api = getDesktopAPI();
     return api?.cancelWhisper ? await api.cancelWhisper() : {success:false,cancelled:false};
+  },
+  async downloadWhisperModel() {
+    const api=getDesktopAPI();
+    return api?.downloadWhisperModel ? await api.downloadWhisperModel()
+      : {success:false,error:'Model download requires the Windows desktop app.'};
+  },
+  async cancelWhisperModelDownload() {
+    const api=getDesktopAPI();
+    return api?.cancelWhisperModelDownload ? await api.cancelWhisperModelDownload()
+      : {success:false,cancelled:false};
+  },
+  onWhisperModelProgress(callback:(progress:{received:number;total:number;percent:number})=>void) {
+    const api=getDesktopAPI();
+    return api?.onWhisperModelProgress ? api.onWhisperModelProgress(callback) : () => {};
   },
 
   sendStateUpdate(state: any) {

@@ -51,6 +51,13 @@ const desktopAPI = {
   chooseWhisperFile: (kind) => ipcRenderer.invoke('whisper-choose-file', kind),
   transcribeWithWhisper: (wav) => ipcRenderer.invoke('whisper-transcribe', wav),
   cancelWhisper: () => ipcRenderer.invoke('whisper-cancel'),
+  downloadWhisperModel: () => ipcRenderer.invoke('whisper-download-model'),
+  cancelWhisperModelDownload: () => ipcRenderer.invoke('whisper-cancel-download'),
+  onWhisperModelProgress: (callback) => {
+    const handler = (_event, progress) => callback(progress);
+    ipcRenderer.on('whisper-model-progress',handler);
+    return () => ipcRenderer.removeListener('whisper-model-progress',handler);
+  },
 
   // Local inference (loopback-only, validated in Electron main process)
   listLocalAiModels: (options) => ipcRenderer.invoke('local-ai-models', options),
