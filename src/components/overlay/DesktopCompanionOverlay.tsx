@@ -444,12 +444,21 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Floating Interactive Character Area */}
-      <div className="relative flex items-center justify-center">
+      {/* Persistent drag handle: never hide it on hover, and keep it in
+          normal document flow so the pointer cannot fall through a gap. */}
+      <div className="relative flex flex-col items-center justify-center">
+        <div
+          className="app-drag-region mb-2 flex h-8 min-w-[125px] items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white/95 px-3 text-[11px] font-semibold text-slate-700 shadow-sm cursor-grab select-none"
+          title="Hold and drag to move Companio"
+          aria-label="Drag to move Companio around your desktop"
+        >
+          <GripHorizontal className="w-3.5 h-3.5 pointer-events-none" />
+          <span className="pointer-events-none">Move Companio</span>
+        </div>
         {/* The Companion Character */}
-        <div 
+        <div
           onClick={handleCharacterTouch}
-          className={`relative group cursor-pointer transition-all duration-300 app-no-drag ${
+          className={`relative cursor-pointer transition-all duration-300 app-no-drag ${
             isPetted ? 'scale-110 -rotate-3' : 'hover:scale-105'
           }`}
           title="Click to interact with Companio!"
@@ -461,14 +470,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
             audioLevel={audioLevel}
           />
 
-          {/* Drag Handle on Hover */}
-          <div 
-            className="absolute -top-3 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur px-2.5 py-0.5 rounded-full border border-slate-200 shadow-sm flex items-center gap-1 text-[10px] text-slate-600 font-medium app-drag-region cursor-grab"
-            title="Drag to reposition character"
-          >
-            <GripHorizontal className="w-3 h-3 text-slate-400" />
-            <span>Move</span>
-          </div>
+
         </div>
 
         {/* Visible Floating Circle Action Button on the Right Side */}
