@@ -66,8 +66,8 @@ jobs:
           $file = Get-ChildItem release -Filter 'Companio-Setup-*.exe' | Select-Object -First 1
           if (-not $file) { throw "Installer not found" }
           $hash = (Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-          "Companio ${{ matrix.arch }} installer: `$($file.Name)`" | Out-File $env:GITHUB_STEP_SUMMARY -Append
-          "SHA-256: `$hash`" | Out-File $env:GITHUB_STEP_SUMMARY -Append
+          "Companio ${{ matrix.arch }} installer: $($file.Name)" | Out-File $env:GITHUB_STEP_SUMMARY -Append
+          "SHA-256: $hash" | Out-File $env:GITHUB_STEP_SUMMARY -Append
       - name: Upload clean installer ZIP
         uses: actions/upload-artifact@v4
         with:
