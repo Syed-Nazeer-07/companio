@@ -47,6 +47,10 @@ const desktopAPI = {
   // Native Speech
   startNativeSpeech: (timeoutSec = 5, language = 'en-IN') => ipcRenderer.invoke('start-native-speech', { timeoutSec, language }),
   cancelNativeSpeech: () => ipcRenderer.invoke('cancel-native-speech'),
+  getWhisperStatus: () => ipcRenderer.invoke('whisper-status'),
+  chooseWhisperFile: (kind) => ipcRenderer.invoke('whisper-choose-file', kind),
+  transcribeWithWhisper: (wav) => ipcRenderer.invoke('whisper-transcribe', wav),
+  cancelWhisper: () => ipcRenderer.invoke('whisper-cancel'),
 
   // Local inference (loopback-only, validated in Electron main process)
   listLocalAiModels: (options) => ipcRenderer.invoke('local-ai-models', options),

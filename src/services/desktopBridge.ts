@@ -24,6 +24,10 @@ interface CompanioDesktopAPI {
   onGlobalShortcutDismiss?: (callback: () => void) => () => void;
   startNativeSpeech?: (timeoutSec?: number, language?: string) => Promise<{ success: boolean; text?: string; confidence?: number; language?: string; alternatives?: string[]; silence?: boolean; cancelled?: boolean; error?: string }>;
   cancelNativeSpeech?: () => Promise<any>;
+  getWhisperStatus?: () => Promise<{supported:boolean; configured:boolean; busy:boolean; executable:string|null; model:string|null; message:string}>;
+  chooseWhisperFile?: (kind:'binary'|'model') => Promise<{success:boolean; cancelled?:boolean; configured?:boolean; error?:string}>;
+  transcribeWithWhisper?: (wav:Uint8Array) => Promise<{success:boolean; text?:string; silence?:boolean; cancelled?:boolean; language?:string; error?:string}>;
+  cancelWhisper?: () => Promise<{success:boolean;cancelled:boolean}>;
   onStateUpdate: (callback: (state: any) => void) => () => void;
   sendStateUpdate: (state: any) => void;
   listLocalAiModels?: (options: { endpoint?: string }) => Promise<{ success: boolean; models: string[]; error?: string }>;
@@ -245,10 +249,27 @@ export const desktopBridge = {
 
   async cancelNativeSpeech() {
     const api = getDesktopAPI();
-    if (api?.cancelNativeSpeech) {
-      return await api.cancelNativeSpeech();
-    }
+    if (api?.cancelNativeSpeech) return await api.cancelNativeSpeech();
     return { success: false, error: 'Native speech cancellation requires the desktop app.' };
+  },
+  async getWhisperStatus() {
+    const api = getDesktopAPI();
+    return api?.getWhisperStatus ? await api.getWhisperStatus() :
+      { supported:false, configured:false, busy:false, executable:null, model:null, message:'Local Whisper requires the Windows desktop app.' };
+  },
+  async chooseWhisperFile(kind: 'binary' | 'model') {
+    const api = getDesktopAPI();
+    return api?.chooseWhisperFile ? await api.chooseWhisperFile(kind) :
+      {success:false,error:'Local Whisper setup requires the Windows desktop app.'};
+  },
+  async transcribeWithWhisper(wav:Uint8Array) {
+    const api = getDesktopAPI();
+    return api?.transcribeWithWhisper ? await api.transcribeWithWhisper(wav) :
+      {success:false,error:'Local Whisper requires the Windows desktop app.'};
+  },
+  async cancelWhisper() {
+    const api = getDesktopAPI();
+    return api?.cancelWhisper ? await api.cancelWhisper() : {success:false,cancelled:false};
   },
 
   sendStateUpdate(state: any) {

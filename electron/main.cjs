@@ -11,6 +11,7 @@ const winAppsController = require('./automation/winAppsController.cjs');
 const volumeController = require('./automation/volumeController.cjs');
 const modelDownloader = require('./automation/modelDownloader.cjs');
 const nativeSpeech = require('./automation/nativeSpeech.cjs');
+const { WhisperSpeechController } = require('./automation/whisperSpeech.cjs');
 const localAiController = require('./automation/localAiController.cjs');
 const localActionPlanner = require('./automation/localActionPlanner.cjs');
 const historyBackupController = require('./automation/historyBackupController.cjs');
@@ -34,6 +35,7 @@ const nativeHistoryStore = new NativeHistoryStore(path.join(app.getPath('userDat
 browserController.configureProfileDirectory(path.join(app.getPath('userData'), 'controlled_edge_profile'));
 const defaultBrowser = new DefaultBrowserController(shell);
 const startupController = createStartupController(app, { smokeTest: SMOKE_TEST });
+const whisperSpeech = new WhisperSpeechController({ userData: app.getPath('userData') });
 
 function loadSavedPosition() {
   try {
@@ -656,8 +658,28 @@ secureHandle('start-native-speech', async (_, { timeoutSec = 5, language = 'en-I
 
 secureHandle('cancel-native-speech', () => {
   nativeSpeech.cancel();
+  whisperSpeech.cancel();
   return { success: true };
 });
+
+// Whisper.cpp is optional, offline and user-selected; no executable path is
+// accepted from an untrusted renderer transcription request.
+secureHandle('whisper-status', () => whisperSpeech.status());
+secureHandle('whisper-choose-file', async (event, kind) => {
+  if (!['binary', 'model'].includes(kind)) return { success: false, error: 'Unknown file selection.' };
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showOpenDialog(win, {
+    title: kind === 'binary' ? 'Choose whisper-cli.exe (official whisper.cpp build)' : 'Choose a ggml Whisper speech model',
+    properties: ['openFile'],
+    filters: kind === 'binary'
+      ? [{ name: 'whisper.cpp CLI', extensions: ['exe'] }]
+      : [{ name: 'Whisper GGML model', extensions: ['bin'] }]
+  });
+  if (result.canceled || !result.filePaths?.length) return { success: false, cancelled: true };
+  return whisperSpeech.choose(kind, result.filePaths[0]);
+});
+secureHandle('whisper-transcribe', (_event, wav) => whisperSpeech.transcribe(wav, 'en'));
+secureHandle('whisper-cancel', () => whisperSpeech.cancel());
 
 secureHandle('show-overlay', () => {
   if (overlayWindow) {
