@@ -62,17 +62,27 @@ Characters react with visual states such as **idle, listening, thinking, talking
 
 ### 🖥️ Desktop presence
 
-Companio starts with a floating character overlay and can open a separate **Control Center**.
+Companio starts with a floating character overlay and can open a separate **Control Center**. You can drag the persistent **Move Companio** handle to reposition it, keep its location between sessions (including secondary monitors), summon it with the activation shortcut, or access controls from the Windows tray.
+
+### ✨ Character and interaction polish
+
+Six character styles now use quiet backgrounds instead of oversized blurred halos. Subtle idle, listening, thinking, celebration and wake-up animations reflect the real interaction state; Windows reduced-motion preferences are respected. Clicking the character opens the command bar. Another tap while it is open produces a brief character-specific reaction without confetti.
+
+The moon button puts Companio to sleep (stopping recognition and spoken replies); click the character, tap the sun or use the global shortcut to wake. Dismissal smoothly fades the overlay and hides its actual Electron window, without quitting the tray app.
+
+**Commands about Companio itself:** “Go to sleep”, “Wake up”, “Close Companio”, “Open Companio”, “Move left/right/up/down”, and “Move Companio a little right”. These use a strict local grammar, not arbitrary Windows commands. Directional moves are small and screen-bounded; drag the handle for precise placement. When the overlay is hidden, reactivate with the global shortcut or tray menu—there is no always-on microphone listener.
+
+**Voice & hands-free:** The default push-to-talk flow shows an editable transcript before sending. Voice Settings now provides an *opt-in* **Hands-free safe messages** switch: only high-confidence (85%+) conversational requests and the reversible Companio commands above auto-send. Browser, Windows-app and system actions still require transcript review. If confidence is unavailable, the app falls back to manual review.
+
 ### Start with Windows (optional)
 
 In the **installed Windows desktop app**, open **Control Center → Settings → Windows Startup** and enable **Launch Companio when I sign in**. This setting is **off by default**; it is not silently enabled by setup, updates, or first launch. When enabled, Windows starts Companio after the user signs in, showing the floating companion and system tray icon. Disabling it removes the login startup entry.
 
 This setting uses Electron's Windows login-item API and reads back the Windows state instead of trusting a cached checkbox. If Windows Startup Apps / Task Manager blocks the entry, the app reports that state. A browser preview, dev run, or test build cannot register startup. No extra Windows permission prompts or Administrator access are required for the normal per-user startup entry.
- You can move the overlay, retain its position, summon it with the keyboard shortcut, and access controls from the Windows system tray.
 
 ### 🎙️ Voice interaction
 
-Companio uses available **Web Speech APIs** for speech recognition and synthesis, with controls for voice, speaking rate, pitch, and volume. Microphone support varies by Windows configuration and Electron runtime. The wake-phrase setting is **not** a continuously listening system-wide hotword detector, and lip movement is approximate rather than phoneme-accurate.
+The installed desktop uses the available **Windows speech recognition engine** for one-shot dictation and Web Speech synthesis for spoken replies. Browser previews use available **Web Speech APIs**. Voice Settings includes controls for speech language, voice, speaking rate, pitch, and volume. Microphone support varies by Windows configuration and Electron runtime. The wake-phrase setting is **not** a continuously listening system-wide hotword detector, and lip movement is approximate rather than phoneme-accurate.
 
 ## 🧭 How It Works
 
@@ -89,13 +99,16 @@ Companio uses available **Web Speech APIs** for speech recognition and synthesis
 | “Open Calculator” | Launch Windows Calculator |
 | “Open my Downloads folder” | Open File Explorer at Downloads |
 | “Search Google for Python tutorials” | Search in the browser |
-| “Open YouTube” | Open YouTube in the controlled browser |
+| “Open YouTube” | Send YouTube to your default browser |
 | “Play a video from CarryMinati” | Search YouTube and attempt to open/play a matching result |
 | “Set the volume to 60%” | Change Windows master volume |
 | “Take a screenshot” | Capture a desktop screenshot |
 | “Open VS Code” | Launch Visual Studio Code, if installed |
 | “Open Notepad and set volume to 45%” | Offline two-step workflow; requires approval |
 | “Open YouTube and search Google for Python tutorials” | Offline browser workflow; requires approval |
+| “Go to sleep” | Sleep, mute recognition and minimize interaction |
+| “Move Companio a little right” | Shift the overlay right within the screen |
+| “Close Companio” | Fade out and hide the companion; keep the tray running |
 
 **Scope matters:** the built-in planner recognizes specific patterns and a small set of two- and three-step workflows, not every possible natural-language request. YouTube search results may not be the creator's newest upload; site layouts and browser state can affect automation.
 
