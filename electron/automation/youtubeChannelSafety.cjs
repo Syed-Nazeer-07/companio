@@ -25,4 +25,17 @@ function channelVideosUrl(link) {
   }
 }
 
-module.exports = { channelMatches, channelVideosUrl };
+function isYouTubeWatchUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' &&
+      ['youtube.com', 'www.youtube.com'].includes(url.hostname) &&
+      !url.username && !url.password &&
+      url.pathname === '/watch' &&
+      /^[A-Za-z0-9_-]{6,20}$/.test(url.searchParams.get('v') || '');
+  } catch {
+    return false;
+  }
+}
+
+module.exports = { channelMatches, channelVideosUrl, isYouTubeWatchUrl };
