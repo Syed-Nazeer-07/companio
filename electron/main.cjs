@@ -114,6 +114,7 @@ function createOverlayWindow() {
     y: posY,
     transparent: true,
     frame: false,
+    icon: path.join(__dirname, '../build/icon.ico'),
     alwaysOnTop: overlayPreferences.alwaysOnTop,
     skipTaskbar: true,
     resizable: false,
@@ -198,6 +199,7 @@ function createDashboardWindow() {
     minWidth: 920,
     minHeight: 640,
     title: 'Companio — Control Center',
+    icon: path.join(__dirname, '../build/icon.ico'),
     backgroundColor: '#f8fafc',
     autoHideMenuBar: true,
     webPreferences: {
@@ -217,14 +219,15 @@ function createDashboardWindow() {
 }
 
 function setupTray() {
-  // Create a minimal programmatic 16x16 icon
-  const iconBuffer = Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2NkIBIwEqmOgTpg1IBRA0b9N2DUfwzG//8zMPxnICf8J1IdA3XAqAGjBsADAL4sDgVb4lV+AAAAAElFTkSuQmCC',
-    'base64'
-  );
-  const trayIcon = nativeImage.createFromBuffer(iconBuffer);
-
-  tray = new Tray(trayIcon);
+  // Reuse the real packaged brand icon. The old embedded 16px placeholder
+  // rendered as a blank/generic icon on some Windows display scales.
+  const imagePath = path.join(__dirname, '../build/icon.png');
+  const trayIcon = nativeImage.createFromPath(imagePath);
+  if (trayIcon.isEmpty()) {
+    console.error('[Companio] Tray icon could not be loaded from', imagePath);
+    return;
+  }
+  tray = new Tray(trayIcon.resize({ width: 20, height: 20, quality: 'best' }));
   tray.setToolTip('Companio — Personal AI Companion');
 
   const contextMenu = Menu.buildFromTemplate([
@@ -628,6 +631,7 @@ secureHandle('show-overlay', () => {
 app.commandLine.appendSwitch('enable-speech-dispatcher');
 
 app.whenReady().then(async () => {
+  if (process.platform === 'win32') app.setAppUserModelId('com.companio.desktop');
   // Never grant camera, accessibility, Bluetooth or USB permissions automatically.
   if (session && session.defaultSession) {
     const trusted = (wc) => {
