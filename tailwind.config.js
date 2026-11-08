@@ -30,6 +30,9 @@ export default {
         'float': 'float 5.2s ease-in-out infinite',
         'companio-idle': 'companioIdle 5.2s ease-in-out infinite',
         'companio-celebrate': 'companioCelebrate 700ms cubic-bezier(0.2, 0.75, 0.25, 1) 1',
+        'companio-wake': 'companioWake 600ms cubic-bezier(.22,.78,.28,1) 1',
+        'companio-listen': 'companioListen 1.9s ease-in-out infinite',
+        'companio-think': 'companioThink 2.4s ease-in-out infinite',
         'spin-slow': 'spin 10s linear infinite',
         'glow': 'glow 2.5s ease-in-out infinite alternate',
         'ear-wiggle': 'earWiggle 3s ease-in-out infinite',
@@ -46,6 +49,19 @@ export default {
         companioIdle: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-3px)' },
+        },
+        companioWake: {
+          '0%': { transform: 'translateY(5px) scale(.96)', opacity: '.72' },
+          '55%': { transform: 'translateY(-7px) scale(1.02)', opacity: '1' },
+          '100%': { transform: 'translateY(0) scale(1)', opacity: '1' },
+        },
+        companioListen: {
+          '0%, 100%': { transform: 'translateY(0) scale(1)' },
+          '50%': { transform: 'translateY(-2px) scale(1.012)' },
+        },
+        companioThink: {
+          '0%, 100%': { transform: 'translateY(0) rotate(-1deg)' },
+          '50%': { transform: 'translateY(-2px) rotate(1deg)' },
         },
         companioCelebrate: {
           '0%, 100%': { transform: 'translateY(0) scale(1)' },

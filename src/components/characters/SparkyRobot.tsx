@@ -15,6 +15,7 @@ export const SparkyRobot: React.FC<Props> = ({ state, scale = 1, audioLevel = 0 
   const isThinking = state === 'thinking';
   const isSuccess = state === 'success';
   const isConfused = state === 'confused';
+  const isWaking = state === 'waking';
 
   return (
     <div 
@@ -26,7 +27,10 @@ export const SparkyRobot: React.FC<Props> = ({ state, scale = 1, audioLevel = 0 
         height="180" 
         viewBox="0 0 160 180" 
         className={`relative z-10 transition-all duration-300 drop-shadow-[0_8px_16px_rgba(0,0,0,0.12)] ${
-          isSuccess ? 'animate-companio-celebrate' : 
+          isSuccess ? 'animate-companio-celebrate' :
+          isWaking ? 'animate-companio-wake' :
+          isListening ? 'animate-companio-listen' :
+          isThinking ? 'animate-companio-think' : 
           isConfused ? 'rotate-[-8deg]' : 
           isSleeping ? 'opacity-85 translate-y-3' : 'animate-companio-idle'
         }`}

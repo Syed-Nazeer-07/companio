@@ -32,8 +32,10 @@ export const CharacterRenderer: React.FC<Props> = ({
           src={customAssetUrl} 
           alt="Custom Character" 
           className={`w-36 h-36 object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.2)] ${
-            state === 'success' ? 'animate-companio-celebrate' : 
-            state === 'thinking' ? 'animate-pulse' : 
+            state === 'success' ? 'animate-companio-celebrate' :
+            state === 'waking' ? 'animate-companio-wake' :
+            state === 'listening' ? 'animate-companio-listen' :
+            state === 'thinking' ? 'animate-companio-think' :
             state === 'sleeping' ? 'opacity-70' : 'animate-companio-idle'
           }`}
         />

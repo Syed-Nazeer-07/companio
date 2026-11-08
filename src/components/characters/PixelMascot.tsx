@@ -13,6 +13,7 @@ export const PixelMascot: React.FC<Props> = ({ state, scale = 1, audioLevel = 0 
   const isThinking = state === 'thinking';
   const isSuccess = state === 'success';
   const isConfused = state === 'confused';
+  const isWaking = state === 'waking';
   const isTalking = state === 'talking';
 
   return (
@@ -25,7 +26,10 @@ export const PixelMascot: React.FC<Props> = ({ state, scale = 1, audioLevel = 0 
         height="180" 
         viewBox="0 0 32 36" 
         className={`relative z-10 transition-all duration-200 ${
-          isSuccess ? 'animate-companio-celebrate' : 
+          isSuccess ? 'animate-companio-celebrate' :
+          isWaking ? 'animate-companio-wake' :
+          isListening ? 'animate-companio-listen' :
+          isThinking ? 'animate-companio-think' : 
           isConfused ? 'rotate-[-6deg]' : 
           isSleeping ? 'opacity-85 translate-y-1' : 'animate-companio-idle'
         }`}
