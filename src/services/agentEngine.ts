@@ -154,7 +154,18 @@ export class AgentEngine {
       });
     }
 
-    // 2. YouTube specific commands
+    // 2. YouTube specific commands. Exact CarryMinati "latest" requests
+    // use a verified channel feed and open in the user's default browser.
+    // This is a handoff only: do not claim that playback has started.
+    else if (/^(?:please\s+)?(?:play|watch|find|open)\s+(?:(?:the\s+)?(?:latest|newest|new)\s+(?:youtube\s+)?video\s+(?:from|by|of)\s+carryminati|carryminati(?:'s)?\s+(?:latest|newest|new)\s+(?:youtube\s+)?video|(?:the\s+)?(?:latest|newest|new)\s+carryminati\s+(?:youtube\s+)?video)[.!?]*$/i.test(query.trim())) {
+      intent = 'browser.youtube.latest_known';
+      steps.push({
+        id:'step_1',tool:'browser.youtube.latest_known',
+        description:'Open the newest public CarryMinati upload listed by the verified channel feed in the default browser',
+        params:{},status:'pending',
+        verification:'YouTube channel feed identity and Windows handoff only; playback not verified'
+      });
+    }
     else if (/^(?:please\s+)?(?:play|watch|find|open)\s+(?:the\s+)?(?:latest|newest|new)\s+(?:youtube\s+)?video\s+(?:from|by|of)\s+.{2,100}$/i.test(query.trim())) {
       const creator = query.trim().replace(/^(?:please\s+)?(?:play|watch|find|open)\s+(?:the\s+)?(?:latest|newest|new)\s+(?:youtube\s+)?video\s+(?:from|by|of)\s+/i, '').trim();
       intent = 'browser.youtube.creator_latest';

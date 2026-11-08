@@ -7,6 +7,7 @@ const { allowPermissionRequest, allowPermissionCheck, validVolume, validPosition
 
 const browserController = require('./automation/browserController.cjs');
 const { DefaultBrowserController } = require('./automation/defaultBrowserController.cjs');
+const { YoutubeFeedController } = require('./automation/youtubeFeedController.cjs');
 const winAppsController = require('./automation/winAppsController.cjs');
 const volumeController = require('./automation/volumeController.cjs');
 const modelDownloader = require('./automation/modelDownloader.cjs');
@@ -34,6 +35,7 @@ const CONFIG_PATH = path.join(app.getPath('userData'), 'companio_window_config.j
 const nativeHistoryStore = new NativeHistoryStore(path.join(app.getPath('userData'), 'companio_history_v1.json'));
 browserController.configureProfileDirectory(path.join(app.getPath('userData'), 'controlled_edge_profile'));
 const defaultBrowser = new DefaultBrowserController(shell);
+const youtubeFeed = new YoutubeFeedController({ browser: defaultBrowser });
 const startupController = createStartupController(app, { smokeTest: SMOKE_TEST });
 const whisperSpeech = new WhisperSpeechController({ userData: app.getPath('userData') });
 
@@ -336,6 +338,8 @@ secureHandle('execute-tool', async (event, payload) => {
       return await defaultBrowser.open('https://www.youtube.com', 'YouTube');
     case 'browser.youtube.search_and_play':
       return await browserController.searchAndPlayYouTube(params.creator, params.topic, params.latest === true);
+    case 'browser.youtube.latest_known':
+      return await youtubeFeed.openLatest('CarryMinati');
     case 'browser.youtube.control':
       return await browserController.controlYouTube(params.action);
     case 'browser.open_url':

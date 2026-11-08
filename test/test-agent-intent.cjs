@@ -85,7 +85,8 @@ test('a latest-video command requests creator-channel verification', async () =>
   assert.equal(latest.steps[0].params.creator,'Veritasium');
   assert.equal(latest.steps[0].params.latest,true);
   const carry=await engine.planTask('Play CarryMinati new video');
-  assert.equal(carry.steps[0].params.latest,true);
+  assert.equal(carry.steps[0].tool,'browser.youtube.latest_known');
+  assert.deepEqual(carry.steps[0].params,{});
 });
 
 test('normal site URLs and general web searches plan default browser actions without a model',async()=>{
@@ -137,4 +138,20 @@ test('official website discovery is explicitly a search, never a fabricated open
   assert.equal(p.steps.length,1);
   assert.equal(p.steps[0].tool,'browser.search_google');
   assert.equal(p.steps[0].params.query,'SpaceX official website');
+});
+
+test('exact creator latest video requests use verified default-browser handoff',async()=>{
+ for(const request of [
+  'Play CarryMinati new video',
+  'Open the latest video from CarryMinati',
+  'Watch CarryMinati latest video',
+  'Play latest CarryMinati video'
+ ]) {
+  const plan=await engine.planTask(request);
+  assert.equal(plan.steps.length,1,request);
+  assert.equal(plan.steps[0].tool,'browser.youtube.latest_known',request);
+  assert.match(plan.steps[0].verification,/playback not verified/i);
+ }
+ const other=await engine.planTask('Play the latest video from Veritasium');
+ assert.equal(other.steps[0].tool,'browser.youtube.search_and_play');
 });
