@@ -72,7 +72,9 @@ export class SpeechService {
       metadata?: { language?: string; confidence?: number }
     ) => {
       if (!active()) return;
-      this.stopListening();
+      // The recognizer already completed. Do not send a late IPC cancel that
+      // could race with the next fast push-to-talk session.
+      this.stopListening(false);
       if (kind === 'result' && detail?.trim()) onFinal(detail.trim(), metadata);
       else if (kind === 'error') onError(detail || 'Speech recognition did not start.');
       else onStop?.();
@@ -157,10 +159,11 @@ export class SpeechService {
     }
   }
 
-  stopListening(): void {
+  stopListening(cancelNative = true): void {
+    const wasListening = this.isListening;
     this.listenToken++;
     this.isListening = false;
-    if (isNativeDesktop()) {
+    if (cancelNative && wasListening && isNativeDesktop()) {
       void desktopBridge.cancelNativeSpeech().catch(() => {});
     }
     if (this.micInterval) {
