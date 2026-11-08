@@ -20,6 +20,9 @@ function buildRecognitionScript(timeoutSec, requestedLanguage = 'en-US') {
     '  if (-not $selected) { throw "No installed English Windows speech recognition engine. Install an English speech language pack or use text input." }',
     '  $engine = [System.Speech.Recognition.SpeechRecognitionEngine]::new($selected)',
     '  Write-Output ("SPEECH_LOCALE:" + $selected.Culture.Name)',
+    '  $engine.MaxAlternates = 5',
+    '  $engine.EndSilenceTimeout = [TimeSpan]::FromMilliseconds(500)',
+    '  $engine.EndSilenceTimeoutAmbiguous = [TimeSpan]::FromMilliseconds(900)',
     '  $engine.LoadGrammar((New-Object System.Speech.Recognition.DictationGrammar))',
     '  $engine.SetInputToDefaultAudioDevice()',
     '  $result = $engine.Recognize([TimeSpan]::FromSeconds(' + timeoutSec + '))',
@@ -27,6 +30,15 @@ function buildRecognitionScript(timeoutSec, requestedLanguage = 'en-US') {
     '    $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($result.Text))',
     '    Write-Output ("SPEECH_RESULT_B64:" + $encoded)',
     '    Write-Output ("SPEECH_CONFIDENCE:" + $result.Confidence.ToString("0.000", [System.Globalization.CultureInfo]::InvariantCulture))',
+    '    $seen = @($result.Text)',
+    '    foreach ($alternative in $result.Alternates) {',
+    '      if ($seen.Count -ge 4) { break }',
+    '      if ($null -ne $alternative -and -not [string]::IsNullOrWhiteSpace($alternative.Text) -and $alternative.Text.Length -le 400 -and $seen -notcontains $alternative.Text) {',
+    '        $seen += $alternative.Text',
+    '        $altB64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($alternative.Text))',
+    '        Write-Output ("SPEECH_ALTERNATE_B64:" + $altB64)',
+    '      }',
+    '    }',
     '  } else { Write-Output "SPEECH_SILENCE" }',
     '} catch {',
     '  $reason = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($_.Exception.Message))',
@@ -44,11 +56,25 @@ function decodeResult(output) {
     const words = Buffer.from(result[1], 'base64').toString('utf8').trim();
     const locale = text.match(/(?:^|\r?\n)SPEECH_LOCALE:([a-z]{2}-[A-Z]{2})(?:\r?\n|$)/);
     const confidence = text.match(/(?:^|\r?\n)SPEECH_CONFIDENCE:(0(?:\.\d+)?|1(?:\.0+)?)(?:\r?\n|$)/);
+    const alternatives = [];
+    const seen = new Set([words.toLocaleLowerCase('en')]);
+    const re = /(?:^|\r?\n)SPEECH_ALTERNATE_B64:([A-Za-z0-9+/=]+)(?=\r?\n|$)/g;
+    for (const match of text.matchAll(re)) {
+      try {
+        const phrase = Buffer.from(match[1], 'base64').toString('utf8').trim();
+        const normalized = phrase.toLocaleLowerCase('en');
+        if (!phrase || phrase.length > 400 || seen.has(normalized)) continue;
+        seen.add(normalized);
+        alternatives.push(phrase);
+        if (alternatives.length === 3) break;
+      } catch { /* Malformed alternatives cannot alter the primary transcript. */ }
+    }
     return words
       ? {
           success: true, text: words,
           ...(locale ? { language: locale[1] } : {}),
-          ...(confidence ? { confidence: Number(confidence[1]) } : {})
+          ...(confidence ? { confidence: Number(confidence[1]) } : {}),
+          ...(alternatives.length ? { alternatives } : {})
         }
       : { success: true, silence: true, text: '' };
   }

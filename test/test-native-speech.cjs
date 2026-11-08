@@ -119,3 +119,44 @@ test('native speech rejects untrusted locale before creating PowerShell', async 
   assert.match(result.error,/Unsupported recognition language/);
   assert.equal(spawned,false);
 });
+
+test('Windows speech returns bounded, distinct alternatives without changing primary text', async () => {
+  const child=fakeChild();
+  let script;
+  const recognizer=new NativeSpeechRecognizer((_cmd,args)=>{
+    script=Buffer.from(args[args.indexOf('-EncodedCommand')+1], 'base64').toString('utf16le');
+    return child;
+  });
+  const pending=recognizer.recognizeOnce(6,'en-IN');
+  assert.match(script,/EndSilenceTimeout = \[TimeSpan\]::FromMilliseconds\(500\)/);
+  assert.match(script,/MaxAlternates = 5/);
+  assert.match(script,/SPEECH_ALTERNATE_B64/);
+  process.nextTick(()=>{
+    child.stdout.write([
+      'SPEECH_LOCALE:en-US',
+      'SPEECH_RESULT_B64:'+encoded('Open Notepad'),
+      'SPEECH_CONFIDENCE:0.430',
+      'SPEECH_ALTERNATE_B64:'+encoded('Open note pad'),
+      'SPEECH_ALTERNATE_B64:'+encoded('Open Notepad'),
+      'SPEECH_ALTERNATE_B64:'+encoded('Open note pads'),
+      'SPEECH_ALTERNATE_B64:'+encoded('Open notes'),
+      'SPEECH_ALTERNATE_B64:'+encoded('Open note page')
+    ].join('\n')+'\n');
+    child.emit('close',0);
+  });
+  assert.deepEqual(await pending,{
+    success:true,text:'Open Notepad',language:'en-US',confidence:0.43,
+    alternatives:['Open note pad','Open note pads','Open notes']
+  });
+});
+
+test('malformed or empty alternate suggestions are ignored',async()=>{
+  const child=fakeChild();
+  const recognizer=new NativeSpeechRecognizer(()=>child);
+  const pending=recognizer.recognizeOnce();
+  process.nextTick(()=>{
+    child.stdout.write('SPEECH_RESULT_B64:'+encoded('Hello')+'\nSPEECH_ALTERNATE_B64:'+encoded('  ')+'\nSPEECH_ALTERNATE_B64:'+encoded('hello')+'\n');
+    child.emit('close',0);
+  });
+  assert.deepEqual(await pending,{success:true,text:'Hello'});
+});
