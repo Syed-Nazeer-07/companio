@@ -15,6 +15,7 @@ const {parseWebCommand}=moduleExports;
 test('arbitrary public domains and explicit web addresses are recognized',()=>{
   for(const input of [
     'Open example.com',
+    'Browse https://www.python.org',
     'Visit https://developer.mozilla.org/en-US/',
     'Please open www.youtube.com',
     'Go to github.com/Syed-Nazeer-07/companio',
