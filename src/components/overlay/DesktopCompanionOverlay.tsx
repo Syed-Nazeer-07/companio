@@ -32,6 +32,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
   const [isInputOpen, setIsInputOpen] = useState<boolean>(false);
   const [isListeningVoice, setIsListeningVoice] = useState<boolean>(false);
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
+  const [voiceAlternatives, setVoiceAlternatives] = useState<string[]>([]);
   const [audioLevel, setAudioLevel] = useState<number>(0);
   const [isSleeping, setIsSleeping] = useState<boolean>(false);
   const [isPetted, setIsPetted] = useState<boolean>(false);
@@ -87,6 +88,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     setIsListeningVoice(false);
     setIsInputOpen(false);
     setVoiceTranscript(null);
+    setVoiceAlternatives([]);
     setCharacterState(isSleeping ? 'sleeping' : 'idle');
     setBubbleText('');
     setAudioLevel(0);
@@ -195,6 +197,8 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       setBubbleText('Listening paused.');
     } else {
       setVoiceTranscript(null);
+      setVoiceAlternatives([]);
+      speechService.stopSpeaking();
       setIsListeningVoice(true);
       // ONLY set state to 'listening' when mic is actively turned on!
       setCharacterState('listening');
@@ -210,18 +214,19 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
           // An explicit opt-in may auto-send only clear conversation and
           // reversible Companio-only controls. Windows/browser actions still
           // require a visible, editable transcript and Send.
-          if (shouldAutoSubmitVoice(final, details?.confidence, settings.voice.autoSendSafeSpeech === true)) {
+          if (shouldAutoSubmitVoice(final, details?.confidence, settings.voice.autoSendSafeSpeech === true) && !details?.alternatives?.length) {
             setVoiceTranscript(null);
             void handleExecuteQuery(final);
             return;
           }
           setVoiceTranscript(final);
+          setVoiceAlternatives(details?.alternatives?.slice(0, 3) || []);
           setIsInputOpen(true);
           const source = details?.language ? ' (' + details.language + ')' : '';
           const uncertain = typeof details?.confidence === 'number' && details.confidence < 0.65
             ? ' Low recognition confidence; please correct any mistakes.'
             : '';
-          setBubbleText('Heard' + source + ': "' + final + '". Review and press Send.' + uncertain);
+          setBubbleText('Heard' + source + ': "' + final + '". Review or choose another match below, then Send.' + uncertain);
         },
         (err) => {
           setIsListeningVoice(false);
@@ -247,6 +252,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
 
   const handleExecuteQuery = async (query: string) => {
     setVoiceTranscript(null);
+    setVoiceAlternatives([]);
     clearTimeout(resetTimerRef.current);
     const companion = parseCompanionCommand(query);
     if (companion) {
@@ -456,6 +462,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     setAudioLevel(0);
     setActivePlan(null);
     setVoiceTranscript(null);
+    setVoiceAlternatives([]);
     setIsInputOpen(false);
     setIsSleeping(true);
     setCharacterState('sleeping');
@@ -487,6 +494,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
             onVoiceToggle={() => handleVoiceToggle()}
             isListening={isListeningVoice}
             voiceTranscript={voiceTranscript}
+            voiceAlternatives={voiceAlternatives}
             onOpenDashboard={onOpenDashboard}
             isSleeping={isSleeping}
             onToggleSleep={handleToggleSleep}

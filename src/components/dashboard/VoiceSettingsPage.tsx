@@ -20,6 +20,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
   const [micError, setMicError] = useState<string | null>(null);
   const [testingRecognition, setTestingRecognition] = useState(false);
   const [recognitionFeedback, setRecognitionFeedback] = useState('');
+  const [recognitionAlternatives, setRecognitionAlternatives] = useState<string[]>([]);
 
   useEffect(() => {
     const loadVoices = () => {
@@ -107,6 +108,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
       return;
     }
     setTestingRecognition(true);
+    setRecognitionAlternatives([]);
     setRecognitionFeedback('Listening for a short phrase…');
     void speechService.startListening(
       interim => setRecognitionFeedback(interim),
@@ -117,6 +119,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
           ? ' · confidence ' + Math.round(details.confidence * 100) + '%'
           : '';
         setRecognitionFeedback('Recognized' + language + ': "' + text + '"' + confidence);
+        setRecognitionAlternatives(details?.alternatives?.slice(0, 3) || []);
       },
       error => {
         setTestingRecognition(false);
@@ -255,6 +258,12 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
             <p role="status" aria-live="polite" className="min-h-5 text-xs text-slate-700 break-words">
               {recognitionFeedback || 'Speak a simple command, such as “Open YouTube”. Nothing will run.'}
             </p>
+            {recognitionAlternatives.length > 0 && (
+              <div className="text-[11px] text-slate-600">
+                <span className="font-semibold">Other possible matches: </span>
+                {recognitionAlternatives.join(' · ')}
+              </div>
+            )}
           </div>
 
           {/* Test Live Microphone Meter */}

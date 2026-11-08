@@ -56,7 +56,7 @@ export class SpeechService {
   // continuous offline wake-word detector.
   async startListening(
     onInterim: (text: string) => void,
-    onFinal: (text: string, details?: { language?: string; confidence?: number }) => void,
+    onFinal: (text: string, details?: { language?: string; confidence?: number; alternatives?: string[] }) => void,
     onError: (err: string) => void,
     onAudioLevel?: (level: number) => void,
     onStop?: () => void,
@@ -70,7 +70,7 @@ export class SpeechService {
     const complete = (
       kind: 'result' | 'silence' | 'error',
       detail?: string,
-      metadata?: { language?: string; confidence?: number }
+      metadata?: { language?: string; confidence?: number; alternatives?: string[] }
     ) => {
       if (!active()) return;
       // The recognizer already completed. Do not send a late IPC cancel that
@@ -89,7 +89,7 @@ export class SpeechService {
         const res = await desktopBridge.startNativeSpeech(6, recognitionLanguage);
         if (!active()) return; // Discard transcripts from cancelled sessions.
         if (res.success && res.text?.trim()) {
-          complete('result', res.text, { language: res.language, confidence: res.confidence });
+          complete('result', res.text, { language: res.language, confidence: res.confidence, alternatives: res.alternatives });
         }
         else if (res.silence || res.cancelled) complete('silence');
         else complete('error', res.error || 'Windows speech recognition was unavailable. Use text input.');

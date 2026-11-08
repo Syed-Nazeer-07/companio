@@ -168,3 +168,15 @@ test('browser dictation exposes real confidence where the engine supplies it',as
   assert.equal(received[0].metadata.confidence,0.92);
   assert.equal(received[0].metadata.language,'en-IN');
 });
+
+test('native voice alternatives are forwarded as editable hypotheses',async()=>{
+  const h=setup({native:true,listen:async()=>({
+    success:true,text:'Open note pad',language:'en-US',confidence:0.49,
+    alternatives:['Open Notepad','Open notes']
+  })});
+  let details;
+  await h.service.startListening(()=>{},(_text,meta)=>{details=meta;},()=>{});
+  assert.equal(details.confidence,0.49);
+  assert.deepEqual(details.alternatives,['Open Notepad','Open notes']);
+  assert.equal(h.api.cancels,0);
+});

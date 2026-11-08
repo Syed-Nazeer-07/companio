@@ -10,6 +10,7 @@ interface Props {
   onToggleSleep: () => void;
   onClose: () => void;
   voiceTranscript?: string | null;
+  voiceAlternatives?: string[];
 }
 
 export const CompactInput: React.FC<Props> = ({
@@ -20,15 +21,18 @@ export const CompactInput: React.FC<Props> = ({
   isSleeping,
   onToggleSleep,
   onClose,
-  voiceTranscript
+  voiceTranscript,
+  voiceAlternatives = []
 }) => {
   const [text, setText] = useState('');
+  const [showAlternatives, setShowAlternatives] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // A native transcription is only a draft, never authorization to run a
   // Windows command. The user can correct it before pressing Enter.
   useEffect(() => {
     if (voiceTranscript?.trim()) {
+      setShowAlternatives(true);
       setText(voiceTranscript.trim());
       inputRef.current?.focus();
       inputRef.current?.select();
@@ -117,6 +121,30 @@ export const CompactInput: React.FC<Props> = ({
         </button>
       </form>
 
+      {/* Alternative hypotheses are local to this recognized audio, not AI guesses. */}
+      {showAlternatives && voiceAlternatives.length > 0 && !isListening && (
+        <div className="mt-2 border-t border-slate-100 pt-2">
+          <p className="mb-1.5 text-[11px] text-slate-500">Other possible matches — select to correct</p>
+          <div className="flex max-h-20 flex-wrap gap-1.5 overflow-y-auto">
+            {voiceAlternatives.slice(0, 3).map((alternative, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={() => {
+                  setText(alternative);
+                  setShowAlternatives(false);
+                  inputRef.current?.focus();
+                  inputRef.current?.select();
+                }}
+                className="app-no-drag max-w-full truncate rounded-lg border border-sky-200 bg-sky-50 px-2 py-1 text-[11px] text-sky-800 hover:bg-sky-100"
+                title={alternative}
+              >
+                {alternative}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {/* Suggestions are quiet while composing or dictating. */}
       {!text.trim() && !isListening && <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-100 overflow-x-auto no-scrollbar">
         {suggestions.map((s, idx) => (
