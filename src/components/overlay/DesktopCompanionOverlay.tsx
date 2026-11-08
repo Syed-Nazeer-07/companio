@@ -308,15 +308,19 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       });
 
       if (finalPlan.status === 'completed') {
-        setCharacterState('success');
-        speechService.playChime('success');
-        confetti({
-          particleCount: 35,
-          spread: 60,
-          origin: { y: 0.85 }
-        });
+        const browserHandoffOnly = finalPlan.steps.length > 0 &&
+          finalPlan.steps.every(step => step.result?.handoffOnly === true);
+        setCharacterState(browserHandoffOnly ? 'idle' : 'success');
+        if (!browserHandoffOnly) {
+          speechService.playChime('success');
+          confetti({
+            particleCount: 35,
+            spread: 60,
+            origin: { y: 0.85 }
+          });
+        }
 
-        const successMsg = finalPlan.finalMessage || 'Done! Verified successfully ✨';
+        const successMsg = finalPlan.finalMessage || 'Task completed.';
         setBubbleText(successMsg);
         speakReply(successMsg);
 
