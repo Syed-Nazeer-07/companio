@@ -20,26 +20,14 @@ export const Mochi3D: React.FC<Props> = ({ state, scale = 1, audioLevel = 0 }) =
       className="relative flex items-center justify-center transition-transform duration-300 pointer-events-none select-none"
       style={{ transform: `scale(${scale})` }}
     >
-      {/* Soft Ambient Shadow & Glow */}
-      <div 
-        className={`absolute inset-0 rounded-full blur-2xl transition-all duration-500 opacity-60 ${
-          isThinking ? 'bg-amber-300 animate-pulse' :
-          isListening ? 'bg-emerald-300 scale-110' :
-          isSuccess ? 'bg-yellow-400 scale-125' :
-          isConfused ? 'bg-rose-400' :
-          isSleeping ? 'bg-slate-800 opacity-20' :
-          'bg-rose-300 opacity-50'
-        }`}
-      />
-
       <svg 
         width="160" 
         height="180" 
         viewBox="0 0 160 180" 
-        className={`relative z-10 transition-all duration-300 drop-shadow-[0_12px_24px_rgba(0,0,0,0.35)] ${
-          isSuccess ? 'animate-bounce' : 
+        className={`relative z-10 transition-all duration-300 drop-shadow-[0_12px_24px_rgba(0,0,0,0.12)] ${
+          isSuccess ? 'animate-companio-celebrate' : 
           isConfused ? 'rotate-[-8deg]' : 
-          isSleeping ? 'opacity-85 translate-y-3' : 'animate-float'
+          isSleeping ? 'opacity-85 translate-y-3' : 'animate-companio-idle'
         }`}
       >
         <defs>

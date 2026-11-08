@@ -27,7 +27,9 @@ export default {
       },
       animation: {
         'pulse-subtle': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'float': 'float 3.5s ease-in-out infinite',
+        'float': 'float 5.2s ease-in-out infinite',
+        'companio-idle': 'companioIdle 5.2s ease-in-out infinite',
+        'companio-celebrate': 'companioCelebrate 700ms cubic-bezier(0.2, 0.75, 0.25, 1) 1',
         'spin-slow': 'spin 10s linear infinite',
         'glow': 'glow 2.5s ease-in-out infinite alternate',
         'ear-wiggle': 'earWiggle 3s ease-in-out infinite',
@@ -39,7 +41,16 @@ export default {
       keyframes: {
         float: {
           '0%, 100%': { transform: 'translateY(0px)' },
-          '50%': { transform: 'translateY(-7px)' },
+          '50%': { transform: 'translateY(-3px)' },
+        },
+        companioIdle: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-3px)' },
+        },
+        companioCelebrate: {
+          '0%, 100%': { transform: 'translateY(0) scale(1)' },
+          '40%': { transform: 'translateY(-9px) scale(1.035)' },
+          '70%': { transform: 'translateY(-2px) scale(0.995)' },
         },
         glow: {
           '0%': { filter: 'drop-shadow(0 0 8px rgba(56, 189, 248, 0.3))' },

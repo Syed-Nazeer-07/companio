@@ -20,26 +20,14 @@ export const CloudieDream: React.FC<Props> = ({ state, scale = 1, audioLevel = 0
       className="relative flex items-center justify-center transition-transform duration-300 pointer-events-none select-none"
       style={{ transform: `scale(${scale})` }}
     >
-      {/* Soft Pastel Cloud Glow */}
-      <div 
-        className={`absolute inset-0 rounded-full blur-2xl transition-all duration-500 opacity-60 ${
-          isThinking ? 'bg-sky-300 animate-pulse' :
-          isListening ? 'bg-emerald-300 scale-110' :
-          isSuccess ? 'bg-yellow-300 scale-125' :
-          isConfused ? 'bg-rose-300' :
-          isSleeping ? 'bg-indigo-950 opacity-20' :
-          'bg-pink-300 opacity-50'
-        }`}
-      />
-
       <svg 
         width="170" 
         height="180" 
         viewBox="0 0 170 180" 
-        className={`relative z-10 transition-all duration-300 drop-shadow-[0_10px_20px_rgba(0,0,0,0.15)] ${
-          isSuccess ? 'animate-bounce' : 
+        className={`relative z-10 transition-all duration-300 drop-shadow-[0_10px_20px_rgba(0,0,0,0.12)] ${
+          isSuccess ? 'animate-companio-celebrate' : 
           isConfused ? 'rotate-[-8deg]' : 
-          isSleeping ? 'opacity-85 translate-y-3' : 'animate-float'
+          isSleeping ? 'opacity-85 translate-y-3' : 'animate-companio-idle'
         }`}
       >
         <defs>

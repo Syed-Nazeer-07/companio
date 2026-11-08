@@ -20,26 +20,14 @@ export const PixelMascot: React.FC<Props> = ({ state, scale = 1, audioLevel = 0 
       className="relative flex items-center justify-center transition-transform duration-300 pointer-events-none select-none"
       style={{ transform: `scale(${scale})` }}
     >
-      {/* 8-bit Glow */}
-      <div 
-        className={`absolute inset-0 rounded-2xl blur-xl transition-all duration-300 opacity-50 ${
-          isThinking ? 'bg-amber-400 animate-pulse' :
-          isListening ? 'bg-emerald-400' :
-          isSuccess ? 'bg-yellow-300' :
-          isConfused ? 'bg-red-500' :
-          isSleeping ? 'bg-indigo-950 opacity-20' :
-          'bg-orange-500'
-        }`}
-      />
-
       <svg 
         width="160" 
         height="180" 
         viewBox="0 0 32 36" 
         className={`relative z-10 transition-all duration-200 ${
-          isSuccess ? 'animate-bounce' : 
+          isSuccess ? 'animate-companio-celebrate' : 
           isConfused ? 'rotate-[-6deg]' : 
-          isSleeping ? 'opacity-85 translate-y-1' : 'animate-float'
+          isSleeping ? 'opacity-85 translate-y-1' : 'animate-companio-idle'
         }`}
         style={{ shapeRendering: 'crispEdges' }}
       >

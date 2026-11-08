@@ -21,26 +21,14 @@ export const SparkyRobot: React.FC<Props> = ({ state, scale = 1, audioLevel = 0 
       className="relative flex items-center justify-center transition-transform duration-300 pointer-events-none select-none"
       style={{ transform: `scale(${scale})` }}
     >
-      {/* Status aura glow */}
-      <div 
-        className={`absolute inset-0 rounded-full blur-2xl transition-all duration-500 opacity-60 ${
-          isThinking ? 'bg-cyan-400 animate-pulse' :
-          isListening ? 'bg-emerald-400 scale-110' :
-          isSuccess ? 'bg-amber-400 scale-125' :
-          isConfused ? 'bg-rose-400' :
-          isSleeping ? 'bg-indigo-900 opacity-20' :
-          'bg-sky-500 opacity-40'
-        }`}
-      />
-
       <svg 
         width="160" 
         height="180" 
         viewBox="0 0 160 180" 
-        className={`relative z-10 transition-all duration-300 drop-shadow-[0_8px_16px_rgba(0,0,0,0.5)] ${
-          isSuccess ? 'animate-bounce' : 
+        className={`relative z-10 transition-all duration-300 drop-shadow-[0_8px_16px_rgba(0,0,0,0.12)] ${
+          isSuccess ? 'animate-companio-celebrate' : 
           isConfused ? 'rotate-[-8deg]' : 
-          isSleeping ? 'opacity-85 translate-y-3' : 'animate-float'
+          isSleeping ? 'opacity-85 translate-y-3' : 'animate-companio-idle'
         }`}
       >
         <defs>

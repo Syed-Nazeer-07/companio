@@ -68,3 +68,21 @@ body {
 .app-no-drag {
   -webkit-app-region: no-drag;
 }
+
+/* Quiet desktop presence: no giant halos or background blooms. */
+.companio-overlay { transition: opacity 170ms ease, transform 170ms ease; }
+.companio-overlay--closing { opacity: 0; transform: translateY(6px) scale(.985); pointer-events: none; }
+.companio-speech, .companio-input { animation: companioPanelIn 210ms cubic-bezier(.2,.8,.2,1) both; }
+.companio-character { transition: filter 260ms ease, opacity 260ms ease; }
+.companio-character[data-state="sleeping"] { filter: saturate(.7) brightness(.92); }
+@keyframes companioPanelIn {
+  from { opacity: 0; transform: translateY(7px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .companio-overlay, .companio-speech, .companio-input,
+  .companio-character, .companio-character * {
+    animation: none !important;
+    transition-duration: .01ms !important;
+  }
+}

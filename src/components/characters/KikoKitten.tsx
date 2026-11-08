@@ -20,26 +20,14 @@ export const KikoKitten: React.FC<Props> = ({ state, scale = 1, audioLevel = 0 }
       className="relative flex items-center justify-center transition-transform duration-300 pointer-events-none select-none"
       style={{ transform: `scale(${scale})` }}
     >
-      {/* Warm Peach Aura Glow */}
-      <div 
-        className={`absolute inset-0 rounded-full blur-2xl transition-all duration-500 opacity-60 ${
-          isThinking ? 'bg-amber-300 animate-pulse' :
-          isListening ? 'bg-emerald-300 scale-110' :
-          isSuccess ? 'bg-pink-400 scale-125' :
-          isConfused ? 'bg-rose-300' :
-          isSleeping ? 'bg-indigo-950 opacity-20' :
-          'bg-orange-300 opacity-50'
-        }`}
-      />
-
       <svg 
         width="160" 
         height="180" 
         viewBox="0 0 160 180" 
-        className={`relative z-10 transition-all duration-300 drop-shadow-[0_10px_20px_rgba(0,0,0,0.15)] ${
-          isSuccess ? 'animate-happy-bounce' : 
+        className={`relative z-10 transition-all duration-300 drop-shadow-[0_10px_20px_rgba(0,0,0,0.12)] ${
+          isSuccess ? 'animate-companio-celebrate' : 
           isConfused ? 'rotate-[-6deg]' : 
-          isSleeping ? 'opacity-85 translate-y-3' : 'animate-float'
+          isSleeping ? 'opacity-85 translate-y-3' : 'animate-companio-idle'
         }`}
       >
         <defs>
