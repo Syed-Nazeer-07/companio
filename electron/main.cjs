@@ -28,6 +28,7 @@ if (SMOKE_TEST) app.disableHardwareAcceleration();
 // Position storage file
 const CONFIG_PATH = path.join(app.getPath('userData'), 'companio_window_config.json');
 const nativeHistoryStore = new NativeHistoryStore(path.join(app.getPath('userData'), 'companio_history_v1.json'));
+browserController.configureProfileDirectory(path.join(app.getPath('userData'), 'controlled_edge_profile'));
 
 function loadSavedPosition() {
   try {
