@@ -30,6 +30,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
   const approvalResolverRef = useRef<((approved: boolean) => void) | null>(null);
   const [isInputOpen, setIsInputOpen] = useState<boolean>(false);
   const [isListeningVoice, setIsListeningVoice] = useState<boolean>(false);
+  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
   const [audioLevel, setAudioLevel] = useState<number>(0);
   const [isSleeping, setIsSleeping] = useState<boolean>(false);
   const [isPetted, setIsPetted] = useState<boolean>(false);
@@ -195,6 +196,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       setAudioLevel(0);
       setBubbleText('Listening paused.');
     } else {
+      setVoiceTranscript(null);
       setIsListeningVoice(true);
       // ONLY set state to 'listening' when mic is actively turned on!
       setCharacterState('listening');
@@ -206,12 +208,17 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         (final) => {
           setIsListeningVoice(false);
           setAudioLevel(0);
-          handleExecuteQuery(final);
+          setCharacterState('idle');
+          // Never silently execute a possibly misheard native transcript.
+          setVoiceTranscript(final);
+          setIsInputOpen(true);
+          setBubbleText('I heard: "' + final + '". Check the text, then press Send.');
         },
         (err) => {
           setIsListeningVoice(false);
           setAudioLevel(0);
           setCharacterState('idle');
+          setIsInputOpen(true);
           setBubbleText(err);
         },
         (lvl) => {
@@ -228,6 +235,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
   };
 
   const handleExecuteQuery = async (query: string) => {
+    setVoiceTranscript(null);
     clearTimeout(resetTimerRef.current);
     setCharacterState('thinking');
     setBubbleText(`On it! Planning: "${query}" ✨`);
@@ -436,6 +444,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
             onSend={handleExecuteQuery}
             onVoiceToggle={handleVoiceToggle}
             isListening={isListeningVoice}
+            voiceTranscript={voiceTranscript}
             onOpenDashboard={onOpenDashboard}
             isSleeping={isSleeping}
             onToggleSleep={handleToggleSleep}
