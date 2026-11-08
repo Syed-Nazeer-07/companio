@@ -1,5 +1,4 @@
 import React, { useState, useLayoutEffect, useRef } from 'react';
-import confetti from 'canvas-confetti';
 import { AppSettings, CharacterState, TaskPlan } from '../../types';
 import { CharacterRenderer } from '../characters/CharacterRenderer';
 import { SpeechBubble } from './SpeechBubble';
@@ -10,7 +9,8 @@ import { speechService } from '../../services/speechService';
 import { desktopBridge, isNativeDesktop } from '../../services/desktopBridge';
 import { dbService } from '../../services/dbService';
 import { requiresActionReview } from '../../services/actionApprovalPolicy';
-import { GripHorizontal, MessageSquare, Mic, X } from 'lucide-react';
+import { GripHorizontal, MessageSquare, Moon, Sun, X } from 'lucide-react';
+import { parseCompanionCommand } from '../../services/companionCommands';
 
 interface Props {
   settings: AppSettings;
@@ -34,6 +34,9 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
   const [audioLevel, setAudioLevel] = useState<number>(0);
   const [isSleeping, setIsSleeping] = useState<boolean>(false);
   const [isPetted, setIsPetted] = useState<boolean>(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reactionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const resetTimerRef = useRef<any>(null);
   // Keep native shortcut handlers registered once. Ref callbacks always use the
@@ -59,21 +62,39 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     });
   };
 
+  const cancelPendingHide = () => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+    setIsClosing(false);
+  };
+
   const handleDismiss = () => {
     if (approvalResolverRef.current) {
       resolveApproval(false);
       return;
     }
+    clearTimeout(resetTimerRef.current);
+    clearTimeout(reactionTimerRef.current);
+    speechService.stopListening();
+    speechService.stopSpeaking();
+    setIsListeningVoice(false);
     setIsInputOpen(false);
-    setCharacterState('idle');
+    setVoiceTranscript(null);
+    setCharacterState(isSleeping ? 'sleeping' : 'idle');
     setBubbleText('');
     setAudioLevel(0);
-    if (isListeningVoice) {
-      speechService.stopListening();
-      setIsListeningVoice(false);
-    }
-    // Fully hide the overlay window so it doesn't linger on screen
-    desktopBridge.hideOverlay();
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    if (!isNativeDesktop()) return;
+    setIsClosing(true);
+    // Animate within the frameless window, then hide the real Electron
+    // window. Reopening during the exit animation cancels this timer.
+    hideTimerRef.current = setTimeout(() => {
+      hideTimerRef.current = null;
+      void desktopBridge.hideOverlay();
+      setIsClosing(false);
+    }, 170);
   };
 
   // Bind only once: a global key must not get lost during state transitions.
@@ -93,6 +114,8 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       if (unbindDismiss) unbindDismiss();
       window.removeEventListener('keydown', handleKeyDown);
       clearTimeout(resetTimerRef.current);
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current);
       if (approvalResolverRef.current) {
         approvalResolverRef.current(false);
         approvalResolverRef.current = null;
@@ -103,39 +126,29 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
   }, []);
 
   const handleWakeAndActivate = () => {
-    if (isSleeping) setIsSleeping(false);
-    // Keep character state idle or talking, NOT listening (mic is off by default)
-    setCharacterState('idle');
-    setBubbleText("Hi! What can I help you with today? ✨");
+    cancelPendingHide();
+    clearTimeout(resetTimerRef.current);
+    const wasSleeping = isSleeping;
+    if (wasSleeping) setIsSleeping(false);
+    setCharacterState(wasSleeping ? 'waking' : 'idle');
+    setActivePlan(null);
+    setBubbleText(wasSleeping ? "I'm awake. What shall we do?" : 'What can I help with?');
     setIsInputOpen(true);
-    speechService.playChime('activate');
-
-    if (settings.voice.wakePhraseEnabled && !isListeningVoice) {
-      handleVoiceToggle();
-    }
+    if (settings.overlay.soundEffects) speechService.playChime('activate');
+    if (settings.voice.wakePhraseEnabled && !isListeningVoice) handleVoiceToggle();
   };
 
-  // Playful Touch & Pet Interaction
+  // Click to open the input. A second click while open gives a gentle
+  // character reaction, without spraying particles across the desktop.
   const handleCharacterTouch = () => {
-    if (isSleeping) {
-      setIsSleeping(false);
-      setCharacterState('idle');
-      setBubbleText("I'm awake and ready! ✨");
-      speechService.playChime('activate');
+    if (isSleeping || !isInputOpen) {
+      handleWakeAndActivate();
       return;
     }
-
-    // Trigger bounce animation & sparkle confetti
+    clearTimeout(reactionTimerRef.current);
     setIsPetted(true);
-    setTimeout(() => setIsPetted(false), 500);
-
-    speechService.playChime('activate');
-    confetti({
-      particleCount: 18,
-      spread: 50,
-      origin: { y: 0.8 },
-      colors: ['#0ea5e9', '#ec4899', '#f59e0b', '#10b981']
-    });
+    reactionTimerRef.current = setTimeout(() => setIsPetted(false), 450);
+    if (settings.overlay.soundEffects) speechService.playChime('activate');
 
     // Character-specific playful dialog reactions
     const dialogues: Record<string, string[]> = {
@@ -185,10 +198,17 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     const reaction = pool[Math.floor(Math.random() * pool.length)];
     setBubbleText(reaction);
     setCharacterState('talking');
-    setTimeout(() => setCharacterState('idle'), 2500);
+    reactionTimerRef.current = setTimeout(() => {
+      setCharacterState(previous => previous === 'sleeping' ? previous : 'idle');
+      setIsPetted(false);
+    }, 1800);
   };
 
   const handleVoiceToggle = () => {
+    if (isSleeping) {
+      setBubbleText('Wake me first to use the microphone.');
+      return;
+    }
     if (isListeningVoice) {
       speechService.stopListening();
       setIsListeningVoice(false);
@@ -242,8 +262,20 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
   const handleExecuteQuery = async (query: string) => {
     setVoiceTranscript(null);
     clearTimeout(resetTimerRef.current);
+    const companion = parseCompanionCommand(query);
+    if (companion) {
+      if (companion.kind === 'hide') { handleDismiss(); return; }
+      if (companion.kind === 'sleep') { handleToggleSleep(); return; }
+      if (companion.kind === 'wake' || companion.kind === 'open') { handleWakeAndActivate(); return; }
+      const result = await desktopBridge.moveCompanion(companion.direction);
+      setActivePlan(null);
+      setCharacterState(result.success ? 'idle' : 'confused');
+      setBubbleText(result.success ? (result.message || 'Moved Companio.') : (result.error || 'Could not move the companion.'));
+      return;
+    }
+    setActivePlan(null);
     setCharacterState('thinking');
-    setBubbleText(`On it! Planning: "${query}" ✨`);
+    setBubbleText('Working on your request…');
     setIsInputOpen(false);
 
     // Record user message in DB
@@ -312,12 +344,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
           finalPlan.steps.every(step => step.result?.handoffOnly === true);
         setCharacterState(browserHandoffOnly ? 'idle' : 'success');
         if (!browserHandoffOnly) {
-          speechService.playChime('success');
-          confetti({
-            particleCount: 35,
-            spread: 60,
-            origin: { y: 0.85 }
-          });
+          if (settings.overlay.soundEffects) speechService.playChime('success');
         }
 
         const successMsg = finalPlan.finalMessage || 'Task completed.';
@@ -336,7 +363,8 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
 
         // Revert to idle after celebration
         resetTimerRef.current = setTimeout(() => {
-          setCharacterState('idle');
+          setCharacterState(previous => previous === 'sleeping' ? previous : 'idle');
+          setActivePlan(null);
           setBubbleText('');
         }, 8000);
       } else if (finalPlan.status === 'cancelled') {
@@ -349,7 +377,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         }, 4000);
       } else {
         setCharacterState('confused');
-        speechService.playChime('error');
+        if (settings.overlay.soundEffects) speechService.playChime('error');
         const errorMsg = finalPlan.error || 'Execution encountered an issue.';
         setBubbleText(errorMsg);
         speakReply(errorMsg);
@@ -396,8 +424,8 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       pitch: settings.voice.ttsPitch,
       volume: settings.voice.ttsVolume,
       characterId: settings.characterId, // Passes character profile for matching voice!
-      onStart: () => setCharacterState('talking'),
-      onEnd: () => setCharacterState('idle'),
+      onStart: () => setCharacterState(previous => previous === 'sleeping' ? previous : 'talking'),
+      onEnd: () => setCharacterState(previous => previous === 'sleeping' ? previous : 'idle'),
       onAudioLevel: (lvl) => setAudioLevel(lvl)
     });
   };
@@ -414,29 +442,36 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
   };
 
   const handleToggleSleep = () => {
-    if (!isSleeping) {
-      setIsSleeping(true);
-      setCharacterState('sleeping');
-      setBubbleText('Zzz...');
-      setIsInputOpen(false);
-      speechService.stopListening();
-      setIsListeningVoice(false);
-      setAudioLevel(0);
-    } else {
-      setIsSleeping(false);
-      setCharacterState('idle');
-      setBubbleText("I'm awake and ready!");
+    clearTimeout(resetTimerRef.current);
+    clearTimeout(reactionTimerRef.current);
+    if (isSleeping) {
+      handleWakeAndActivate();
+      return;
     }
+    // Sleep is explicit: microphone and spoken replies stop immediately.
+    // It does not register a background wake-word listener.
+    speechService.stopListening();
+    speechService.stopSpeaking();
+    agentEngine.cancelActiveTask();
+    if (approvalResolverRef.current) resolveApproval(false);
+    setIsListeningVoice(false);
+    setAudioLevel(0);
+    setActivePlan(null);
+    setVoiceTranscript(null);
+    setIsInputOpen(false);
+    setIsSleeping(true);
+    setCharacterState('sleeping');
+    setBubbleText('Resting. Tap me or press the shortcut to wake.');
   };
 
   shortcutActionsRef.current = {
-    toggle: () => { if (approvalResolverRef.current || isInputOpen) handleDismiss(); else handleWakeAndActivate(); },
+    toggle: () => { if (approvalResolverRef.current || (isInputOpen && !isClosing)) handleDismiss(); else handleWakeAndActivate(); },
     dismiss: handleDismiss,
     wake: () => { if (approvalResolverRef.current) handleDismiss(); else handleWakeAndActivate(); }
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-end p-4 select-none overflow-hidden box-border">
+    <div className={`companio-overlay relative w-full h-full flex flex-col items-center justify-end p-4 select-none overflow-hidden box-border ${isClosing ? 'companio-overlay--closing' : ''}`}>
       {/* Speech Bubble */}
       <SpeechBubble
         text={bubbleText}
@@ -466,7 +501,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
           normal document flow so the pointer cannot fall through a gap. */}
       <div className="relative flex flex-col items-center justify-center">
         <div
-          className="app-drag-region mb-2 flex h-8 min-w-[125px] items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white/95 px-3 text-[11px] font-semibold text-slate-700 shadow-sm cursor-grab select-none"
+          className="app-drag-region mb-2 flex h-8 min-w-[125px] items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white/95 px-3 text-[11px] font-semibold text-slate-600 shadow-[0_3px_12px_rgba(15,23,42,0.09)] cursor-grab select-none"
           title="Hold and drag to move Companio"
           aria-label="Drag to move Companio around your desktop"
         >
@@ -476,10 +511,11 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         {/* The Companion Character */}
         <div
           onClick={handleCharacterTouch}
-          className={`relative cursor-pointer transition-all duration-300 app-no-drag ${
-            isPetted ? 'scale-110 -rotate-3' : 'hover:scale-105'
+          className={`companio-character relative cursor-pointer app-no-drag ${
+            isPetted ? 'scale-[1.035]' : ''
           }`}
-          title="Click to interact with Companio!"
+          data-state={isSleeping ? 'sleeping' : characterState}
+          title={isSleeping ? 'Wake Companio' : 'Click to talk to Companio'}
         >
           <CharacterRenderer
             characterId={settings.characterId}
@@ -491,19 +527,22 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
 
         </div>
 
+        {/* Sleep control remains visible even when the command input is closed. */}
+        <button type="button" onClick={handleToggleSleep}
+          aria-label={isSleeping ? 'Wake Companio' : 'Put Companio to sleep'}
+          title={isSleeping ? 'Wake Companio' : 'Sleep mode'}
+          className="app-no-drag absolute -left-9 bottom-8 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-500 shadow-[0_4px_14px_rgba(15,23,42,0.12)] transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-sky-400">
+          {isSleeping ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4" />}
+        </button>
         {/* Visible Floating Circle Action Button on the Right Side */}
         <button
           type="button"
           onClick={() => {
-            const next = !isInputOpen;
-            setIsInputOpen(next);
-            if (next) {
-              setCharacterState('idle');
-              setBubbleText("What can I do for you?");
-            }
+            if (isSleeping || !isInputOpen) handleWakeAndActivate();
+            else setIsInputOpen(false);
           }}
           title={isInputOpen ? "Close command bar" : `Ask Companio (${settings.activationShortcut})`}
-          className="absolute -right-4 bottom-8 w-9 h-9 rounded-full bg-white hover:bg-sky-50 text-sky-600 shadow-[0_8px_20px_rgba(14,165,233,0.35)] border border-sky-200 flex items-center justify-center transition-all hover:scale-115 active:scale-95 app-no-drag z-20 cursor-pointer"
+          className="app-no-drag absolute -right-9 bottom-8 z-20 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-sky-200 bg-white/95 text-sky-600 shadow-[0_4px_14px_rgba(15,23,42,0.12)] transition-colors hover:bg-sky-50 focus-visible:ring-2 focus-visible:ring-sky-400"
         >
           {isInputOpen ? (
             <X className="w-4 h-4 stroke-[2.5]" />
