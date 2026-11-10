@@ -112,15 +112,41 @@ jobs:
         with:
           path: release-artifacts
 
-      - name: Create GitHub Release with Installers
+      - name: Verify both installer files and prepare checksummed preview notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          for arch in x64 arm64; do
+            dir="release-artifacts/companio-windows-$arch"
+            filename="Companio-Setup-$version-$arch.exe"
+            test -s "$dir/$filename"
+            (cd "$dir" && sha256sum -c "SHA256SUMS-$arch.txt")
+          done
+          count="$(find release-artifacts -name 'Companio-Setup-*.exe' -type f | wc -l | tr -d ' ')"
+          test "$count" = "2"
+          {
+            printf '# Companio %s — Windows preview\n\n' "$GITHUB_REF_NAME"
+            echo 'Unsigned preview build for Windows 11, not a signed production installer.'
+            echo 'Choose **arm64** for Snapdragon/Windows on ARM and **x64** for Intel or AMD.'
+            echo 'No account is required to download the installer from this release.'
+            echo 'Local Whisper is optional and downloads CPU tools only after the user starts setup in Voice Settings.'
+            echo 'Windows SmartScreen may warn because these installers are not code-signed.'
+            printf '\n## SHA-256 installer checksums\n\n```text\n'
+            for arch in arm64 x64; do
+              cat "release-artifacts/companio-windows-$arch/SHA256SUMS-$arch.txt"
+            done
+            printf '```\n'
+          } > RELEASE_NOTES.md
+
+      - name: Publish exactly two architecture installers
         uses: softprops/action-gh-release@v2
         with:
           files: |
             release-artifacts/**/Companio-Setup-*.exe
-            release-artifacts/**/SHA256SUMS-*.txt
-          name: Companio Release ${{ github.ref_name }}
+          name: Companio Preview ${{ github.ref_name }}
+          body_path: RELEASE_NOTES.md
           draft: false
           prerelease: ${{ contains(github.ref_name, '-rc.') }}
-          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
