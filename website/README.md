@@ -4,7 +4,7 @@ The public-facing website is **standalone** from the Electron desktop app. Its H
 
 ## Live site
 
-**[https://companio-eight.vercel.app](https://companio-eight.vercel.app)**
+**[https://companio7.vercel.app](https://companio7.vercel.app)**
 
 The live site is served by Vercel from the `website/` directory of the `main` branch. The site is public; preview deployments can remain protected.
 
