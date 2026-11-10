@@ -62,7 +62,7 @@ Its core philosophy is simple: **an assistant should feel present when you need 
 | **Global access** | Default **Ctrl + Shift + Space** shortcut, Windows system tray, and configurable activation shortcut |
 | **Windows integration** | Supported application and folder launches, audio controls, screenshots, and selected device utilities |
 | **Browser actions** | Website opening and searches in the **default Windows browser**; a separate Edge automation profile for supported interactive tasks |
-| **Voice and text** | Typed commands, one-shot Windows speech recognition, spoken responses, transcript review, and optional local Whisper setup |
+| **Voice and text** | Typed commands, one-shot Windows speech recognition, spoken responses, transcript review, and optional SHA-256-verified local Whisper setup |
 | **Optional local AI** | Ollama or LM Studio connection for conversations and bounded, reviewed action proposals |
 | **Personal settings** | Character customization, voice settings, native startup toggle, automation preferences, and Control Center |
 | **History and recovery** | Local activity/conversation history, native JSON snapshots, export, and validated restore |
@@ -127,6 +127,9 @@ npm start
 The first launch opens the Electron experience; configure your character and preferences in Control Center.
 
 ## Voice and local AI
+
+**Offline Whisper setup:** Voice Settings offers a user-triggered install of the official CPU whisper.cpp executable for the current Windows architecture (ARM64 or x64) and a checksum-pinned English base quantized model (~60 MB). Neither is silently downloaded or executed. Automatic setup uses a version-pinned archive and checks its SHA-256 before extraction; the advanced file-pickers remain available for users who prefer manual installation. Voice commands remain editable before execution because local Whisper does not supply a calibrated confidence score. The larger base model may transcribe more accurately than tiny on some speech, but takes more disk and CPU time; real-device accuracy is not yet benchmarked.
+
 
 Companio supports **text commands without a microphone or AI subscription**. For voice input, the desktop build uses available Windows speech recognition for one-shot dictation. Spoken replies use supported speech synthesis.
 

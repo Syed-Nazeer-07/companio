@@ -25,12 +25,15 @@ interface CompanioDesktopAPI {
   onGlobalShortcutDismiss?: (callback: () => void) => () => void;
   startNativeSpeech?: (timeoutSec?: number, language?: string) => Promise<{ success: boolean; text?: string; confidence?: number; language?: string; alternatives?: string[]; silence?: boolean; cancelled?: boolean; error?: string }>;
   cancelNativeSpeech?: () => Promise<any>;
-  getWhisperStatus?: () => Promise<{supported:boolean; configured:boolean; busy:boolean; executable:string|null; model:string|null; message:string}>;
+  getWhisperStatus?: () => Promise<{supported:boolean; configured:boolean; busy:boolean; executable:string|null; model:string|null; message:string; binaryDownload?:{downloading:boolean;received:number;total:number};download?:{downloading:boolean;received:number;total:number}}>;
   chooseWhisperFile?: (kind:'binary'|'model') => Promise<{success:boolean; cancelled?:boolean; configured?:boolean; error?:string}>;
   transcribeWithWhisper?: (wav:Uint8Array) => Promise<{success:boolean; text?:string; silence?:boolean; cancelled?:boolean; language?:string; error?:string}>;
   cancelWhisper?: () => Promise<{success:boolean;cancelled:boolean}>;
   downloadWhisperModel?: () => Promise<{success:boolean;configured?:boolean;reused?:boolean;error?:string}>;
   cancelWhisperModelDownload?: () => Promise<{success:boolean;cancelled:boolean}>;
+  installWhisperBinary?: () => Promise<{success:boolean;reused?:boolean;configured?:boolean;error?:string}>;
+  cancelWhisperBinaryInstall?: () => Promise<{success:boolean;cancelled:boolean}>;
+  onWhisperBinaryProgress?: (callback:(progress:{stage:string;received:number;total:number;percent:number})=>void) => () => void;
   onWhisperModelProgress?: (callback:(progress:{received:number;total:number;percent:number})=>void) => () => void;
   onStateUpdate: (callback: (state: any) => void) => () => void;
   sendStateUpdate: (state: any) => void;
@@ -278,6 +281,20 @@ export const desktopBridge = {
   async cancelWhisper() {
     const api = getDesktopAPI();
     return api?.cancelWhisper ? await api.cancelWhisper() : {success:false,cancelled:false};
+  },
+  async installWhisperBinary() {
+    const api=getDesktopAPI();
+    return api?.installWhisperBinary ? await api.installWhisperBinary() :
+      {success:false,error:'Offline speech engine setup requires the installed Windows desktop app.'};
+  },
+  async cancelWhisperBinaryInstall() {
+    const api=getDesktopAPI();
+    return api?.cancelWhisperBinaryInstall ? await api.cancelWhisperBinaryInstall() :
+      {success:false,cancelled:false};
+  },
+  onWhisperBinaryProgress(callback:(progress:{stage:string;received:number;total:number;percent:number})=>void) {
+    const api=getDesktopAPI();
+    return api?.onWhisperBinaryProgress ? api.onWhisperBinaryProgress(callback) : () => {};
   },
   async downloadWhisperModel() {
     const api=getDesktopAPI();

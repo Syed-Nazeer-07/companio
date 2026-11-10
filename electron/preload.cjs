@@ -54,6 +54,13 @@ const desktopAPI = {
   cancelWhisper: () => ipcRenderer.invoke('whisper-cancel'),
   downloadWhisperModel: () => ipcRenderer.invoke('whisper-download-model'),
   cancelWhisperModelDownload: () => ipcRenderer.invoke('whisper-cancel-download'),
+  installWhisperBinary: () => ipcRenderer.invoke('whisper-install-binary'),
+  cancelWhisperBinaryInstall: () => ipcRenderer.invoke('whisper-cancel-binary-install'),
+  onWhisperBinaryProgress: (callback) => {
+    const handler = (_event, progress) => callback(progress);
+    ipcRenderer.on('whisper-binary-progress', handler);
+    return () => ipcRenderer.removeListener('whisper-binary-progress', handler);
+  },
   onWhisperModelProgress: (callback) => {
     const handler = (_event, progress) => callback(progress);
     ipcRenderer.on('whisper-model-progress',handler);

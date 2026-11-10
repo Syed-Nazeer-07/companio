@@ -5,10 +5,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const MANIFEST = Object.freeze({
-  id:'tiny.en-q5_1', file:'ggml-tiny.en-q5_1.bin',
-  url:'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en-q5_1.bin',
-  sha256:'c77c5766f1cef09b6b7d47f21b546cbddd4157886b3b5d6d4f709e91e66c7c2b',
-  minBytes:30_000_000,maxBytes:40_000_000
+  id:'base.en-q5_1', file:'ggml-base.en-q5_1.bin',
+  url:'https://huggingface.co/ggerganov/whisper.cpp/resolve/c521a4b02f422512d734391fdf08bb08c0862f68/ggml-base.en-q5_1.bin',
+  sha256:'4baf70dd0d7c4247ba2b81fafd9c01005ac77c2f9ef064e00dcf195d0e2fdd2f',
+  minBytes:55_000_000,maxBytes:70_000_000
 });
 class WhisperModelInstaller {
   constructor({userData,fetchImpl=globalThis.fetch,fileSystem=fs,manifest=MANIFEST,timeoutMs=240000}={}){

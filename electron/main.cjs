@@ -14,6 +14,7 @@ const modelDownloader = require('./automation/modelDownloader.cjs');
 const nativeSpeech = require('./automation/nativeSpeech.cjs');
 const { WhisperSpeechController } = require('./automation/whisperSpeech.cjs');
 const { WhisperModelInstaller } = require('./automation/whisperModelInstaller.cjs');
+const { WhisperBinaryInstaller } = require('./automation/whisperBinaryInstaller.cjs');
 const localAiController = require('./automation/localAiController.cjs');
 const localActionPlanner = require('./automation/localActionPlanner.cjs');
 const historyBackupController = require('./automation/historyBackupController.cjs');
@@ -47,6 +48,7 @@ const youtubeFeed = new YoutubeFeedController({ browser: defaultBrowser });
 const startupController = createStartupController(app, { smokeTest: SMOKE_TEST });
 const whisperSpeech = new WhisperSpeechController({ userData: app.getPath('userData') });
 const whisperModelInstaller = new WhisperModelInstaller({ userData: app.getPath('userData') });
+const whisperBinaryInstaller = new WhisperBinaryInstaller({ userData: app.getPath('userData') });
 
 function loadSavedPosition() {
   try {
@@ -696,7 +698,24 @@ secureHandle('cancel-native-speech', () => {
 
 // Whisper.cpp is optional, offline and user-selected; no executable path is
 // accepted from an untrusted renderer transcription request.
-secureHandle('whisper-status', () => ({...whisperSpeech.status(),download:whisperModelInstaller.status()}));
+secureHandle('whisper-status', () => ({
+  ...whisperSpeech.status(),
+  download: whisperModelInstaller.status(),
+  binaryDownload: whisperBinaryInstaller.status()
+}));
+secureHandle('whisper-install-binary', async event => {
+  // The verified release URL and archive checksum live exclusively in the
+  // privileged process. Renderer code never supplies executable URLs or paths.
+  const result = await whisperBinaryInstaller.install(progress => {
+    if (!event.sender.isDestroyed()) event.sender.send('whisper-binary-progress', progress);
+  });
+  if (!result.success) return result;
+  const configured = whisperSpeech.choose('binary', result.filePath);
+  return configured.success
+    ? {success:true,reused:result.reused,...whisperSpeech.status()}
+    : {success:false,error:configured.error || 'Downloaded speech engine could not be activated.'};
+});
+secureHandle('whisper-cancel-binary-install', () => whisperBinaryInstaller.cancel());
 secureHandle('whisper-download-model', async (event) => {
   const result = await whisperModelInstaller.install(progress => {
     if (!event.sender.isDestroyed()) event.sender.send('whisper-model-progress', progress);
