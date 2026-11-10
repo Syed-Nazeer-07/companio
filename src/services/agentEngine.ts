@@ -3,6 +3,7 @@ import { desktopBridge } from './desktopBridge';
 import { dbService } from './dbService';
 import { isCommandRequest } from './intentSafety';
 import { parseWebCommand } from './webCommandParser';
+import { evaluateArithmetic } from './arithmetic';
 
 export class AgentEngine {
   private activeAbortController: AbortController | null = null;
@@ -985,11 +986,8 @@ export class AgentEngine {
 
       if (/^[\d\s\+\-\*\/\.\(\)]+$/.test(expr) && /[\+\-\*\/]/.test(expr)) {
         try {
-          const sanitized = expr.replace(/[^\d\+\-\*\/\.\(\)\s]/g, '');
-          const result = Function(`"use strict"; return (${sanitized})`)();
-          if (typeof result === 'number' && !isNaN(result) && isFinite(result)) {
-            return `${sanitized.trim()} = ${result} 🧮`;
-          }
+          const result = evaluateArithmetic(expr);
+          if (result !== null) return `${expr.trim()} = ${result} 🧮`;
         } catch (e) {}
       }
     }

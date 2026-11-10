@@ -16,6 +16,8 @@ const safe={};
 vm.runInNewContext(transpile('src/services/intentSafety.ts'),{exports:safe});
 const webCommands={};
 vm.runInNewContext(transpile('src/services/webCommandParser.ts'),{exports:webCommands});
+const arithmetic={};
+vm.runInNewContext(transpile('src/services/arithmetic.ts'),{exports:arithmetic});
 let offlineCalls=0;
 const engineExports={};
 vm.runInNewContext(transpile('src/services/agentEngine.ts'),{
@@ -23,6 +25,7 @@ vm.runInNewContext(transpile('src/services/agentEngine.ts'),{
   require(name) {
     if(name==='./intentSafety') return safe;
     if(name==='./webCommandParser') return webCommands;
+    if(name==='./arithmetic') return arithmetic;
     if(name==='./desktopBridge') return {desktopBridge:{
       planOfflineSequence:async()=>{offlineCalls++;return {success:false,recognized:false,steps:[]};},
       planLocalActions:async()=>({success:false,error:'Model not running'})
