@@ -23,6 +23,7 @@ const { writeConfigAtomically } = require('./automation/atomicConfigStore.cjs');
 const { createStartupController } = require('./automation/startupController.cjs');
 const { planCompanionMove } = require('./automation/companionMovement.cjs');
 const { registerSingleInstance } = require('./automation/singleInstance.cjs');
+const { createDebouncedWork } = require('./automation/debouncedWork.cjs');
 
 let overlayWindow = null;
 let dashboardWindow = null;
@@ -164,25 +165,36 @@ function createOverlayWindow() {
 
   loadWindowContent(overlayWindow, 'overlay');
 
-  overlayWindow.on('moved', () => {
-    if (!overlayWindow) return;
-    const bounds = overlayWindow.getBounds();
+  // Electron can emit many move notifications while dragging. Previously
+  // each one performed a synchronous atomic JSON write (and sometimes snapped
+  // the window under the pointer). Wait for the movement to settle instead.
+  let snapping = false;
+  const persistWindowPlacement = () => {
+    if (win.isDestroyed()) return;
+    const bounds = win.getBounds();
+    let { x, y } = bounds;
     if (overlayPreferences.snapToEdge) {
       const area = screen.getDisplayMatching(bounds).workArea;
-      const snap = (value, low, high) => Math.abs(value - low) <= 24 ? low : Math.abs(value - high) <= 24 ? high : value;
-      const x = snap(bounds.x, area.x, area.x + area.width - bounds.width);
-      const y = snap(bounds.y, area.y, area.y + area.height - bounds.height);
+      const snap = (value, low, high) =>
+        Math.abs(value - low) <= 24 ? low : Math.abs(value - high) <= 24 ? high : value;
+      x = snap(x, area.x, area.x + area.width - bounds.width);
+      y = snap(y, area.y, area.y + area.height - bounds.height);
       if (x !== bounds.x || y !== bounds.y) {
-        overlayWindow.setPosition(x, y);
-        savePosition(x, y);
-        return;
+        snapping = true;
+        try { win.setPosition(x, y); } finally { snapping = false; }
       }
     }
-    savePosition(bounds.x, bounds.y);
+    savePosition(x, y);
+  };
+  const placementSaver = createDebouncedWork(persistWindowPlacement, 180);
+  win.on('moved', () => {
+    if (!snapping) placementSaver.schedule();
   });
-
-  overlayWindow.on('closed', () => {
-    overlayWindow = null;
+  // Flush before destruction so fast quit/restart still remembers placement.
+  win.on('close', () => placementSaver.flush());
+  win.on('closed', () => {
+    placementSaver.cancel();
+    if (overlayWindow === win) overlayWindow = null;
   });
 }
 
