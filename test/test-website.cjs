@@ -10,7 +10,7 @@ test('website provides discoverable current ARM64/x64 preview without hiding the
  assert.match(html,/Stable releases/);
  assert.match(html,/artifacts expire after 14 days/i);
  assert.match(html,/actions\/workflows\/ci\.yml/);
- assert.match(html,/github\.com\/Syed-Nazeer-07\/companio\/actions\/runs\/42839080000/);
+ assert.match(html,/github\.com\/Syed-Nazeer-07\/companio\/actions\/runs\/42873921913/);
 });
 test('landing page stays a clearly labeled demonstration and avoids user data collection',()=>{
  assert.match(html,/Interactive illustration/);
