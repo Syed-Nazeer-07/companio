@@ -23,7 +23,7 @@ Then visit `http://localhost:4173`. Alternatively, serve this directory with any
 
 The production site is deployed on **Vercel**. Its root directory is `website`, its framework is `Other` (no framework), its build command is empty, and its output directory is `.`. Site updates on `main` are automatically redeployed. You may also host the `website/` directory as a static site on Cloudflare Pages, Netlify, or another static host. No install or build command is needed. The output directory is the site directory itself. The public site is deliberately isolated from the desktop app's `index.html` and Vite build so the Windows overlay, packaging, and native features remain unchanged.
 
-For richer social link previews, add an absolute `og:image` asset for the production hostname. Release CTAs intentionally direct visitors to official GitHub Releases rather than assuming a specific installer exists.
+For richer social link previews, add an absolute `og:image` asset for the production hostname. The leading download CTA links to the latest verified Windows development preview (v1.1.0-rc.20 at publication) while a separate link preserves the older stable GitHub Release. GitHub Actions artifacts require a GitHub login and expire after 14 days, so the page explains how to find newer successful release builds. Update the preview run URL and version when publishing a newer release preview; do not imply that Actions artifacts are permanent.
 
 ## Visual identity
 
