@@ -19,3 +19,22 @@ test('sleep toggle, stable native drag handle, and fade-out remain available in 
  assert.match(source,/companio-overlay--closing/);
  assert.match(source,/parseCompanionCommand/);
 });
+
+test('overlay character supports keyboard, and shortcut hints use configured value',()=>{
+ const overlay=fs.readFileSync(path.join(root,'src/components/overlay/DesktopCompanionOverlay.tsx'),'utf8');
+ const input=fs.readFileSync(path.join(root,'src/components/overlay/CompactInput.tsx'),'utf8');
+ assert.match(overlay,/role="button"/);
+ assert.match(overlay,/tabIndex=\{0\}/);
+ assert.match(overlay,/event\.key === 'Enter' \|\| event\.key === ' '/);
+ assert.match(overlay,/activationShortcut=\{settings\.activationShortcut\}/);
+ assert.match(input,/Hide Companio \(Esc or \$\{activationShortcut\}\)/);
+ assert.match(input,/aria-pressed=\{isListening\}/);
+});
+test('settings writes and broadcasts occur outside a replayable React state updater',()=>{
+ const source=fs.readFileSync(path.join(root,'src/App.tsx'),'utf8');
+ const segment=source.slice(source.indexOf('const handleUpdateSettings ='),source.indexOf('const handleLaunchOverlay ='));
+ assert.ok(!segment.includes('setSettings((prev) =>'));
+ assert.match(segment,/settingsRef\.current = updated/);
+ assert.match(segment,/dbService\.saveSettings\(updated\)/);
+ assert.match(segment,/desktopBridge\.sendStateUpdate\(updated\)/);
+});

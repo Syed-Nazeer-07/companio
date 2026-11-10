@@ -505,6 +505,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
             isListening={isListeningVoice}
             voiceTranscript={voiceTranscript}
             voiceAlternatives={voiceAlternatives}
+            activationShortcut={settings.activationShortcut}
             onOpenDashboard={onOpenDashboard}
             isSleeping={isSleeping}
             onToggleSleep={handleToggleSleep}
@@ -527,8 +528,17 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         {/* The Companion Character */}
         <div
           onClick={handleCharacterTouch}
+          onKeyDown={event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              handleCharacterTouch();
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-label={isSleeping ? 'Wake Companio' : 'Open Companio command bar'}
           key={settings.characterId}
-          className={`companio-character relative cursor-pointer app-no-drag ${
+          className={`companio-character relative cursor-pointer app-no-drag focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-500 rounded-full ${
             isPetted ? 'scale-[1.035]' : ''
           }`}
           data-state={isSleeping ? 'sleeping' : characterState}
@@ -545,12 +555,12 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         </div>
 
         {/* Sleep control remains visible even when the command input is closed. */}
-        <button type="button" onClick={handleToggleSleep}
+        {!isInputOpen && <button type="button" onClick={handleToggleSleep}
           aria-label={isSleeping ? 'Wake Companio' : 'Put Companio to sleep'}
           title={isSleeping ? 'Wake Companio' : 'Sleep mode'}
           className="app-no-drag absolute -left-9 bottom-8 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-500 shadow-[0_4px_14px_rgba(15,23,42,0.12)] transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-sky-400">
           {isSleeping ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4" />}
-        </button>
+        </button>}
         {/* Visible Floating Circle Action Button on the Right Side */}
         <button
           type="button"

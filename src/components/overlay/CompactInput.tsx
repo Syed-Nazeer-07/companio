@@ -11,6 +11,7 @@ interface Props {
   onClose: () => void;
   voiceTranscript?: string | null;
   voiceAlternatives?: string[];
+  activationShortcut?: string;
 }
 
 export const CompactInput: React.FC<Props> = ({
@@ -22,7 +23,8 @@ export const CompactInput: React.FC<Props> = ({
   onToggleSleep,
   onClose,
   voiceTranscript,
-  voiceAlternatives = []
+  voiceAlternatives = [],
+  activationShortcut = 'Ctrl+Shift+Space'
 }) => {
   const [text, setText] = useState('');
   const [showAlternatives, setShowAlternatives] = useState(true);
@@ -61,9 +63,11 @@ export const CompactInput: React.FC<Props> = ({
           type="button"
           onClick={onVoiceToggle}
           title={isListening ? 'Stop listening' : 'Push to talk (Microphone)'}
-          className={`shrink-0 p-2 rounded-xl transition-all ${
+          aria-label={isListening ? 'Stop listening' : 'Start voice input'}
+          aria-pressed={isListening}
+          className={`shrink-0 p-2 rounded-xl transition-colors ${
             isListening 
-              ? 'bg-rose-500 text-white animate-pulse shadow-[0_0_12px_rgba(244,63,94,0.5)]' 
+              ? 'bg-rose-500 text-white' 
               : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
           }`}
         >
@@ -75,7 +79,9 @@ export const CompactInput: React.FC<Props> = ({
           ref={inputRef}
           type="text"
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => { setText(e.target.value); setShowAlternatives(false); }}
+          aria-label="Companio command"
+          autoComplete="off"
           placeholder={isListening ? "Listening..." : "Ask Companio..."}
           className="min-w-0 flex-1 bg-transparent border-0 text-[13px] placeholder-slate-400 focus:outline-none text-slate-800 px-1 font-medium"
         />
@@ -114,7 +120,8 @@ export const CompactInput: React.FC<Props> = ({
         <button
           type="button"
           onClick={onClose}
-          title="Hide Companio (Esc or Ctrl+Shift+Space)"
+          title={`Hide Companio (Esc or ${activationShortcut})`}
+          aria-label="Hide Companio"
           className="shrink-0 p-1.5 rounded-full bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors border border-slate-200 shadow-sm"
         >
           <X className="w-3.5 h-3.5 stroke-[2.5]" />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AppSettings, CharacterId } from './types';
 import { dbService } from './services/dbService';
 import { desktopBridge, isNativeDesktop } from './services/desktopBridge';
@@ -84,6 +84,7 @@ const mergeSettings = (saved: Partial<AppSettings> = {}): AppSettings => {
 
 export const App: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>(() => mergeSettings(dbService.loadSettings()));
+  const settingsRef = useRef(settings);
   const [historyReady, setHistoryReady] = useState(false);
 
   const [currentTab, setCurrentTab] = useState<DashboardTab>('home');
@@ -94,7 +95,9 @@ export const App: React.FC = () => {
     let active = true;
     void dbService.init().then(() => {
       if (active) {
-        setSettings(mergeSettings(dbService.loadSettings()));
+        const loaded = mergeSettings(dbService.loadSettings());
+        settingsRef.current = loaded;
+        setSettings(loaded);
         setHistoryReady(true);
       }
     }).catch((error) => {
@@ -120,7 +123,9 @@ export const App: React.FC = () => {
     // Listen for live cross-window state updates (e.g. character selection from Control Center to Overlay)
     const unbind = desktopBridge.onStateUpdate((updatedSettings) => {
       if (updatedSettings) {
-        setSettings((prev) => mergeSettings({ ...prev, ...updatedSettings }));
+        const incoming = mergeSettings({ ...settingsRef.current, ...updatedSettings });
+        settingsRef.current = incoming;
+        setSettings(incoming);
       }
     });
 
@@ -129,7 +134,9 @@ export const App: React.FC = () => {
         try {
           const parsed = JSON.parse(e.newValue);
           if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-            setSettings((prev) => mergeSettings({ ...prev, ...parsed }));
+            const incoming = mergeSettings({ ...settingsRef.current, ...parsed });
+            settingsRef.current = incoming;
+            setSettings(incoming);
           }
         } catch {}
       }
@@ -144,12 +151,13 @@ export const App: React.FC = () => {
   }, []);
 
   const handleUpdateSettings = (newSettings: Partial<AppSettings>) => {
-    setSettings((prev) => {
-      const updated = mergeSettings({ ...prev, ...newSettings });
-      dbService.saveSettings(updated);
-      desktopBridge.sendStateUpdate(updated);
-      return updated;
-    });
+    // State updater functions may be replayed by React Strict Mode. Persist
+    // and broadcast *outside* the updater so one user action causes one write.
+    const updated = mergeSettings({ ...settingsRef.current, ...newSettings });
+    settingsRef.current = updated;
+    setSettings(updated);
+    dbService.saveSettings(updated);
+    desktopBridge.sendStateUpdate(updated);
   };
 
   const handleLaunchOverlay = () => {
