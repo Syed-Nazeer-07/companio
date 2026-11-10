@@ -6,9 +6,9 @@ const js=fs.readFileSync(path.join(__dirname,'../website/script.js'),'utf8');
 test('website provides discoverable current ARM64/x64 preview without hiding the stable release',()=>{
  assert.match(html,/Download ARM64/);
  assert.match(html,/Download x64/);
- assert.match(html,/Companio-arm64/);
- assert.match(html,/Companio-x64/);
- assert.match(html,/Stable releases/);
+ assert.match(html,/Snapdragon\/Windows on ARM laptops/);
+ assert.match(html,/Intel\/AMD PCs/);
+ assert.match(html,/Other versions/);
  assert.match(html,/no ZIP or GitHub sign-in needed/i);
  assert.match(html,/releases\/tag\/v1\.1\.0-rc\.22/);
  assert.match(html,/releases\/download\/v1\.1\.0-rc\.22\/Companio-Setup-1\.1\.0-rc\.22-arm64\.exe/);
