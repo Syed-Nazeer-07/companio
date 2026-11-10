@@ -19,6 +19,7 @@ interface CompanioDesktopAPI {
   quitApp: () => Promise<void>;
   hideOverlay: () => Promise<boolean>;
   showOverlay: () => Promise<boolean>;
+  notifyOverlayReady?: () => Promise<boolean>;
   onGlobalShortcutTriggered: (callback: () => void) => () => void;
   onGlobalShortcutToggle?: (callback: () => void) => () => void;
   onGlobalShortcutDismiss?: (callback: () => void) => () => void;
@@ -110,6 +111,10 @@ export const desktopBridge = {
     const api = getDesktopAPI();
     return api ? api.setOverlayPreferences(options)
       : { success: false, error: 'Desktop window settings require the installed app.' };
+  },
+  async notifyOverlayReady(): Promise<boolean> {
+    const api = getDesktopAPI();
+    return api?.notifyOverlayReady ? await api.notifyOverlayReady() : false;
   },
   async moveCompanion(direction: 'left' | 'right' | 'up' | 'down') {
     const api = getDesktopAPI();

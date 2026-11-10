@@ -150,6 +150,15 @@ export const App: React.FC = () => {
     };
   }, []);
 
+  // Global shortcut/tray activation may arrive before history hydration.
+  // Signal readiness only after the overlay UI and its listeners are mounted.
+  useEffect(() => {
+    if (!historyReady || viewMode !== 'overlay' || !isNativeDesktop()) return;
+    void desktopBridge.notifyOverlayReady().catch(error => {
+      console.error('[Companio] Could not confirm overlay readiness:', error);
+    });
+  }, [historyReady, viewMode]);
+
   const handleUpdateSettings = (newSettings: Partial<AppSettings>) => {
     // State updater functions may be replayed by React Strict Mode. Persist
     // and broadcast *outside* the updater so one user action causes one write.

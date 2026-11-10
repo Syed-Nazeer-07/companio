@@ -24,12 +24,17 @@ const { createStartupController } = require('./automation/startupController.cjs'
 const { planCompanionMove } = require('./automation/companionMovement.cjs');
 const { registerSingleInstance } = require('./automation/singleInstance.cjs');
 const { createDebouncedWork } = require('./automation/debouncedWork.cjs');
+const { createActivationGate } = require('./automation/activationGate.cjs');
 
 let overlayWindow = null;
 let dashboardWindow = null;
 let tray = null;
 let currentShortcut = 'CommandOrControl+Shift+Space';
 let overlayPreferences = { alwaysOnTop: true, snapToEdge: true };
+const overlayActivation = createActivationGate(() => {
+  const win = overlayWindow;
+  if (win && !win.isDestroyed()) win.webContents.send('shortcut-activated');
+});
 const SMOKE_TEST = process.env.COMPANIO_SMOKE_TEST === '1' || process.argv.includes('--companio-smoke');
 if (SMOKE_TEST) app.disableHardwareAcceleration();
 
@@ -112,13 +117,9 @@ function wakeCompanionWindow() {
   if (!win) return;
   if (!win.isVisible()) win.show();
   win.focus();
-  // If a second launch arrives during React's initialization, wait for
-  // the document before notifying it instead of sending into a blank page.
-  const notify = () => {
-    if (!win.isDestroyed()) win.webContents.send('shortcut-activated');
-  };
-  if (win.webContents.isLoading()) win.webContents.once('did-finish-load', notify);
-  else notify();
+  // Document ready is not React ready: queue the wake until the renderer
+  // has registered shortcut listeners and hydrated its saved state.
+  overlayActivation.activate();
 }
 
 function createOverlayWindow() {
@@ -139,6 +140,7 @@ function createOverlayWindow() {
   const posX = (saved && Number.isFinite(saved.x)) ? Math.min(Math.max(workX, saved.x), workX + width - winWidth) : defaultX;
   const posY = (saved && Number.isFinite(saved.y)) ? Math.min(Math.max(workY, saved.y), workY + height - winHeight) : defaultY;
 
+  overlayActivation.reset();
   overlayWindow = new BrowserWindow({
     width: winWidth,
     height: winHeight,
@@ -316,7 +318,7 @@ function registerHotkeys(requested = currentShortcut) {
     }
     const registered = globalShortcut.register(shortcut, () => {
       console.log('Global activation hotkey triggered!');
-      if (!overlayWindow) {
+      if (!overlayWindow || !overlayActivation.isReady()) {
         wakeCompanionWindow();
         return;
       }
@@ -720,6 +722,12 @@ secureHandle('whisper-choose-file', async (event, kind) => {
 });
 secureHandle('whisper-transcribe', (_event, wav) => whisperSpeech.transcribe(wav, 'en'));
 secureHandle('whisper-cancel', () => whisperSpeech.cancel());
+
+secureHandle('overlay-ready', (event) => {
+  if (event.sender !== overlayWindow?.webContents) return false;
+  overlayActivation.markReady();
+  return true;
+});
 
 secureHandle('show-overlay', () => {
   if (overlayWindow) {

@@ -16,6 +16,7 @@ const desktopAPI = {
   toggleDashboard: (show) => ipcRenderer.invoke('toggle-dashboard', show),
   hideOverlay: () => ipcRenderer.invoke('hide-overlay'),
   showOverlay: () => ipcRenderer.invoke('show-overlay'),
+  notifyOverlayReady: () => ipcRenderer.invoke('overlay-ready'),
   setIgnoreMouseEvents: (ignore) => ipcRenderer.invoke('set-ignore-mouse-events', ignore),
   saveOverlayPosition: (x, y) => ipcRenderer.invoke('save-overlay-position', { x, y }),
   getOverlayPosition: () => ipcRenderer.invoke('get-overlay-position'),
