@@ -2,6 +2,12 @@
 
 The public-facing website is **standalone** from the Electron desktop app. Its HTML, CSS, JavaScript, and vector illustrations live entirely inside this folder. It does not simulate native Windows actions, collect user data, or require an AI model.
 
+## Live site
+
+**[https://companio-eight.vercel.app](https://companio-eight.vercel.app)**
+
+The live site is served by Vercel from the `website/` directory of the `main` branch. The site is public; preview deployments can remain protected.
+
 ## Preview locally
 
 From the repository root:
@@ -15,9 +21,9 @@ Then visit `http://localhost:4173`. Alternatively, serve this directory with any
 
 ## Deploy
 
-Host the `website/` directory as a **static site** on Cloudflare Pages, Vercel, Netlify, or another static host. No install or build command is needed. The output directory is the site directory itself. The public site is deliberately isolated from the desktop app's `index.html` and Vite build so the Windows overlay, packaging, and native features remain unchanged.
+The production site is deployed on **Vercel**. Its root directory is `website`, its framework is `Other` (no framework), its build command is empty, and its output directory is `.`. Site updates on `main` are automatically redeployed. You may also host the `website/` directory as a static site on Cloudflare Pages, Netlify, or another static host. No install or build command is needed. The output directory is the site directory itself. The public site is deliberately isolated from the desktop app's `index.html` and Vite build so the Windows overlay, packaging, and native features remain unchanged.
 
-Before announcing a public URL, set the deployment hostname and an absolute `og:image` asset if social link previews are needed. Release CTAs intentionally direct visitors to official GitHub Releases rather than assuming a specific installer exists.
+For richer social link previews, add an absolute `og:image` asset for the production hostname. Release CTAs intentionally direct visitors to official GitHub Releases rather than assuming a specific installer exists.
 
 ## Visual identity
 
