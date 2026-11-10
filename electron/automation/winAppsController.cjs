@@ -10,6 +10,22 @@ class WinAppsController {
     this.runPowerShell = run;
   }
 
+  // A successful protocol/file association proves only that Windows accepted
+  // a launch request. Never imply the app's window or signed-in state was
+  // confirmed when no process/window was actually inspected.
+  async sendLaunchRequest(script, label) {
+    try {
+      await this.runPowerShell("$ErrorActionPreference = 'Stop'\n" + script);
+      return {
+        success:true,verified:true,handoffOnly:true,
+        verificationScope:'windows-launch-handoff',
+        message:'Windows accepted the request for ' + label + '. The app window was not independently verified.'
+      };
+    } catch(error) {
+      return {success:false,verified:false,error:'Windows could not launch ' + label + ': ' + (error?.message || 'Request rejected.')};
+    }
+  }
+
   // Launch Windows Calculator
   async launchCalculator() {
     try {
@@ -314,32 +330,17 @@ $bmp.Dispose()
 
   // Launch Snipping Tool
   async launchSnippingTool() {
-    try {
-      await this.runPowerShell('Start-Process "snippingtool.exe"');
-      return { success: true, message: 'Snipping Tool opened', verified: true };
-    } catch (err) {
-      return { success: false, error: err.message, verified: false };
-    }
+    return this.sendLaunchRequest('Start-Process "snippingtool.exe" -ErrorAction Stop','Snipping Tool');
   }
 
   // Launch Windows Terminal
   async launchTerminal() {
-    try {
-      await this.runPowerShell('Start-Process "wt.exe" -ErrorAction SilentlyContinue; if (!$?) { Start-Process "powershell.exe" }');
-      return { success: true, message: 'Terminal opened', verified: true };
-    } catch (err) {
-      return { success: false, error: err.message, verified: false };
-    }
+    return this.sendLaunchRequest('try { Start-Process "wt.exe" -ErrorAction Stop } catch { Start-Process "powershell.exe" -ErrorAction Stop }','Windows Terminal (PowerShell fallback)');
   }
 
   // Open Windows Settings
   async openSettings() {
-    try {
-      await this.runPowerShell('Start-Process "ms-settings:"');
-      return { success: true, message: 'Windows Settings opened', verified: true };
-    } catch (err) {
-      return { success: false, error: err.message, verified: false };
-    }
+    return this.sendLaunchRequest('Start-Process "ms-settings:" -ErrorAction Stop','Windows Settings');
   }
 
   // Lock Workstation
@@ -368,32 +369,17 @@ $bmp.Dispose()
 
   // Launch Windows Camera
   async launchCamera() {
-    try {
-      await this.runPowerShell('Start-Process "microsoft.windows.camera:"');
-      return { success: true, message: 'Camera opened', verified: true };
-    } catch (err) {
-      return { success: false, error: err.message, verified: false };
-    }
+    return this.sendLaunchRequest('Start-Process "microsoft.windows.camera:" -ErrorAction Stop','Windows Camera');
   }
 
   // Launch Windows Clock & Alarms
   async launchClock() {
-    try {
-      await this.runPowerShell('Start-Process "ms-clock:"');
-      return { success: true, message: 'Clock & Alarms opened', verified: true };
-    } catch (err) {
-      return { success: false, error: err.message, verified: false };
-    }
+    return this.sendLaunchRequest('Start-Process "ms-clock:" -ErrorAction Stop','Windows Clock');
   }
 
   // Launch Windows Weather
   async launchWeather() {
-    try {
-      await this.runPowerShell('Start-Process "bingweather:"');
-      return { success: true, message: 'Weather app opened', verified: true };
-    } catch (err) {
-      return { success: false, error: err.message, verified: false };
-    }
+    return this.sendLaunchRequest('Start-Process "bingweather:" -ErrorAction Stop','Windows Weather');
   }
 
   // Launch Microsoft Edge
@@ -417,8 +403,7 @@ if (Test-Path $discordPath) {
   Start-Process "https://discord.com/app"
 }
 `;
-      await this.runPowerShell(script);
-      return { success: true, message: 'Discord opened', verified: true };
+      return await this.sendLaunchRequest(script,'Discord (desktop or web)');
     } catch (err) {
       return { success: false, error: err.message, verified: false };
     }
@@ -427,8 +412,7 @@ if (Test-Path $discordPath) {
   // Launch Steam
   async launchSteam() {
     try {
-      await this.runPowerShell('Start-Process "steam://open/main" -ErrorAction SilentlyContinue; if (!$?) { Start-Process "https://store.steampowered.com" }');
-      return { success: true, message: 'Steam opened', verified: true };
+      return await this.sendLaunchRequest('try { Start-Process "steam://open/main" -ErrorAction Stop } catch { Start-Process "https://store.steampowered.com" -ErrorAction Stop }','Steam (desktop or web)');
     } catch (err) {
       return { success: false, error: err.message, verified: false };
     }
@@ -529,8 +513,7 @@ $os = (Get-CimInstance Win32_OperatingSystem).Caption.Trim()
         name = 'Power & Battery Settings';
       }
 
-      await this.runPowerShell(`Start-Process "${uri}"`);
-      return { success: true, message: `${name} opened`, verified: true };
+      return await this.sendLaunchRequest(`Start-Process "${uri}" -ErrorAction Stop`,name);
     } catch (err) {
       return { success: false, error: err.message, verified: false };
     }

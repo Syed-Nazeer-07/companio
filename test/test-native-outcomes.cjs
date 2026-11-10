@@ -126,3 +126,28 @@ test('File Explorer with no folder does not silently open Downloads', async () =
   assert.match(script, /Start-Process -FilePath 'explorer\.exe'/);
   assert.doesNotMatch(script, /Downloads/);
 });
+
+test('Windows protocol launches report only verified OS handoff, not falsely confirmed windows',async()=>{
+ const commands=[
+  'launchSnippingTool','launchTerminal','openSettings','launchCamera',
+  'launchClock','launchWeather','launchDiscord','launchSteam'
+ ];
+ for(const key of commands) {
+  const win = new WinAppsController(async()=>({stdout:''}));
+  const result=await win[key]();
+  assert.equal(result.success,true,key);
+  assert.equal(result.verified,true,key);
+  assert.equal(result.handoffOnly,true,key);
+  assert.equal(result.verificationScope,'windows-launch-handoff',key);
+  assert.match(result.message,/not independently verified/i,key);
+ }
+});
+test('Windows launch failures cannot be presented as completed desktop actions',async()=>{
+ const win=new WinAppsController(async()=>{throw Error('handler not registered');});
+ for(const key of ['openSettings','launchSnippingTool','launchSteam']) {
+  const result=await win[key]();
+  assert.equal(result.success,false,key);
+  assert.equal(result.verified,false,key);
+  assert.match(result.error,/handler not registered/);
+ }
+});

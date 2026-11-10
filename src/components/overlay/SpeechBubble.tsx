@@ -17,7 +17,7 @@ export const SpeechBubble: React.FC<Props> = ({ text, state, activePlan, onCance
   const isExecuting = activePlan?.status === 'executing';
   const isFailed = activePlan?.status === 'failed' || state === 'confused';
   const isCompleted = !!(activePlan && activePlan.steps.length > 0 && activePlan.status === 'completed');
-  const isBrowserHandoff = !!(isCompleted && activePlan?.steps.every(step => step.result?.handoffOnly === true));
+  const isHandoff = !!(isCompleted && activePlan?.steps.length && activePlan.steps.every(step => step.result?.handoffOnly === true));
   const isListening = state === 'listening';
   const isThinking = state === 'thinking';
 
@@ -35,7 +35,7 @@ export const SpeechBubble: React.FC<Props> = ({ text, state, activePlan, onCance
             ) : isFailed ? (
               <><AlertCircle className="h-3.5 w-3.5 text-rose-600" /><span className="text-rose-700">Needs attention</span></>
             ) : isCompleted ? (
-              <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /><span className="text-emerald-700">{isBrowserHandoff ? 'Sent to browser' : 'Done'}</span></>
+              <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /><span className="text-emerald-700">{isHandoff ? 'Request sent' : 'Done'}</span></>
             ) : state === 'sleeping' ? (
               <><Moon className="h-3.5 w-3.5 text-slate-400" /><span className="text-slate-600">Resting</span></>
             ) : <span className="text-slate-500">Companio</span>}

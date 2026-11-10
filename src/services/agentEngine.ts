@@ -1126,8 +1126,8 @@ export class AgentEngine {
       return delegated.length === plan.steps.length
         ? (delegated.length === 1
           ? delegated[0].result.message
-          : `Sent ${delegated.length} requests to your default browser. Page loading was not verified.`)
-        : `Completed the requested actions, including ${delegated.length} default-browser handoff(s). Website loading was not verified.`;
+          : `Windows accepted ${delegated.length} launch requests. Application/page opening was not independently verified.`)
+        : `Completed the verified actions and sent ${delegated.length} further Windows launch request(s); those destinations were not independently verified.`;
     }
     if (plan.steps.length === 1) {
       const step = plan.steps[0];
