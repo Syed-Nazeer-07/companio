@@ -161,9 +161,10 @@ function createOverlayWindow() {
       backgroundThrottling: !SMOKE_TEST,
     }
   });
-  protectWindow(overlayWindow);
+  const win = overlayWindow;
+  protectWindow(win);
 
-  loadWindowContent(overlayWindow, 'overlay');
+  loadWindowContent(win, 'overlay');
 
   // Electron can emit many move notifications while dragging. Previously
   // each one performed a synchronous atomic JSON write (and sometimes snapped
