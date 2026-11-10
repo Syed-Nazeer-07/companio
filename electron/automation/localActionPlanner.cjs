@@ -184,6 +184,29 @@ function offlineClause(raw) {
       url: 'https://github.com/search?q=' + encodeURIComponent(query) + '&type=repositories'
     }};
   }
+  // Use the same default-browser search destinations for multi-step requests
+  // as the fast single-command parser. These URLs contain user search text,
+  // never executable scripts, credentials, or arbitrary browser automation.
+  const siteSearch = text.match(/^search\s+(?:(?:on|in)\s+)?(reddit|stack\s+overflow|youtube|github|google\s+maps|wikipedia)\s+(?:for|about)\s+(.+)$/i)
+    || (() => {
+      const termFirst = text.match(/^(?:search\s+for|look\s+up)\s+(.+?)\s+(?:on|in)\s+(reddit|stack\s+overflow|youtube|github|google\s+maps|wikipedia)$/i);
+      return termFirst ? [termFirst[0], termFirst[2], termFirst[1]] : null;
+    })();
+  if (siteSearch) {
+    const provider=siteSearch[1].toLowerCase().replace(/\s+/g, ' ');
+    const query=siteSearch[2].trim();
+    if (!query || query.length > 500) return null;
+    const value=encodeURIComponent(query);
+    const destinations={
+      reddit:'https://www.reddit.com/search/?q='+value,
+      'stack overflow':'https://stackoverflow.com/search?q='+value,
+      youtube:'https://www.youtube.com/results?search_query='+value,
+      github:'https://github.com/search?q='+value+'&type=repositories',
+      'google maps':'https://www.google.com/maps/search/'+value,
+      wikipedia:'https://en.wikipedia.org/wiki/Special:Search?search='+value
+    };
+    return {tool:'browser.open_url',params:{url:destinations[provider]}};
+  }
   const commonSites = Object.freeze({
     github:'https://github.com', gmail:'https://mail.google.com',
     reddit:'https://www.reddit.com', wikipedia:'https://www.wikipedia.org',

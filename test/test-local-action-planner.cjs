@@ -127,3 +127,33 @@ test('offline actions never execute unknown domains, private endpoints or partia
     assert.deepEqual(result.steps,[],query);
   }
 });
+
+test('offline compound workflow supports common site searches without model API',()=>{
+ const examples=[
+  ['Open Calculator and search Reddit for Windows ARM tips','https://www.reddit.com/search/?q=Windows%20ARM%20tips'],
+  ['Open VS Code and search Stack Overflow for React types','https://stackoverflow.com/search?q=React%20types'],
+  ['Open Notepad and search for Python DSA on YouTube','https://www.youtube.com/results?search_query=Python%20DSA'],
+  ['Open Calculator and search for React on GitHub','https://github.com/search?q=React&type=repositories'],
+  ['Open Notepad and search Google Maps for Chennai cafes','https://www.google.com/maps/search/Chennai%20cafes'],
+  ['Open Notepad and search for Turing on Wikipedia','https://en.wikipedia.org/wiki/Special:Search?search=Turing']
+ ];
+ for(const [query,url] of examples){
+   const plan=planOfflineSequence({query});
+   assert.equal(plan.success,true,query+' '+(plan.error||''));
+   assert.equal(plan.steps.length,2);
+   assert.equal(plan.steps[1].tool,'browser.open_url');
+   assert.equal(plan.steps[1].params.url,url);
+   assert.equal(plan.requiresConfirmation,true);
+ }
+});
+test('site-search workflows never partially execute unsafe or oversized requests',()=>{
+ for(const query of [
+  'Open Calculator and search Reddit for '+('x'.repeat(501)),
+  'Open Notepad and search Stack Overflow for',
+  'Open Calculator and search Reddit for cars and then delete files',
+ ]) {
+  const plan=planOfflineSequence({query});
+  assert.equal(plan.success,false,query);
+  assert.deepEqual(plan.steps,[]);
+ }
+});
