@@ -16,7 +16,7 @@ Summon a character, ask for help, and get back to what you were doing—without 
 
 [**Features**](#features) · [**Get started**](#getting-started) · [**How it works**](#how-it-works) · [**Development**](#development) · [**Roadmap**](#roadmap)
 
-[Releases](https://github.com/Syed-Nazeer-07/companio/releases) · [Preview builds](https://github.com/Syed-Nazeer-07/companio/actions/workflows/release.yml) · [Report an issue](https://github.com/Syed-Nazeer-07/companio/issues)
+[Website source](website/) · [Releases](https://github.com/Syed-Nazeer-07/companio/releases) · [Preview builds](https://github.com/Syed-Nazeer-07/companio/actions/workflows/release.yml) · [Report an issue](https://github.com/Syed-Nazeer-07/companio/issues)
 
 </div>
 
@@ -24,6 +24,23 @@ Summon a character, ask for help, and get back to what you were doing—without 
 
 > [!IMPORTANT]
 > **Status: active preview.** Companio is a working Electron desktop project with Windows automation, character interactions, optional local AI integration, tests, and installer workflows. It is **not yet a signed, production-validated Windows release**. Downloadable releases may lag behind the source code; see the [preview-build workflow](https://github.com/Syed-Nazeer-07/companio/actions/workflows/release.yml) for newer build artifacts when available.
+
+## Marketing website
+
+The repository now includes a **separate, responsive public landing page** in [`website/`](website/). It introduces Companio with a custom logo and favicon, illustrated companion characters, an interactive example-command preview, feature explanations, and official GitHub download links. The demo is illustrative only—it **does not control your computer**.
+
+**Preview the website locally** (from the repository root):
+
+```powershell
+cd website
+python -m http.server 4173
+```
+
+Visit **http://localhost:4173**. The website is plain HTML, CSS, JavaScript, and SVG—there is no npm install or build step for it.
+
+**Publish the website:** deploy the `website/` folder to a static hosting provider such as Cloudflare Pages, Netlify, or Vercel. Set the **root directory** to `website`; leave the build command empty and publish its static files directly. No public website domain has been configured by this repository change. Download calls-to-action link to [GitHub Releases](https://github.com/Syed-Nazeer-07/companio/releases), not an assumed installer URL.
+
+> The marketing site is intentionally independent of the Electron/Vite desktop UI. Existing desktop commands (`npm run build`, `npm start`) and installer packaging continue to use the root app; this change does not replace its floating overlay or Control Center.
 
 ## Overview
 
@@ -212,6 +229,7 @@ Windows installer output is written under `release/`. The GitHub Actions [CI wor
 
 ```text
 companio/
+├── website/                 # Static product website, logo, favicon and illustrations
 ├── electron/
 │   ├── main.cjs            # Desktop lifecycle, tray, windows, IPC
 │   ├── preload.cjs         # Restricted renderer-to-native bridge

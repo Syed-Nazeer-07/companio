@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 180" role="img" aria-label="Kiko companion"><defs><linearGradient id="ki" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fcf7ff"/><stop offset="1" stop-color="#c9b6e6"/></linearGradient></defs>
+ <path d="M34 80 37 22l30 25 15-4 15 4 27-25 3 58" fill="url(#ki)" stroke="#b6a2d3" stroke-width="3"/><path d="m43 37 1 27 17-13Z" fill="#f8bbca"/><path d="m116 37-1 27-17-13Z" fill="#f8bbca"/>
+ <ellipse cx="80" cy="100" rx="53" ry="50" fill="url(#ki)" stroke="#b6a2d3" stroke-width="3"/><ellipse cx="80" cy="148" rx="30" ry="20" fill="url(#ki)"/>
+ <ellipse cx="62" cy="98" rx="7" ry="10" fill="#29324a"/><ellipse cx="98" cy="98" rx="7" ry="10" fill="#29324a"/><circle cx="60" cy="94" r="2.5" fill="white"/><circle cx="96" cy="94" r="2.5" fill="white"/><path d="m76 117 4 4 4-4Z" fill="#f495a7"/><path d="M80 121q-4 7-11 2m11-2q4 7 11 2" stroke="#586073" stroke-width="2.5" fill="none" stroke-linecap="round"/><path d="M54 116 33 112m21 11-23 3m75-10 21-4m-21 11 23 3" stroke="#a38eac" stroke-width="2" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 180" role="img" aria-label="Sparky companion">
+ <defs>
+  <linearGradient id="body" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f8fafc"/><stop offset=".52" stop-color="#e2e8f0"/><stop offset="1" stop-color="#94a3b8"/></linearGradient>
+  <linearGradient id="visor" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#0f172a"/><stop offset="1" stop-color="#1e293b"/></linearGradient>
+  <linearGradient id="flame" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#72e9e1"/><stop offset=".55" stop-color="#a5e8d6"/><stop offset="1" stop-color="#a5e8d6" stop-opacity="0"/></linearGradient>
+  <filter id="eye"><feGaussianBlur stdDeviation=".9"/></filter>
+ </defs>
+ <path d="M68 143h24L80 177Z" fill="url(#flame)" opacity=".9"/><path d="M74 143h12l-6 22Z" fill="#d2fff1" opacity=".85"/>
+ <ellipse cx="80" cy="143" rx="15" ry="6" fill="#475569"/><ellipse cx="80" cy="141" rx="11" ry="3" fill="#0f172a"/>
+ <path d="M80 40V19" stroke="#64748b" stroke-width="4" stroke-linecap="round"/><circle cx="80" cy="15" r="7" fill="#a8e889"/>
+ <path d="M44 95Q28 110 32 125M116 95q16 15 12 30" stroke="#94a3b8" stroke-width="8" stroke-linecap="round" fill="none"/><circle cx="32" cy="125" r="6" fill="#70c5c6"/><circle cx="128" cy="125" r="6" fill="#70c5c6"/>
+ <rect x="44" y="86" width="72" height="56" rx="20" fill="url(#body)" stroke="#cbd5e1" stroke-width="2"/>
+ <rect x="62" y="100" width="36" height="24" rx="8" fill="#1e293b"/><circle cx="80" cy="112" r="5" fill="#9ddf8e"/>
+ <rect x="36" y="34" width="88" height="62" rx="24" fill="url(#body)" stroke="#e2e8f0" stroke-width="2"/>
+ <rect x="30" y="52" width="8" height="26" rx="4" fill="#71c7c2"/><rect x="122" y="52" width="8" height="26" rx="4" fill="#71c7c2"/>
+ <rect x="46" y="44" width="68" height="42" rx="14" fill="url(#visor)" stroke="#334155" stroke-width="2"/>
+ <g fill="#9ce6d6"><ellipse cx="64" cy="62" rx="7" ry="7"/><ellipse cx="96" cy="62" rx="7" ry="7"/></g>
+ <g fill="#fff"><circle cx="62" cy="59" r="2.5"/><circle cx="94" cy="59" r="2.5"/></g>
+ <path d="M74 77h12" stroke="#9ce6d6" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

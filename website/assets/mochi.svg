@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 180" role="img" aria-label="Mochi companion"><defs><radialGradient id="m" cx=".34" cy=".28" r=".75"><stop stop-color="#fff8e4"/><stop offset=".55" stop-color="#ffc38a"/><stop offset="1" stop-color="#ed8d5d"/></radialGradient></defs>
+ <path d="M80 37V27" stroke="#e9915f" stroke-width="4" stroke-linecap="round"/><path d="m80 10 3.5 9 9.5.5-7.5 6 2.5 9-8-5-8 5 2.5-9-7.5-6 9.5-.5Z" fill="#ffeaa2"/>
+ <ellipse cx="46" cy="53" rx="17" ry="28" fill="#f0a16f" transform="rotate(-21 46 53)"/><ellipse cx="46" cy="53" rx="9" ry="17" fill="#ffd4b8" transform="rotate(-21 46 53)"/>
+ <ellipse cx="114" cy="53" rx="17" ry="28" fill="#f0a16f" transform="rotate(21 114 53)"/><ellipse cx="114" cy="53" rx="9" ry="17" fill="#ffd4b8" transform="rotate(21 114 53)"/>
+ <path d="M29 105C27 60 45 53 80 53s53 7 51 52c-2 33-20 48-51 48s-49-15-51-48" fill="url(#m)"/>
+ <ellipse cx="59" cy="76" rx="18" ry="7" fill="white" opacity=".45" transform="rotate(-27 59 76)"/>
+ <ellipse cx="63" cy="108" rx="8" ry="9" fill="#352f34"/><ellipse cx="97" cy="108" rx="8" ry="9" fill="#352f34"/><circle cx="60" cy="104" r="3" fill="white"/><circle cx="94" cy="104" r="3" fill="white"/><ellipse cx="44" cy="119" rx="10" ry="6" fill="#ef948e" opacity=".5"/><ellipse cx="116" cy="119" rx="10" ry="6" fill="#ef948e" opacity=".5"/><path d="M73 125q7 7 14 0" stroke="#954e46" stroke-width="3" stroke-linecap="round" fill="none"/>
+</svg>

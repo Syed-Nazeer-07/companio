@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Companio logo">
+  <rect x="3" y="3" width="122" height="122" rx="33" fill="#D9F18E"/>
+  <path d="M88 41c-6.5-8-16-12-27.5-12C39 29 24 44.6 24 64s15 35 36.5 35c11.5 0 21-4 27.5-12" fill="none" stroke="#16201C" stroke-width="16.5" stroke-linecap="round"/>
+  <circle cx="93.5" cy="36" r="9" fill="#16201C"/>
+  <circle cx="94.5" cy="33.5" r="2.1" fill="#D9F18E"/>
+</svg>

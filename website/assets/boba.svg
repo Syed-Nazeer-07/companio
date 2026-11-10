@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 180" role="img" aria-label="Boba companion"><defs><linearGradient id="bb" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffe5bd"/><stop offset="1" stop-color="#bd8e63"/></linearGradient></defs>
+ <circle cx="45" cy="56" r="21" fill="#c99e77"/><circle cx="115" cy="56" r="21" fill="#c99e77"/><circle cx="45" cy="56" r="12" fill="#f1c7a0"/><circle cx="115" cy="56" r="12" fill="#f1c7a0"/>
+ <ellipse cx="80" cy="103" rx="56" ry="56" fill="url(#bb)" stroke="#b98c65" stroke-width="2"/><ellipse cx="61" cy="100" rx="6" ry="7.5" fill="#47352e"/><ellipse cx="99" cy="100" rx="6" ry="7.5" fill="#47352e"/><circle cx="59" cy="98" r="2" fill="white"/><circle cx="97" cy="98" r="2" fill="white"/>
+ <ellipse cx="80" cy="120" rx="19" ry="14" fill="#efd0b0"/><path d="m74 115 6 6 6-6Z" fill="#47352e"/><path d="M80 121q-5 7-10 1m10-1q5 7 10 1" stroke="#624a3b" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+ <rect x="60" y="138" width="40" height="28" rx="8" fill="#ead0a3" stroke="#ae7856" stroke-width="2"/><path d="m88 142 13-34" stroke="#80bcb4" stroke-width="5" stroke-linecap="round"/><path d="M62 145h36" stroke="#a77559" stroke-width="4"/><g fill="#6d4e44"><circle cx="69" cy="159" r="3"/><circle cx="81" cy="158" r="3"/><circle cx="93" cy="159" r="3"/></g>
+</svg>
