@@ -37,6 +37,7 @@ export class LocalWhisperRecorder {
   private stopping = false;
   private cancelled = false;
   private request = 0;
+  private pendingCancellation: ((error: Error) => void) | null = null;
 
   cancel() {
     this.cancelled = true;
@@ -48,6 +49,10 @@ export class LocalWhisperRecorder {
     this.stream?.getTracks().forEach(track=>track.stop());
     this.stream=null;
     if(this.context){void this.context.close().catch(()=>{});this.context=null;}
+    // Some Windows audio drivers never deliver MediaRecorder.onstop.
+    // An explicit cancellation must still settle the pending capture.
+    this.pendingCancellation?.(Error('Recording cancelled.'));
+    this.pendingCancellation = null;
   }
 
   async capture(onLevel?: (value:number)=>void):Promise<Uint8Array>{
@@ -87,6 +92,7 @@ export class LocalWhisperRecorder {
         let finished=false;
         const settle=async(error?:Error)=>{
           if(finished)return;finished=true;
+          if (this.pendingCancellation === cancelPending) this.pendingCancellation = null;
           if(this.monitor)clearInterval(this.monitor);
           this.monitor=null;
           stream.getTracks().forEach(track=>track.stop());
@@ -112,6 +118,8 @@ export class LocalWhisperRecorder {
             if(this.recorder===recorder)this.recorder=null;
           }
         };
+        const cancelPending = (error: Error) => { void settle(error); };
+        this.pendingCancellation = cancelPending;
         recorder.ondataavailable=event=>{if(event.data.size)chunks.push(event.data);};
         recorder.onerror=()=>{finishRecording();void settle(Error('Microphone recorder encountered an error.'));};
         recorder.onstop=()=>{void settle();};
@@ -119,7 +127,7 @@ export class LocalWhisperRecorder {
           void settle(error instanceof Error?error:Error('Could not start local microphone recording.'));return;
         }
         this.monitor=setInterval(()=>{
-          if(this.cancelled||request!==this.request){finishRecording();return;}
+          if(this.cancelled||request!==this.request){cancelPending(Error('Recording cancelled.'));return;}
           analyser.getFloatTimeDomainData(meter);
           let energy=0;
           for(const sample of meter)energy+=sample*sample;

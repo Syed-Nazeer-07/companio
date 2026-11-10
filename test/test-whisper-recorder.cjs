@@ -25,3 +25,31 @@ test('WAV encoder clamps samples and rejects malformed or excessively long recor
  assert.throws(()=>encodeMonoPcm16(new Float32Array(48000),0));
  assert.throws(()=>encodeMonoPcm16(new Float32Array(16000*20),16000));
 });
+
+test('cancel resolves a capture even when MediaRecorder never sends its stop event',async()=>{
+ const observed={stops:0};
+ class Recorder {
+   static isTypeSupported(){return true;}
+   constructor(){this.state='inactive';}
+   start(){this.state='recording';}
+   stop(){this.state='inactive'; /* missing onstop intentionally */ }
+ }
+ class Context {
+   createAnalyser(){return {fftSize:2048,getFloatTimeDomainData(){}};}
+   createMediaStreamSource(){return {connect(){}};}
+   close(){return Promise.resolve();}
+ }
+ const out={};
+ vm.runInNewContext(js,{
+   exports:out,Float32Array,Uint8Array,DataView,Math,Number,Error,MediaRecorder:Recorder,
+   window:{AudioContext:Context},
+   navigator:{mediaDevices:{getUserMedia:async()=>({getTracks:()=>[{stop(){observed.stops++;}}]})}},
+   setInterval,clearInterval,Promise,Date,Blob
+ });
+ const recorder=new out.LocalWhisperRecorder();
+ const pending=recorder.capture();
+ await new Promise(resolve=>setImmediate(resolve));
+ recorder.cancel();
+ await assert.rejects(pending,/cancelled/);
+ assert.ok(observed.stops>=1);
+});
