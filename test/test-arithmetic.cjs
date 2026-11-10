@@ -5,9 +5,9 @@ const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),ts=r
 const source=fs.readFileSync(path.join(__dirname,'../src/services/arithmetic.ts'),'utf8');
 assert.doesNotMatch(source,/\b(?:eval|Function)\s*\(/);
 const output=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
-const exports={};
-vm.runInNewContext(output,{exports,Math,Number,Error});
-const calc=exports.evaluateArithmetic;
+const moduleExports={};
+vm.runInNewContext(output,{exports:moduleExports,Math,Number,Error});
+const calc=moduleExports.evaluateArithmetic;
 test('arithmetic respects precedence, nesting and unary operators',()=>{
  for(const [input,wanted] of [
   ['2+3*4',14],['(2+3)*4',20],['-4/2 + 6',4],['3*-2',-6],

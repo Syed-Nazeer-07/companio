@@ -18,6 +18,7 @@ function createEngine(executeTool) {
       if(name==='./dbService') return {dbService:{addLog:(...args)=>logs.push(args)}};
       if(name==='./intentSafety') return {isCommandRequest:()=>true};
       if(name==='./webCommandParser') return {parseWebCommand:()=>null};
+      if(name==='./arithmetic') return {evaluateArithmetic:()=>null};
       throw Error('Unexpected import '+name);
     }
   },{filename:'agentEngine.compiled.cjs'});
