@@ -12,7 +12,7 @@ function createEngine(executeTool) {
   const exports={};
   const logs=[];
   vm.runInNewContext(output,{
-    exports,Date,Math,Array,Number,Error,AbortController,console,
+    exports,Date,Math,Array,Number,Error,AbortController,console,setTimeout,clearTimeout,
     require(name) {
       if(name==='./desktopBridge') return {desktopBridge:{executeTool}};
       if(name==='./dbService') return {dbService:{addLog:(...args)=>logs.push(args)}};

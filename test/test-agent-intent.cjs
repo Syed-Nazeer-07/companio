@@ -33,7 +33,7 @@ vm.runInNewContext(transpile('src/services/agentEngine.ts'),{
     if(name==='./dbService') return {dbService:{}};
     throw Error('Unexpected import '+name);
   },
-  Date,Math,Number,Array,Error,AbortController
+  Date,Math,Number,Array,Error,AbortController,setTimeout,clearTimeout
 });
 const engine=new engineExports.AgentEngine();
 engine.generateConversationalResponse=async()=>'I can explain that.';

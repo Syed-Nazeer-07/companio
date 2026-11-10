@@ -5,6 +5,46 @@ import { isCommandRequest } from './intentSafety';
 import { parseWebCommand } from './webCommandParser';
 import { evaluateArithmetic } from './arithmetic';
 
+// Never let a slow external process freeze Companio indefinitely. A timed-out
+// Windows action may still complete, so the caller must NOT retry it silently.
+export async function runWithActionDeadline<T>(
+  run: () => Promise<T>,
+  timeoutMs: number,
+  signal: AbortSignal
+): Promise<{kind:'done';value:T}|{kind:'timeout'}|{kind:'cancelled'}|{kind:'error';error:unknown}> {
+  if(signal.aborted) return {kind:'cancelled'};
+  if(!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 120000) {
+    return {kind:'error',error:Error('Invalid action timeout.')};
+  }
+  let operation:Promise<T>;
+  try { operation=Promise.resolve(run()); }
+  catch(error) { return {kind:'error',error}; }
+  let timer:ReturnType<typeof setTimeout>|undefined;
+  let abortListener:(()=>void)|undefined;
+  const control=new Promise<{kind:'timeout'}|{kind:'cancelled'}>(resolve=>{
+    timer=setTimeout(()=>resolve({kind:'timeout'}),timeoutMs);
+    abortListener=()=>resolve({kind:'cancelled'});
+    signal.addEventListener('abort',abortListener,{once:true});
+    if(signal.aborted) abortListener();
+  });
+  const settled=operation.then(
+    value=>({kind:'done' as const,value}),
+    error=>({kind:'error' as const,error})
+  );
+  try { return await Promise.race([control,settled]); }
+  finally {
+    if(timer!==undefined)clearTimeout(timer);
+    if(abortListener)signal.removeEventListener('abort',abortListener);
+  }
+}
+export function actionTimeoutMs(tool:string):number {
+  // Playback verification includes YouTube hydration; no broad 90-second
+  // permission for ordinary app launches or default-browser handoffs.
+  if(tool==='browser.youtube.search_and_play')return 90000;
+  if(tool==='browser.open_tabs')return 60000;
+  return 30000;
+}
+
 export class AgentEngine {
   private activeAbortController: AbortController | null = null;
 
@@ -1320,7 +1360,27 @@ export class AgentEngine {
             };
           }
         } else {
-          result = await desktopBridge.executeTool(step.tool, step.params);
+          const timeout=actionTimeoutMs(step.tool);
+          const outcome=await runWithActionDeadline(
+            () => desktopBridge.executeTool(step.tool, step.params),
+            timeout,
+            signal
+          );
+          if(outcome.kind==='done') result=outcome.value;
+          else if(outcome.kind==='cancelled'){
+            step.status='cancelled';
+            plan.status='cancelled';
+            plan.error='Stopped by user. An already-started Windows action may still finish.';
+            for(let j=i+1;j<plan.steps.length;j++)plan.steps[j].status='cancelled';
+            onProgress({...plan});
+            return plan;
+          } else if(outcome.kind==='timeout') {
+            result={success:false,verified:false,error:
+              'No confirmation within '+Math.round(timeout/1000)+
+              ' seconds. The action may still finish; check Windows before retrying.'};
+          } else {
+            throw outcome.error instanceof Error ? outcome.error : Error(String(outcome.error));
+          }
         }
 
         const duration = Date.now() - startTime;
@@ -1328,6 +1388,8 @@ export class AgentEngine {
         if (signal.aborted) {
           step.status = 'cancelled';
           plan.status = 'cancelled';
+          plan.error = 'Stopped by user. An already-started Windows action may still finish.';
+          for(let j=i+1;j<plan.steps.length;j++)plan.steps[j].status='cancelled';
           onProgress({ ...plan });
           return plan;
         }
