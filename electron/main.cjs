@@ -22,6 +22,7 @@ const { updateShortcutWithRollback, updateOverlayWithRollback } = require('./aut
 const { writeConfigAtomically } = require('./automation/atomicConfigStore.cjs');
 const { createStartupController } = require('./automation/startupController.cjs');
 const { planCompanionMove } = require('./automation/companionMovement.cjs');
+const { registerSingleInstance } = require('./automation/singleInstance.cjs');
 
 let overlayWindow = null;
 let dashboardWindow = null;
@@ -101,6 +102,22 @@ function protectWindow(win) {
     } catch {}
     return { action: 'deny' };
   });
+}
+
+function wakeCompanionWindow() {
+  if (!app.isReady()) return;
+  if (!overlayWindow || overlayWindow.isDestroyed()) createOverlayWindow();
+  const win = overlayWindow;
+  if (!win) return;
+  if (!win.isVisible()) win.show();
+  win.focus();
+  // If a second launch arrives during React's initialization, wait for
+  // the document before notifying it instead of sending into a blank page.
+  const notify = () => {
+    if (!win.isDestroyed()) win.webContents.send('shortcut-activated');
+  };
+  if (win.webContents.isLoading()) win.webContents.once('did-finish-load', notify);
+  else notify();
 }
 
 function createOverlayWindow() {
@@ -247,13 +264,7 @@ function setupTray() {
   const contextMenu = Menu.buildFromTemplate([
     {
       label: 'Wake Companion',
-      click: () => {
-        if (overlayWindow) {
-          overlayWindow.show();
-          overlayWindow.focus();
-          overlayWindow.webContents.send('shortcut-activated');
-        }
-      }
+      click: () => wakeCompanionWindow()
     },
     {
       label: 'Open Control Center',
@@ -293,7 +304,7 @@ function registerHotkeys(requested = currentShortcut) {
     const registered = globalShortcut.register(shortcut, () => {
       console.log('Global activation hotkey triggered!');
       if (!overlayWindow) {
-        createOverlayWindow();
+        wakeCompanionWindow();
         return;
       }
       if (!overlayWindow.isVisible()) overlayWindow.show();
@@ -705,9 +716,15 @@ secureHandle('show-overlay', () => {
   return true;
 });
 
+// A second Windows shortcut/installer invocation reopens the existing
+// companion instead of creating another tray, profile lock or history writer.
+const primaryInstance = registerSingleInstance(app, () => {
+  if (!SMOKE_TEST) wakeCompanionWindow();
+});
 app.commandLine.appendSwitch('enable-speech-dispatcher');
 
 app.whenReady().then(async () => {
+  if (!primaryInstance) return;
   if (process.platform === 'win32') app.setAppUserModelId('com.companio.desktop');
   // Never grant camera, accessibility, Bluetooth or USB permissions automatically.
   if (session && session.defaultSession) {
