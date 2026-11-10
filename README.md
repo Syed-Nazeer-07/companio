@@ -128,6 +128,9 @@ The first launch opens the Electron experience; configure your character and pre
 
 ## Voice and local AI
 
+**Preview rc.22 reliability improvements:** Local Whisper can now be set up from Voice Settings with one explicit click; the app downloads an official architecture-matched CPU executable and a better English base quantized model (~60 MB), verifies their published SHA-256 hashes, and keeps everything in per-user storage. Cancellation and manual file selection remain available. Normal desktop actions now have bounded waits: an unresponsive action reports an uncertain outcome and does not continue to later steps. Windows protocol/application launch requests are identified as handoffs, not falsely claimed as observed open windows.
+
+
 **Offline Whisper setup:** Voice Settings offers a user-triggered install of the official CPU whisper.cpp executable for the current Windows architecture (ARM64 or x64) and a checksum-pinned English base quantized model (~60 MB). Neither is silently downloaded or executed. Automatic setup uses a version-pinned archive and checks its SHA-256 before extraction; the advanced file-pickers remain available for users who prefer manual installation. Voice commands remain editable before execution because local Whisper does not supply a calibrated confidence score. The larger base model may transcribe more accurately than tiny on some speech, but takes more disk and CPU time; real-device accuracy is not yet benchmarked.
 
 
