@@ -16,7 +16,7 @@ Summon a character, ask for help, and get back to what you were doing—without 
 
 [**Features**](#features) · [**Get started**](#getting-started) · [**How it works**](#how-it-works) · [**Development**](#development) · [**Roadmap**](#roadmap)
 
-[**Visit official website**](https://companio-eight.vercel.app) · [Website source](website/) · [Releases](https://github.com/Syed-Nazeer-07/companio/releases) · [Preview builds](https://github.com/Syed-Nazeer-07/companio/actions/workflows/release.yml) · [Report an issue](https://github.com/Syed-Nazeer-07/companio/issues)
+[**Visit official website**](https://companio7.vercel.app) · [Website source](website/) · [Releases](https://github.com/Syed-Nazeer-07/companio/releases) · [Preview builds](https://github.com/Syed-Nazeer-07/companio/actions/workflows/release.yml) · [Report an issue](https://github.com/Syed-Nazeer-07/companio/issues)
 
 </div>
 
@@ -38,7 +38,7 @@ python -m http.server 4173
 
 Visit **http://localhost:4173**. The website is plain HTML, CSS, JavaScript, and SVG—there is no npm install or build step for it.
 
-**Live landing page:** [https://companio-eight.vercel.app](https://companio-eight.vercel.app) — hosted on Vercel, connected to the `main` branch, with the Vercel root directory set to `website`. This public marketing site is separate from the Electron app and automatically deploys site changes pushed to `main`. Download calls-to-action take visitors to [GitHub Releases](https://github.com/Syed-Nazeer-07/companio/releases) to select a published Windows installer.
+**Live landing page:** [https://companio7.vercel.app](https://companio7.vercel.app) — hosted on Vercel, connected to the `main` branch, with the Vercel root directory set to `website`. This public marketing site is separate from the Electron app and automatically deploys site changes pushed to `main`. Download calls-to-action take visitors to [GitHub Releases](https://github.com/Syed-Nazeer-07/companio/releases) to select a published Windows installer.
 
 > The marketing site is intentionally independent of the Electron/Vite desktop UI. Existing desktop commands (`npm run build`, `npm start`) and installer packaging continue to use the root app; this change does not replace its floating overlay or Control Center.
 
