@@ -134,7 +134,7 @@ test('offline compound workflow supports common site searches without model API'
   ['Open VS Code and search Stack Overflow for React types','https://stackoverflow.com/search?q=React%20types'],
   ['Open Notepad and search for Python DSA on YouTube','https://www.youtube.com/results?search_query=Python%20DSA'],
   ['Open Calculator and search for React on GitHub','https://github.com/search?q=React&type=repositories'],
-  ['Open Notepad and search Google Maps for Chennai cafes','https://www.google.com/maps/search/Chennai%20cafes'],
+  ['Open Notepad and search for Chennai cafes on Google Maps','https://www.google.com/maps/search/Chennai%20cafes'],
   ['Open Notepad and search for Turing on Wikipedia','https://en.wikipedia.org/wiki/Special:Search?search=Turing']
  ];
  for(const [query,url] of examples){
