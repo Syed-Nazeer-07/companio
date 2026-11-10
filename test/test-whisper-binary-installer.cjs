@@ -79,3 +79,16 @@ test('unsupported operating systems and architectures never download binaries',a
   assert.equal(called,false);
  }finally{fs.rmSync(h.userData,{recursive:true,force:true});}
 });
+
+test('voice settings exposes explicit install and cancellation with manual fallback',()=>{
+ const source=fs.readFileSync(path.join(__dirname,'../src/components/dashboard/VoiceSettingsPage.tsx'),'utf8');
+ const main=fs.readFileSync(path.join(__dirname,'../electron/main.cjs'),'utf8');
+ const preload=fs.readFileSync(path.join(__dirname,'../electron/preload.cjs'),'utf8');
+ assert.match(source,/Set up offline Whisper/);
+ assert.match(source,/cancelOfflineWhisperSetup/);
+ assert.match(source,/installWhisperBinary\(\)/);
+ assert.match(source,/downloadWhisperModel\(\)/);
+ assert.match(source,/recognitionEngine:'whisper'/);
+ assert.match(main,/secureHandle\('whisper-install-binary'/);
+ assert.match(preload,/ipcRenderer.invoke\('whisper-install-binary'\)/);
+});
