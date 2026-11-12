@@ -134,7 +134,7 @@ jobs:
             echo 'Unsigned preview build for Windows 11, not a signed production installer.'
             echo 'Choose **arm64** for Snapdragon/Windows on ARM and **x64** for Intel or AMD.'
             echo 'No account is required to download the installer from this release.'
-            echo 'Offline voice is included with the installer. It runs only when the microphone is activated.'
+            echo 'Bundled offline voice runs only when the user activates the microphone. Basic commands work without Ollama or an API key.'
             echo 'Windows SmartScreen may warn because these installers are not code-signed.'
             printf '\n## SHA-256 installer checksums\n\n```text\n'
             for arch in arm64 x64; do
