@@ -11,7 +11,7 @@ test('opens in Windows default browser and verifies only the OS handoff',async()
   assert.equal(url.verified,true);
   assert.equal(url.handoffOnly,true);
   assert.equal(url.verificationScope,'windows-handoff');
-  assert.match(url.message,/not been verified/);
+  assert.match(url.message,/Check the browser tab to confirm it loaded/);
   assert.equal(calls[0][0],'https://example.com/');
   assert.deepEqual(calls[0][1],{activate:true});
 });
