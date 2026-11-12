@@ -26,25 +26,54 @@ export function shouldAutoSubmitVoice(
 }
 
 /**
- * Only exact, known, low-risk one-step actions may run from a finished voice
- * transcript. No arbitrary URLs or search text are sent to external services.
- * The mic was explicitly activated and multi-step plans remain approval-gated.
+ * Convert explicitly named, low-risk spoken commands into the deterministic
+ * command wording already supported by Companio. This prevents "the YouTube"
+ * or extra politeness words from reaching the general-purpose planner.
+ *
+ * This function NEVER accepts URLs, arbitrary programs, searches, combined
+ * instructions, or destructive commands. Unknown/untrusted speech is displayed
+ * for review instead of automatically submitted.
  */
+export function canonicalBasicVoiceCommand(
+  transcript: string,
+  confidence: number | undefined,
+  enabled: boolean,
+  alternatives: string[] = []
+): string | null {
+  if (!enabled || typeof transcript !== 'string' || alternatives.length ||
+      transcript.length > 160 || !transcript.trim() ||
+      /[\u0000-\u001f\u007f]/.test(transcript) ||
+      (confidence !== undefined && (!Number.isFinite(confidence) || confidence < 0.85 || confidence > 1))) {
+    return null;
+  }
+  const request = transcript.trim().toLowerCase()
+    .replace(/^(?:(?:hey|hi|ok|okay)\s+)?(?:companio|companion)[,!:]?\s+/, '')
+    .replace(/^(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:please\s+)?/, '')
+    .replace(/[.!?]+$/, '')
+    .trim();
+
+  // Exact destinations only. Canonical values are the literal actions already
+  // implemented by the built-in planner, not arbitrary transcribed input.
+  const app = request.match(/^(?:open|launch|start)\s+(?:(?:the|windows)\s+)?(youtube|google|github|calculator|notepad|chatgpt|spotify|file explorer)$/);
+  if (app) {
+    const names: Record<string, string> = {
+      youtube: 'YouTube', google: 'Google', github: 'GitHub',
+      calculator: 'Calculator', notepad: 'Notepad', chatgpt: 'ChatGPT',
+      spotify: 'Spotify', 'file explorer': 'File Explorer'
+    };
+    return 'Open ' + names[app[1]];
+  }
+  if (/^(?:take|capture|save)\s+(?:(?:a|the|my)\s+)?(?:screenshot|screen shot|screen|ss)$/.test(request))
+    return 'Take a screenshot';
+  return null;
+}
+
+/** Compatibility wrapper for callers that need only an allow/deny decision. */
 export function shouldAutoRunBasicVoiceCommand(
   transcript: string,
   confidence: number | undefined,
   enabled: boolean,
   alternatives: string[] = []
 ): boolean {
-  if (!enabled || typeof transcript !== 'string' || alternatives.length ||
-      transcript.length > 160 || (Number.isFinite(confidence) && (confidence ?? 0) < 0.85)) return false;
-  const request=transcript.trim().toLowerCase()
-    .replace(/^(?:(?:hey|hi|ok|okay)\s+)?companio[,!:]?\s+/,'')
-    .replace(/^please\s+/,'')
-    .replace(/[.!?]+$/,'')
-    .trim();
-  // Strictly literal destinations; even a single extra spoken word makes
-  // this fail closed and opens the editable transcript instead.
-  return /^(?:open|launch)\s+(?:youtube|google|github|calculator|notepad|chatgpt|spotify|file explorer)$/.test(request)
-    || /^(?:take|capture)\s+(?:(?:a|the)\s+)?(?:screenshot|screen shot)$/.test(request);
+  return canonicalBasicVoiceCommand(transcript, confidence, enabled, alternatives) !== null;
 }
