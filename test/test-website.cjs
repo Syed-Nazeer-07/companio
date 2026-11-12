@@ -10,9 +10,9 @@ test('website provides discoverable current ARM64/x64 preview without hiding the
  assert.match(html,/Intel\/AMD PCs/);
  assert.match(html,/Other versions/);
  assert.match(html,/no ZIP or GitHub sign-in needed/i);
- assert.match(html,/releases\/tag\/v1\.1\.0-rc\.22/);
- assert.match(html,/releases\/download\/v1\.1\.0-rc\.22\/Companio-Setup-1\.1\.0-rc\.22-arm64\.exe/);
- assert.match(html,/releases\/download\/v1\.1\.0-rc\.22\/Companio-Setup-1\.1\.0-rc\.22-x64\.exe/);
+ assert.match(html,/releases\/tag\/v1\.1\.0-rc\.23/);
+ assert.match(html,/releases\/download\/v1\.1\.0-rc\.23\/Companio-Setup-1\.1\.0-rc\.23-arm64\.exe/);
+ assert.match(html,/releases\/download\/v1\.1\.0-rc\.23\/Companio-Setup-1\.1\.0-rc\.23-x64\.exe/);
 });
 test('landing page stays a clearly labeled demonstration and avoids user data collection',()=>{
  assert.match(html,/Interactive illustration/);
