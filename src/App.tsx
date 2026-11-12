@@ -72,12 +72,18 @@ const mergeSettings = (saved: Partial<AppSettings> = {}): AppSettings => {
     value !== null && typeof value === 'object' && !Array.isArray(value)
       ? value as Record<string, unknown> : {};
 
+  const savedVoice = validSection(saved.voice);
+  // Earlier previews silently defaulted to legacy Windows dictation. Migrate
+  // that default to auto, but preserve explicit user choices made afterward.
+  const migratedVoice = savedVoice.recognitionEngine === 'windows' && savedVoice.recognitionEngineExplicit !== true
+    ? { ...savedVoice, recognitionEngine: 'auto' }
+    : savedVoice;
   return {
     ...DEFAULT_SETTINGS,
     ...saved,
     character: { ...DEFAULT_SETTINGS.character, ...validSection(saved.character) },
     ai: { ...DEFAULT_SETTINGS.ai, ...validSection(saved.ai) },
-    voice: { ...DEFAULT_SETTINGS.voice, ...validSection(saved.voice) },
+    voice: { ...DEFAULT_SETTINGS.voice, ...migratedVoice },
     overlay: { ...DEFAULT_SETTINGS.overlay, ...validSection(saved.overlay) }
   };
 };
