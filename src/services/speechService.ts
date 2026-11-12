@@ -96,6 +96,7 @@ export class SpeechService {
     }
 
     if (isNativeDesktop() && useOfflineWhisper) {
+      let captureForCleanup: LocalWhisperRecorder | null = null;
       try {
         // Fail fast before requesting microphone permission or recording audio.
         const readiness = await desktopBridge.getWhisperStatus();
@@ -104,10 +105,14 @@ export class SpeechService {
           complete('error', readiness.message || 'Set up local Whisper in Voice Settings before recording.');
           return;
         }
-        this.whisperCapture = new LocalWhisperRecorder();
-        const wav = await this.whisperCapture.capture(onAudioLevel);
+        // Own the recorder per request: an older cancelled recording must
+        // never clear the recorder belonging to a newer push-to-talk session.
+        const capture = new LocalWhisperRecorder();
+        captureForCleanup = capture;
+        this.whisperCapture = capture;
+        const wav = await capture.capture(onAudioLevel);
         if (!active()) return;
-        this.whisperCapture = null;
+        if (this.whisperCapture === capture) this.whisperCapture = null;
         onInterim('Transcribing locally with Whisper…');
         const result = await desktopBridge.transcribeWithWhisper(wav);
         if (!active()) return;
@@ -121,7 +126,7 @@ export class SpeechService {
       } catch(error) {
         complete('error', error instanceof Error ? error.message : 'Could not capture microphone audio for Whisper.');
       } finally {
-        this.whisperCapture = null;
+        if (this.whisperCapture === captureForCleanup) this.whisperCapture = null;
       }
       return;
     }

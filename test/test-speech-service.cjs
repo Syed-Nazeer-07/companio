@@ -12,7 +12,7 @@ const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
 }).outputText;
 
-function setup({native = false, listen, browserRecognition = false} = {}) {
+function setup({native = false, listen, browserRecognition = false, recorderClass} = {}) {
   const api = {
     cancels: 0,
     startNativeSpeech: listen || (async () => ({success:true,silence:true})),
@@ -43,7 +43,7 @@ function setup({native = false, listen, browserRecognition = false} = {}) {
     exports:result,
     require(name) {
       if (name==='./desktopBridge') return {desktopBridge:api,isNativeDesktop:()=>native};
-      if (name==='./whisperRecorder') return {LocalWhisperRecorder:class {
+      if (name==='./whisperRecorder') return {LocalWhisperRecorder:recorderClass || class {
         async capture(){return new Uint8Array(32044);}
         cancel(){api.captureCancelled=(api.captureCancelled||0)+1;}
       }};
@@ -219,4 +219,29 @@ test('automatic voice uses packaged Whisper, falling back to Windows when unavai
  let heard;
  await fallback.service.startListening(()=>{},text=>{heard=text;},()=>{},undefined,undefined,'en-IN',false,'auto');
  assert.equal(heard,'Open YouTube');
+});
+
+test('cancelled Whisper session cannot clear the next active capture', async()=>{
+ const instances=[];
+ class Recorder {
+   constructor(){this.resolve=null;this.cancelled=false;instances.push(this);}
+   capture(){return new Promise(resolve=>{this.resolve=resolve;});}
+   cancel(){this.cancelled=true;}
+ }
+ const h=setup({native:true,recorderClass:Recorder});
+ const first=h.service.startListening(()=>{},()=>{},()=>{},undefined,undefined,'en-IN',false,'whisper');
+ // Allow the async readiness check to reach the first capture.
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(instances.length,1);
+ const second=h.service.startListening(()=>{},()=>{},()=>{},undefined,undefined,'en-IN',false,'whisper');
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(instances.length,2);
+ assert.equal(instances[0].cancelled,true);
+ // Old request completes late while the newer one must remain cancellable.
+ instances[0].resolve(new Uint8Array(32044));
+ await first;
+ h.service.stopListening();
+ assert.equal(instances[1].cancelled,true);
+ instances[1].resolve(new Uint8Array(32044));
+ await second;
 });
