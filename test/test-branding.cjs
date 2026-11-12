@@ -24,6 +24,9 @@ test('native windows, tray and installers refer to actual branded assets',()=>{
   assert.equal(pkg.build.win.icon,'build/icon.ico');
   assert.equal(pkg.build.win.target[0],'nsis');
   assert.equal(pkg.build.win.target.length,1);
+  assert.equal(pkg.build.nsis.useZip,true);
+  assert.equal(pkg.build.nsis.differentialPackage,false);
+  assert.equal(pkg.build.nsis.runAfterFinish,false);
   assert.ok(fs.statSync(path.join(root,'build/icon.png')).size>1000);
   assert.ok(fs.statSync(path.join(root,'build/icon.ico')).size>1000);
 });
