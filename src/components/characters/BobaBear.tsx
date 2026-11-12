@@ -7,124 +7,82 @@ interface Props {
   audioLevel?: number;
 }
 
+/** Chibi bear character, rather than a tea cup, with the shared companion silhouette. */
 export const BobaBear: React.FC<Props> = ({ state, scale = 1, audioLevel = 0 }) => {
-  const isSleeping = state === 'sleeping';
-  const isListening = state === 'listening';
-  const isThinking = state === 'thinking';
-  const isSuccess = state === 'success';
-  const isConfused = state === 'confused';
-  const isWaking = state === 'waking';
-  const mouthHeight = state === 'talking' ? Math.max(3, 3 + audioLevel * 10) : 2.5;
+  const sleeping = state === 'sleeping';
+  const listening = state === 'listening';
+  const thinking = state === 'thinking';
+  const success = state === 'success';
+  const confused = state === 'confused';
+  const waking = state === 'waking';
+  const mouthHeight = state === 'talking' ? 3 + Math.min(audioLevel, 1) * 8 : 3;
+  const motion = success ? 'animate-companio-celebrate'
+    : waking ? 'animate-companio-wake'
+    : listening ? 'animate-companio-listen'
+    : thinking ? 'animate-companio-think'
+    : confused ? 'rotate-[-6deg]'
+    : sleeping ? 'opacity-85 translate-y-3'
+    : 'animate-companio-idle';
 
   return (
-    <div 
-      className="relative flex items-center justify-center transition-transform duration-300 pointer-events-none select-none"
-      style={{ transform: `scale(${scale})` }}
-    >
-      <svg 
-        width="160" 
-        height="180" 
-        viewBox="0 0 160 180" 
-        className={`relative z-10 transition-all duration-300 drop-shadow-[0_10px_20px_rgba(0,0,0,0.12)] ${
-          isSuccess ? 'animate-companio-celebrate' :
-          isWaking ? 'animate-companio-wake' :
-          isListening ? 'animate-companio-listen' :
-          isThinking ? 'animate-companio-think' : 
-          isConfused ? 'rotate-[-8deg]' : 
-          isSleeping ? 'opacity-85 translate-y-3' : 'animate-companio-idle'
-        }`}
-      >
+    <div className="relative flex items-center justify-center pointer-events-none select-none transition-transform duration-300"
+      style={{ transform: 'scale(' + scale + ')' }}>
+      <svg width="160" height="180" viewBox="0 0 160 180" role="img" aria-label="Boba bear companion"
+        className={'relative z-10 drop-shadow-[0_10px_20px_rgba(0,0,0,0.12)] transition-all duration-300 ' + motion}>
         <defs>
-          <linearGradient id="teaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#fed7aa" />
-            <stop offset="50%" stopColor="#fdba74" />
-            <stop offset="100%" stopColor="#fb923c" />
-          </linearGradient>
-          <linearGradient id="cupGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
-            <stop offset="50%" stopColor="#ffffff" stopOpacity="0.6" />
-            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.8" />
+          <linearGradient id="bobaFur" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#ffe6be" />
+            <stop offset="100%" stopColor="#edb77f" />
           </linearGradient>
         </defs>
-
-        {/* Diagonal Striped Boba Straw */}
-        <polygon points="95,15 106,12 88,65 77,68" fill="#f43f5e" />
-        <line x1="97" y1="25" x2="87" y2="45" stroke="#ffffff" strokeWidth="4" />
-
-        {/* Bear Ears on Cup Lid */}
-        <ellipse cx="46" cy="52" rx="12" ry="12" fill="#fdba74" stroke="#ea580c" strokeWidth="1.5" />
-        <ellipse cx="46" cy="52" rx="6" ry="6" fill="#fca5a5" />
-
-        <ellipse cx="114" cy="52" rx="12" ry="12" fill="#fdba74" stroke="#ea580c" strokeWidth="1.5" />
-        <ellipse cx="114" cy="52" rx="6" ry="6" fill="#fca5a5" />
-
-        {/* Dome Cup Lid */}
-        <path d="M35 62 Q80 40 125 62 Z" fill="#ffffff" stroke="#e2e8f0" strokeWidth="2" />
-        <rect x="30" y="60" width="100" height="8" rx="4" fill="#ffffff" stroke="#cbd5e1" strokeWidth="1.5" />
-
-        {/* Cup Body */}
-        <polygon points="40,66 120,66 110,155 50,155" fill="url(#cupGrad)" stroke="#cbd5e1" strokeWidth="1.5" />
-        {/* Milk Tea Liquid Fill inside cup */}
-        <polygon points="43,80 117,80 108,152 52,152" fill="url(#teaGrad)" />
-
-        {/* Tapioca Boba Pearls */}
-        <g fill="#431407" className={isSuccess ? 'animate-companio-celebrate' : ''}>
-          <circle cx="62" cy="140" r="7" />
-          <circle cx="78" cy="142" r="7" />
-          <circle cx="95" cy="138" r="7" />
-          <circle cx="70" cy="130" r="6" />
-          <circle cx="88" cy="128" r="6" />
-          {/* Pearl glints */}
-          <circle cx="60" cy="138" r="1.5" fill="#ffffff" opacity="0.6" />
-          <circle cx="76" cy="140" r="1.5" fill="#ffffff" opacity="0.6" />
-          <circle cx="93" cy="136" r="1.5" fill="#ffffff" opacity="0.6" />
-        </g>
-
-        {/* Blush Cheeks */}
-        <ellipse cx="58" cy="108" rx="6" ry="4" fill="#f43f5e" opacity={isSuccess ? 0.75 : 0.5} />
-        <ellipse cx="102" cy="108" rx="6" ry="4" fill="#f43f5e" opacity={isSuccess ? 0.75 : 0.5} />
-
-        {/* Eyes on Cup Face */}
-        {isSleeping ? (
-          <g stroke="#431407" strokeWidth="2.5" strokeLinecap="round" fill="none">
-            <path d="M60 100 Q68 106 76 100" />
-            <path d="M84 100 Q92 106 100 100" />
-            <text x="110" y="75" fill="#ea580c" fontSize="12" fontWeight="bold">z</text>
-            <text x="118" y="65" fill="#ea580c" fontSize="9" opacity="0.6">z</text>
+        <ellipse cx="80" cy="159" rx="39" ry="6" fill="#7c5537" opacity="0.14" />
+        {/* Rounded ears and compact plush body share Kiko's soft outlines. */}
+        <circle cx="49" cy="53" r="18" fill="url(#bobaFur)" stroke="#ce9566" strokeWidth="2" />
+        <circle cx="111" cy="53" r="18" fill="url(#bobaFur)" stroke="#ce9566" strokeWidth="2" />
+        <circle cx="49" cy="53" r="9" fill="#f6b9b3" opacity="0.8" />
+        <circle cx="111" cy="53" r="9" fill="#f6b9b3" opacity="0.8" />
+        <ellipse cx="80" cy="128" rx="37" ry="27" fill="url(#bobaFur)" stroke="#ce9566" strokeWidth="2" />
+        <ellipse cx="80" cy="130" rx="21" ry="17" fill="#fff3dd" />
+        <ellipse cx="80" cy="90" rx="51" ry="46" fill="url(#bobaFur)" stroke="#ce9566" strokeWidth="2" />
+        <ellipse cx="80" cy="110" rx="20" ry="14" fill="#fff2da" />
+        <ellipse cx="41" cy="127" rx="12" ry="9" fill="#edb77f" stroke="#ce9566" strokeWidth="1.5" />
+        <ellipse cx="119" cy="127" rx="12" ry="9" fill="#edb77f" stroke="#ce9566" strokeWidth="1.5" />
+        <ellipse cx="59" cy="150" rx="15" ry="9" fill="#f6cda3" stroke="#ce9566" strokeWidth="1.5" />
+        <ellipse cx="101" cy="150" rx="15" ry="9" fill="#f6cda3" stroke="#ce9566" strokeWidth="1.5" />
+        {/* The tiny teal bow is Boba's distinctive detail, not a busy prop. */}
+        <path d="M66 133 Q54 119 52 134 Q55 147 66 138 L80 136 L94 138 Q105 147 108 134 Q106 119 94 133 Z"
+          fill="#74b7b4" stroke="#4f918d" strokeWidth="1.5" />
+        <circle cx="80" cy="136" r="6" fill="#4f918d" />
+        <ellipse cx="45" cy="105" rx="8" ry="5" fill="#ed9e9e" opacity="0.75" />
+        <ellipse cx="115" cy="105" rx="8" ry="5" fill="#ed9e9e" opacity="0.75" />
+        {sleeping || success ? (
+          <g stroke="#553d36" strokeWidth="3" strokeLinecap="round" fill="none">
+            <path d={success ? 'M52 91 Q63 80 73 91' : 'M52 89 Q63 97 73 89'} />
+            <path d={success ? 'M87 91 Q97 80 108 91' : 'M87 89 Q97 97 108 89'} />
           </g>
-        ) : isSuccess ? (
-          <g stroke="#7c2d12" strokeWidth="3" strokeLinecap="round" fill="none">
-            <path d="M60 100 Q68 92 76 100" />
-            <path d="M84 100 Q92 92 100 100" />
-            <text x="110" y="75" fill="#f59e0b" fontSize="14">✨</text>
-          </g>
-        ) : isConfused ? (
+        ) : confused ? (
           <g>
-            <circle cx="68" cy="98" r="6" fill="#1e293b" />
-            <circle cx="66" cy="96" r="2" fill="#ffffff" />
-            <path d="M84 100 Q92 96 100 100" stroke="#1e293b" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-            <text x="112" y="80" fill="#f43f5e" fontSize="14" fontWeight="bold">?</text>
+            <circle cx="62" cy="91" r="6.5" fill="#303b4a" />
+            <path d="M87 93 Q97 89 108 94" stroke="#303b4a" strokeWidth="2.5" fill="none" />
           </g>
         ) : (
           <g>
-            {/* Left Eye */}
-            <circle cx="68" cy="98" r={isListening ? 7 : 6} fill="#1e293b" />
-            <circle cx="66" cy="96" r="2.5" fill="#ffffff" />
-
-            {/* Right Eye */}
-            <circle cx="92" cy="98" r={isListening ? 7 : 6} fill="#1e293b" />
-            <circle cx="90" cy="96" r="2.5" fill="#ffffff" />
+            <ellipse cx="62" cy="91" rx={listening ? 7 : 6} ry="7.5" fill="#303b4a" />
+            <ellipse cx="98" cy="91" rx={listening ? 7 : 6} ry="7.5" fill="#303b4a" />
+            <circle cx="60" cy="88" r="2.5" fill="#fff" />
+            <circle cx="96" cy="88" r="2.5" fill="#fff" />
           </g>
         )}
-
-        {/* Cute Smile */}
+        <ellipse cx="80" cy="105" rx="5.5" ry="4" fill="#57423c" />
         {state === 'talking' ? (
-          <ellipse cx="80" cy="110" rx="4" ry={mouthHeight} fill="#be123c" />
-        ) : isSuccess ? (
-          <path d="M75 108 Q80 115 85 108" stroke="#431407" strokeWidth="2" strokeLinecap="round" fill="none" />
+          <ellipse cx="80" cy="118" rx="4.5" ry={mouthHeight} fill="#9b5261" />
         ) : (
-          <path d="M76 108 Q80 112 84 108" stroke="#431407" strokeWidth="2" strokeLinecap="round" fill="none" />
+          <path d={success ? 'M71 115 Q80 126 89 115' : 'M74 116 Q80 121 86 116'}
+            stroke="#57423c" strokeWidth="2" strokeLinecap="round" fill="none" />
         )}
+        {sleeping && <g fill="#b28c7f" fontWeight="bold"><text x="116" y="51" fontSize="14">z</text><text x="127" y="40" fontSize="10">z</text></g>}
+        {thinking && <circle cx="127" cy="61" r="4" fill="#74b7b4" />}
+        {success && <path d="M126 57 L129 63 L135 66 L129 69 L126 75 L123 69 L117 66 L123 63 Z" fill="#f2ca6a" />}
       </svg>
     </div>
   );
