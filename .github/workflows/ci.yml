@@ -68,7 +68,7 @@ jobs:
   # Electron app actually starts on Windows ARM. Exercise the real ARM binary.
   arm64-native-smoke:
     name: Verify packaged Electron on native Windows ARM64
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release:')
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release:'))
     needs: verify
     runs-on: windows-11-arm
     timeout-minutes: 35
@@ -109,7 +109,7 @@ jobs:
 
   package-preview:
     name: Build unsigned Windows ${{ matrix.arch }} preview
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release:')
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release:'))
     needs: verify
     runs-on: windows-latest
     timeout-minutes: 35
