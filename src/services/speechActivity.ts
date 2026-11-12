@@ -16,10 +16,12 @@ export function createSpeechActivityTracker() {
     const elapsed = Number.isFinite(elapsedMs) ? Math.max(0, elapsedMs) : 0;
     if (energy >= 0.005) {
       sustainedFrames++;
-      if (sustainedFrames >= 2) {
-        detected = true;
-        lastVoiceMs = elapsed;
-      }
+      // Require two consecutive energetic samples to *begin* detecting
+      // speech, but refresh the pause timer on every energetic sample after
+      // detection. Soft syllables and brief gaps otherwise expire the timer
+      // in the middle of a spoken command.
+      if (sustainedFrames >= 2) detected = true;
+      if (detected) lastVoiceMs = elapsed;
     } else {
       sustainedFrames = 0;
     }
