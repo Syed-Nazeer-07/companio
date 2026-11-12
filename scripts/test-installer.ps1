@@ -15,10 +15,18 @@ if (-not ([IO.Path]::GetFileName($installer) -like $expectedName)) {
 
 $watch = [Diagnostics.Stopwatch]::StartNew()
 $process = Start-Process -FilePath $installer -ArgumentList '/S' -PassThru -WindowStyle Hidden
-# Silent installation is intentionally bounded: it must not freeze CI.
-if (-not $process.WaitForExit(240000)) {
-  Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-  throw "Companio silent $Architecture installation exceeded 240 seconds."
+# Sample while the installer exists. Exit-time WorkingSet64 reads can return
+# zero on Windows after the process closes; report no value rather than zero.
+$peakBytes = [long]0
+while (-not $process.WaitForExit(250)) {
+  try {
+    $process.Refresh()
+    $peakBytes = [math]::Max($peakBytes, [long]$process.WorkingSet64)
+  } catch { }
+  if ($watch.ElapsedMilliseconds -ge 240000) {
+    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+    throw "Companio silent $Architecture installation exceeded 240 seconds."
+  }
 }
 $watch.Stop()
 if ($process.ExitCode -ne 0) {
@@ -31,9 +39,8 @@ if (-not (Test-Path -LiteralPath $installed -PathType Leaf)) {
 }
 $sizeMiB = [math]::Round((Get-Item -LiteralPath $installer).Length / 1MB, 1)
 $seconds = [math]::Round($watch.Elapsed.TotalSeconds, 1)
-$peakMiB = 'unavailable'
-try { $peakMiB = [math]::Round($process.PeakWorkingSet64 / 1MB, 1) } catch { }
-$report = "Silent $Architecture install: $($seconds)s, setup peak working set $($peakMiB) MiB, installer $($sizeMiB) MiB."
+$peakMiB = if ($peakBytes -gt 0) { [math]::Round($peakBytes / 1MB, 1) } else { 'unavailable' }
+$report = "Silent $Architecture install: $($seconds)s, observed installer-process working set peak $peakMiB MiB, installer $($sizeMiB) MiB."
 Write-Output $report
 if ($env:GITHUB_STEP_SUMMARY) {
   $report | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
