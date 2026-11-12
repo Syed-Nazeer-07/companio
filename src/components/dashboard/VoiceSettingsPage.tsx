@@ -249,7 +249,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
       },
       settings.voice.recognitionLanguage || 'en-IN',
       settings.overlay.soundEffects,
-      settings.voice.recognitionEngine === 'whisper' ? 'whisper' : 'windows'
+      settings.voice.recognitionEngine === 'whisper' ? 'whisper' : settings.voice.recognitionEngine === 'windows' ? 'windows' : 'auto'
     );
   };
 
@@ -263,6 +263,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
         pitch: settings.voice.ttsPitch,
         volume: settings.voice.ttsVolume,
         muted: false,
+        characterId: settings.characterId,
         onEnd: () => setTestingVoice(false)
       }
     );
@@ -327,7 +328,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
               id="companio-speech-engine"
               value={settings.voice.recognitionEngine || 'auto'}
               onChange={event => onUpdateSettings({
-                voice: {...settings.voice,recognitionEngine:event.target.value as 'auto' | 'windows' | 'whisper'}
+                voice: {...settings.voice,recognitionEngine:event.target.value as 'auto' | 'windows' | 'whisper', recognitionEngineExplicit: true}
               })}
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
             >
