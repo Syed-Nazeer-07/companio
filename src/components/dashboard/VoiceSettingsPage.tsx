@@ -301,13 +301,13 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
             />
           </div>
 
-          {/* Hands-free is opt-in; Windows actions still need a reviewed transcript. */}
+          {/* Hands-free is restricted to exact known reversible commands. */}
           <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5">
             <div>
-              <label htmlFor="companio-voice-auto-send" className="text-sm font-bold text-slate-800">Hands-free safe messages</label>
+              <label htmlFor="companio-voice-auto-send" className="text-sm font-bold text-slate-800">Hands-free basic commands</label>
               <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                Auto-send clearly recognized conversation and Companio-only commands (sleep, wake, hide and move).
-                Website, app and system actions still wait for your review. Off by default.
+                Automatically send simple named app launches, local screenshots and conversation.
+                Unknown websites, searches and risky actions always require transcript review.
               </p>
             </div>
             <input id="companio-voice-auto-send" type="checkbox"
