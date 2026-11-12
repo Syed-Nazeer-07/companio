@@ -33,8 +33,8 @@ export const SetupWizardModal: React.FC<Props> = ({
   const finish = () => onComplete({
     characterId: selected,
     characterName: name.trim().slice(0, 32) || 'Companio',
-    ai: { ...settings.ai, provider: 'mock' },
-    voice: { ...settings.voice, recognitionEngine: 'auto' },
+    ai: settings.firstTimeSetupDone ? settings.ai : { ...settings.ai, provider: 'mock' },
+    voice: settings.firstTimeSetupDone ? settings.voice : { ...settings.voice, recognitionEngine: 'auto' },
     firstTimeSetupDone: true
   });
   return (
