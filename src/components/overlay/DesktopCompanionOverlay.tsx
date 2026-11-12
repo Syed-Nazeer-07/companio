@@ -11,7 +11,7 @@ import { dbService } from '../../services/dbService';
 import { requiresActionReview } from '../../services/actionApprovalPolicy';
 import { GripHorizontal, MessageSquare, Moon, Sun, X } from 'lucide-react';
 import { parseCompanionCommand } from '../../services/companionCommands';
-import { shouldAutoSubmitVoice, shouldAutoRunBasicVoiceCommand } from '../../services/voiceAutoSend';
+import { shouldAutoSubmitVoice, canonicalBasicVoiceCommand } from '../../services/voiceAutoSend';
 
 interface Props {
   settings: AppSettings;
@@ -219,12 +219,16 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
           // Only precise named apps, local screenshots, conversation and
           // reversible companion commands can auto-send. Unfamiliar or risky
           // automation still shows an editable transcript for confirmation.
-          if (!details?.alternatives?.length && (
-            shouldAutoRunBasicVoiceCommand(final, details?.confidence, settings.voice.autoSendSafeSpeech === true)
-            || shouldAutoSubmitVoice(final, details?.confidence, settings.voice.autoSendSafeSpeech === true)
+          const confirmedBasic = canonicalBasicVoiceCommand(
+            final, details?.confidence, settings.voice.autoSendSafeSpeech === true,
+            details?.alternatives || []
+          );
+          if (confirmedBasic || (
+            !details?.alternatives?.length &&
+            shouldAutoSubmitVoice(final, details?.confidence, settings.voice.autoSendSafeSpeech === true)
           )) {
             setVoiceTranscript(null);
-            void handleExecuteQuery(final);
+            void handleExecuteQuery(confirmedBasic || final);
             return;
           }
           setVoiceTranscript(final);
