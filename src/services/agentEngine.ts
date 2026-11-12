@@ -112,8 +112,19 @@ export class AgentEngine {
       throw new Error(offline.error || 'This multi-step command is not fully supported. No actions were executed.');
     }
 
-    // 1. Direct Web Apps (ChatGPT, Claude, Gemini, WhatsApp, Gmail, Reddit, Netflix, X)
-    if (q.includes('chatgpt') || q.includes('chat gpt')) {
+    // 1. Named websites. Exact Google Home intent is handled here so an
+    // allowed spoken "Open Google" never silently falls through as conversation.
+    if (q === 'open google') {
+      intent = 'browser.google.open';
+      steps.push({
+        id: 'step_1',
+        tool: 'browser.open_url',
+        description: 'Open Google in the default browser',
+        params: { url: 'https://www.google.com' },
+        status: 'pending',
+        verification: 'Windows browser handoff only; page loading is unverified'
+      });
+    } else if (q.includes('chatgpt') || q.includes('chat gpt')) {
       intent = 'browser.chatgpt.open';
       steps.push({
         id: 'step_1',
