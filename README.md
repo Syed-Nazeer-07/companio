@@ -62,7 +62,7 @@ Its core philosophy is simple: **an assistant should feel present when you need 
 | **Global access** | Default **Ctrl + Shift + Space** shortcut, Windows system tray, and configurable activation shortcut |
 | **Windows integration** | Supported application and folder launches, audio controls, screenshots, and selected device utilities |
 | **Browser actions** | Website opening and searches in the **default Windows browser**; a separate Edge automation profile for supported interactive tasks |
-| **Voice and text** | Typed commands, one-shot Windows speech recognition, spoken responses, transcript review, and optional SHA-256-verified local Whisper setup |
+| **Voice and text** | Built-in text commands, automatic offline-first one-shot recognition in packaged builds, distinct companion speech profiles, and review for unfamiliar or sensitive actions |
 | **Optional local AI** | Ollama or LM Studio connection for conversations and bounded, reviewed action proposals |
 | **Personal settings** | Character customization, voice settings, native startup toggle, automation preferences, and Control Center |
 | **History and recovery** | Local activity/conversation history, native JSON snapshots, export, and validated restore |
@@ -128,19 +128,15 @@ The first launch opens the Electron experience; configure your character and pre
 
 ## Voice and local AI
 
-**Preview rc.22 reliability improvements:** Local Whisper can now be set up from Voice Settings with one explicit click; the app downloads an official architecture-matched CPU executable and a better English base quantized model (~60 MB), verifies their published SHA-256 hashes, and keeps everything in per-user storage. Cancellation and manual file selection remain available. Normal desktop actions now have bounded waits: an unresponsive action reports an uncertain outcome and does not continue to later steps. Windows protocol/application launch requests are identified as handoffs, not falsely claimed as observed open windows.
+**v1.1.0-rc.23 candidate (source branch):** The Windows ARM64 and x64 installer builds bundle an English offline Whisper speech engine and quantized model. Official archive and model SHA-256 hashes are checked before packaging. On first launch, choose a character and activate the microphone; **no Ollama, LM Studio, API key, or manual speech-model download** is needed for supported desktop commands. For source-only `npm start` runs without packaged assets, Automatic voice falls back to installed Windows dictation. Existing installations using the old default Windows recognizer migrate to Automatic unless the user explicitly selected a newer preference.
 
+- **Push to talk:** activate Companio, tap the microphone, and speak. New packaged builds use offline Whisper by default when its bundled engine is present. Audio is processed locally; it is not recorded in the background.
+- **Low-risk hands-free commands:** supported, exact one-step commands such as **Open YouTube**, **Open Calculator** and **Take a screenshot** can be sent directly after recognition. Unknown websites, searches, multi-step actions, and sensitive operations still show an editable transcript and may require approval.
+- **Accurate feedback:** screenshot success requires a verified saved PNG, while opening a website only verifies that Windows received the browser request.
+- **Voice settings:** Control Center → Voice Settings includes a microphone test, recognition-language setting, a Windows dictation override, optional manual Whisper file selection, and individually tuned character voices.
+- **Advanced AI remains optional:** the Built-in Engine handles supported commands without third-party servers. Choose local AI only when Ollama or LM Studio is already running.
 
-**Offline Whisper setup:** Voice Settings offers a user-triggered install of the official CPU whisper.cpp executable for the current Windows architecture (ARM64 or x64) and a checksum-pinned English base quantized model (~60 MB). Neither is silently downloaded or executed. Automatic setup uses a version-pinned archive and checks its SHA-256 before extraction; the advanced file-pickers remain available for users who prefer manual installation. Voice commands remain editable before execution because local Whisper does not supply a calibrated confidence score. The larger base model may transcribe more accurately than tiny on some speech, but takes more disk and CPU time; real-device accuracy is not yet benchmarked.
-
-
-Companio supports **text commands without a microphone or AI subscription**. For voice input, the desktop build uses available Windows speech recognition for one-shot dictation. Spoken replies use supported speech synthesis.
-
-- **Push to talk:** review or correct the transcript before sending an action.
-- **Optional hands-free safe messages:** when enabled, high-confidence conversational messages and a narrow set of reversible companion controls can send automatically; browser, app, and system commands still require review.
-- **Optional offline Whisper:** configure a compatible `whisper.cpp` executable and a GGML speech model in **Voice Settings → Local Whisper**. The compact English model is downloaded only when requested; the executable must be supplied separately.
-
-**There is no continuous system-wide wake-word listener.** Speech accuracy, language support, processing speed, and microphone permission behavior depend on the device and runtime.
+**Older rc.22 public installers** still use the prior Windows dictation default and optional Whisper download. The improvements above require an updated, verified installer. Microphone permission from Windows and on-device performance testing remain applicable. No continuous always-on wake-word recording is enabled.
 
 ### Use a local language model (optional)
 
@@ -271,14 +267,14 @@ This repository contains development improvements that may not yet be present in
 
 - **Installer uses too much CPU or appears frozen:** the source includes an experimental ZIP-based NSIS packaging option and disables launching Companio at the installer finish screen. This changes extraction behavior but still needs before/after ARM64 measurement; it does not guarantee that Windows Defender scanning or disk contention will be faster. Keep Windows protections enabled and check Task Manager for the process consuming CPU or disk.
 - **Windows says “protected your PC”:** the publicly distributed Windows preview is unsigned. SmartScreen is based on publisher and file reputation, not a missing checkbox in Electron. Verify the SHA-256 listed on the official release before choosing whether to trust the download. Signing with a verified publisher or distributing through the Microsoft Store requires separate publisher setup; never disable security checks to make an installer appear trusted.
-- **Voice recognition is inaccurate or hears nothing:** in **Control Center → Voice Settings**, test the microphone and selected English speech language. Windows speech is installed by default. Optionally select **Local Whisper**, choose **Set up offline Whisper**, and explicitly allow the verified engine/model downloads. This uses local CPU resources and may transcribe more accurately depending on your microphone and accent. Check the transcript before sending automation requests.
+- **Voice recognition is inaccurate or hears nothing:** in **Control Center → Voice Settings**, use the microphone test and check Windows microphone access. New packaged installers select bundled offline Whisper automatically; source-only runs fall back to Windows dictation. On ARM64, transcription speed and accuracy still depend on the microphone and CPU. Use the editable transcript before sending unfamiliar actions.
 - **Local model server unavailable:** Ollama and LM Studio are optional. If you selected local AI but it is not running, start the chosen server or change **AI Settings** to Built-in. Local commands like opening approved websites do not require an LLM.
 - **Screenshots:** say or type **Take a screenshot** and check **Pictures/Companio_Captures**. The app reports the saved file path only after verifying a PNG was created. In browser-only previews, native Windows screenshots are unavailable.
 - **“Website not verified” messages:** opening a site in the Windows default browser confirms only the handoff to the OS, not that the external page finished loading or was independently security-scanned. Confirm in your browser; this is not a security verdict on that website.
 
 ### Pre-release verification
 
-Before publishing updated installers, the CI checks unit tests, TypeScript production build, x64 package smoke tests, native ARM64 smoke tests, and both architecture-specific installers. Public signing, real-microphone accuracy benchmarks, and comparative installer CPU/RAM tests are still outstanding. A green CI run is not evidence that every Windows machine is supported.
+Before publishing updated installers, CI runs unit tests, a TypeScript build, packaged UI smoke checks, native ARM64 smoke checks, and bounded silent-install tests with setup timing on Windows runners. Real-world microphone accuracy, Defender scanning overhead, and laptop thermals still require real-device validation. Production code signing remains outstanding; a green CI run is not evidence that every Windows machine is supported.
 
 ## Roadmap
 
