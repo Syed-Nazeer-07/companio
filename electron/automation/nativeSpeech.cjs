@@ -124,7 +124,7 @@ class NativeSpeechRecognizer {
       let child;
       try {
         child = this.spawnProcess('powershell.exe', [
-          '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+          '-NoProfile', '-NonInteractive',
           '-EncodedCommand', encoded
         ], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
       } catch (error) {
