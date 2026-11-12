@@ -267,7 +267,14 @@ export const App: React.FC = () => {
           handleUpdateSettings(upd);
           setIsOnboardingOpen(false);
         }}
-        onClose={() => setIsOnboardingOpen(false)}
+        onClose={() => {
+          // Skipping character selection should still leave a usable default
+          // assistant and avoid repeating setup on every restart.
+          if (!settingsRef.current.firstTimeSetupDone) {
+            handleUpdateSettings({ firstTimeSetupDone: true });
+          }
+          setIsOnboardingOpen(false);
+        }}
       />
     </DashboardLayout>
   );
