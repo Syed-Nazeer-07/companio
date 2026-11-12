@@ -11,7 +11,7 @@ function load(file,stubs={}){
 }
 const safety=load('intentSafety.ts');
 const commands=load('companionCommands.ts');
-const {shouldAutoSubmitVoice:allow,shouldAutoRunBasicVoiceCommand:allowBasic}=load('voiceAutoSend.ts',{
+const {shouldAutoSubmitVoice:allow,shouldAutoRunBasicVoiceCommand:allowBasic,canonicalBasicVoiceCommand:canonical}=load('voiceAutoSend.ts',{
  './intentSafety':safety,'./companionCommands':commands
 });
 test('opt-in with genuinely high confidence supports conversation and reversible Companio controls',()=>{
@@ -51,4 +51,36 @@ test('named one-step voice commands auto-run only with strict intent and voice e
  assert.equal(allowBasic('Open YouTube',.51,true,[]),false);
  assert.equal(allowBasic('Open YouTube',.99,true,['Open Steam']),false);
  assert.equal(allowBasic('Open YouTube',.99,false,[]),false);
+});
+
+test('natural voice variations are mapped to exact safe planner commands',()=>{
+ const examples = [
+  ['Please open YouTube','Open YouTube'],
+  ['Can you open the YouTube?','Open YouTube'],
+  ['Hey Companio, please launch the calculator','Open Calculator'],
+  ['Could you start Windows Notepad?','Open Notepad'],
+  ['Companion open the file explorer','Open File Explorer'],
+  ['Please take a screenshot','Take a screenshot'],
+  ['Capture my screen','Take a screenshot'],
+  ['take ss','Take a screenshot']
+ ];
+ for(const [input,expected] of examples) {
+   assert.equal(canonical(input,undefined,true,[]),expected,input);
+ }
+});
+test('voice never auto-executes uncertain or compound instructions',()=>{
+ for(const text of [
+  'Open YouTube and uninstall Windows',
+  'Please open an arbitrary website',
+  'Launch calculator then delete my files',
+  'Start the malware installer',
+  'Save my screen and upload it',
+  'Open GitHub\nDelete repository',
+  'Can you open Google and search for personal data'
+ ]) assert.equal(canonical(text,undefined,true,[]),null,text);
+ assert.equal(canonical('Open YouTube',NaN,true,[]),null);
+ assert.equal(canonical('Open YouTube',1.5,true,[]),null);
+ assert.equal(canonical('Open YouTube',.6,true,[]),null);
+ assert.equal(canonical('Open YouTube',undefined,false,[]),null);
+ assert.equal(canonical('Open YouTube',.9,true,['Open Notepad']),null);
 });
