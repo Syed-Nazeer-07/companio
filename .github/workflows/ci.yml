@@ -69,7 +69,7 @@ jobs:
   arm64-native-smoke:
     name: Verify packaged Electron on native Windows ARM64
     if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release:'))
-    needs: verify
+    needs: [verify, package-preview]
     runs-on: windows-11-arm
     timeout-minutes: 35
     env:
@@ -109,14 +109,16 @@ jobs:
           exit 1
       - name: Smoke test native ARM64 Electron UI and IPC
         run: npm run test:desktop-smoke
-      - name: Build native ARM64 installer for real install check
-        shell: pwsh
-        run: npx electron-builder --win nsis --arm64 --publish never
-      - name: Test native ARM64 silent installation and measure setup overhead
+      - name: Download the exact ARM64 release-candidate installer
+        uses: actions/download-artifact@v5
+        with:
+          name: Companio-arm64
+          path: release-artifacts
+      - name: Install cross-built ARM64 release candidate on native Windows ARM64
         shell: pwsh
         run: |
-          $installer = Get-ChildItem release -Filter 'Companio-Setup-*-arm64.exe' | Select-Object -First 1
-          if (-not $installer) { throw "ARM64 installer not found" }
+          $installer = Get-ChildItem release-artifacts -Filter 'Companio-Setup-*-arm64.exe' | Select-Object -First 1
+          if (-not $installer) { throw "Cross-built ARM64 installer not found" }
           ./scripts/test-installer.ps1 -Architecture arm64 -InstallerPath $installer.FullName
 
   package-preview:
