@@ -64,7 +64,7 @@ export class SpeechService {
     onStop?: () => void,
     recognitionLanguage: 'en-IN' | 'en-US' | 'en-GB' | 'en-AU' = 'en-IN',
     playActivationChime = true,
-    engine: 'windows' | 'whisper' = 'windows'
+    engine: 'auto' | 'windows' | 'whisper' = 'windows'
   ): Promise<void> {
     this.stopListening();
     const token = ++this.listenToken;
@@ -87,7 +87,15 @@ export class SpeechService {
     if (playActivationChime) this.playChime('activate');
     onInterim('Listening…');
 
-    if (isNativeDesktop() && engine === 'whisper') {
+    let useOfflineWhisper = engine === 'whisper';
+    if (isNativeDesktop() && engine === 'auto') {
+      // Missing speech assets must not prevent built-in Windows voice from working.
+      const status = await desktopBridge.getWhisperStatus().catch(() => null);
+      if (!active()) return;
+      useOfflineWhisper = status?.configured === true && status?.supported === true;
+    }
+
+    if (isNativeDesktop() && useOfflineWhisper) {
       try {
         // Fail fast before requesting microphone permission or recording audio.
         const readiness = await desktopBridge.getWhisperStatus();
