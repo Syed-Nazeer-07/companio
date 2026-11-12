@@ -25,6 +25,7 @@ test('native recognizer uses hidden encoded PowerShell, and returns an actual tr
   const pending = recognizer.recognizeOnce(6);
   assert.equal(spawnArgs.command, 'powershell.exe');
   assert.equal(spawnArgs.options.windowsHide, true);
+  assert.ok(!spawnArgs.args.includes('Bypass'));
   const index = spawnArgs.args.indexOf('-EncodedCommand');
   assert.ok(index >= 0);
   const script = Buffer.from(spawnArgs.args[index + 1], 'base64').toString('utf16le');
