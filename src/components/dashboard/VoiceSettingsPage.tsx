@@ -325,13 +325,14 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
             </label>
             <select
               id="companio-speech-engine"
-              value={settings.voice.recognitionEngine || 'windows'}
+              value={settings.voice.recognitionEngine || 'auto'}
               onChange={event => onUpdateSettings({
-                voice: {...settings.voice,recognitionEngine:event.target.value as 'windows' | 'whisper'}
+                voice: {...settings.voice,recognitionEngine:event.target.value as 'auto' | 'windows' | 'whisper'}
               })}
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
             >
-              <option value="windows">Windows dictation — ready to use</option>
+              <option value="auto">Automatic — bundled offline voice when available</option>
+              <option value="windows">Windows dictation — no extra download</option>
               <option value="whisper">Local Whisper — optional offline mode</option>
             </select>
             {settings.voice.recognitionEngine === 'whisper' && (
