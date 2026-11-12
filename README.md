@@ -265,6 +265,21 @@ Companio can interact with apps, web pages, audio settings, and local informatio
 
 For voice or desktop problems, include your Windows version, processor architecture, the exact action attempted, and any visible error when [opening an issue](https://github.com/Syed-Nazeer-07/companio/issues). Avoid publishing personal history exports or logs containing private information.
 
+## Installation and troubleshooting
+
+This repository contains development improvements that may not yet be present in the downloadable preview. Check the release tag and its checksums before testing a specific build.
+
+- **Installer uses too much CPU or appears frozen:** the source includes an experimental ZIP-based NSIS packaging option and disables launching Companio at the installer finish screen. This changes extraction behavior but still needs before/after ARM64 measurement; it does not guarantee that Windows Defender scanning or disk contention will be faster. Keep Windows protections enabled and check Task Manager for the process consuming CPU or disk.
+- **Windows says “protected your PC”:** the publicly distributed Windows preview is unsigned. SmartScreen is based on publisher and file reputation, not a missing checkbox in Electron. Verify the SHA-256 listed on the official release before choosing whether to trust the download. Signing with a verified publisher or distributing through the Microsoft Store requires separate publisher setup; never disable security checks to make an installer appear trusted.
+- **Voice recognition is inaccurate or hears nothing:** in **Control Center → Voice Settings**, test the microphone and selected English speech language. Windows speech is installed by default. Optionally select **Local Whisper**, choose **Set up offline Whisper**, and explicitly allow the verified engine/model downloads. This uses local CPU resources and may transcribe more accurately depending on your microphone and accent. Check the transcript before sending automation requests.
+- **Local model server unavailable:** Ollama and LM Studio are optional. If you selected local AI but it is not running, start the chosen server or change **AI Settings** to Built-in. Local commands like opening approved websites do not require an LLM.
+- **Screenshots:** say or type **Take a screenshot** and check **Pictures/Companio_Captures**. The app reports the saved file path only after verifying a PNG was created. In browser-only previews, native Windows screenshots are unavailable.
+- **“Website not verified” messages:** opening a site in the Windows default browser confirms only the handoff to the OS, not that the external page finished loading or was independently security-scanned. Confirm in your browser; this is not a security verdict on that website.
+
+### Pre-release verification
+
+Before publishing updated installers, the CI checks unit tests, TypeScript production build, x64 package smoke tests, native ARM64 smoke tests, and both architecture-specific installers. Public signing, real-microphone accuracy benchmarks, and comparative installer CPU/RAM tests are still outstanding. A green CI run is not evidence that every Windows machine is supported.
+
 ## Roadmap
 
 - [x] Interactive character overlay, Control Center, tray, and global shortcut
