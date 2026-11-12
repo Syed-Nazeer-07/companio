@@ -36,3 +36,18 @@ test('silent recordings end and recordings never run indefinitely',()=>{
  assert.equal(long(0.01,14000).stop,true);
  assert.equal(long(Number.NaN,16000).stop,true);
 });
+
+test('sparse energetic syllables keep a recognized phrase alive until a real pause', () => {
+ const sample = createSpeechActivityTracker();
+ assert.equal(sample(0.01, 100).detected, false);
+ assert.equal(sample(0.01, 200).detected, true);
+ // Each new syllable is just one frame above threshold, separated by quiet.
+ // Once speech started, these should refresh the last-voice timestamp even
+ // though they do not form a new two-frame detection pair.
+ for (const time of [400, 850, 1300, 1750, 2200, 2650]) {
+   assert.equal(sample(0.008, time).stop, false, 'speech at ' + time + 'ms');
+   assert.equal(sample(0.001, time + 90).stop, false, 'short gap at ' + time + 'ms');
+ }
+ assert.equal(sample(0.001, 4449).stop, false);
+ assert.equal(sample(0.001, 4450).stop, true);
+});
