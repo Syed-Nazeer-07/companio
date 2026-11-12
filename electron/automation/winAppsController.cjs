@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const crypto = require('crypto');
 const { runPowerShell } = require('./psHelper.cjs');
 const { launchVerifiedApp } = require('./appLaunchController.cjs');
 const quotePowerShell = (value) => "'" + String(value).replace(/'/g, "''") + "'";
@@ -268,12 +269,22 @@ $type::keybd_event(${vkCode}, 0, 2, [UIntPtr]::Zero)
   // Take Screenshot
   async takeScreenshot() {
     try {
-      const dir = path.join(os.homedir(), 'Pictures', 'Companio_Captures');
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
+      // Windows can redirect Pictures to OneDrive or another known folder.
+      // Respect that setting so users can actually find captured screenshots.
+      let picturesDir = path.join(os.homedir(), 'Pictures');
+      try {
+        const response = await this.runPowerShell("[Environment]::GetFolderPath('MyPictures')");
+        const configured = typeof response?.stdout === 'string' ? response.stdout.trim() : '';
+        if (configured && configured.length <= 1024 &&
+            !/[\u0000-\u001f]/.test(configured) &&
+            (path.isAbsolute(configured) || path.win32.isAbsolute(configured))) {
+          picturesDir = configured;
+        }
+      } catch { /* Fallback to the profile's Pictures directory. */ }
+      const dir = path.join(picturesDir, 'Companio_Captures');
+      fs.mkdirSync(dir, { recursive: true });
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `Companio_Screenshot_${timestamp}.png`;
+      const filename = `Companio_Screenshot_${timestamp}_${crypto.randomBytes(3).toString('hex')}.png`;
       const fullPath = path.join(dir, filename);
 
       const script = `
@@ -298,12 +309,18 @@ Test-Path -LiteralPath ${quotePowerShell(fullPath)}
       if (fileExists) {
         const fd = fs.openSync(fullPath, 'r');
         try {
-          const signature = Buffer.alloc(8);
-          const bytes = fs.readSync(fd, signature, 0, 8, 0);
-          verified = bytes === 8 && signature.equals(Buffer.from('89504e470d0a1a0a', 'hex'));
+          const header = Buffer.alloc(24);
+          const bytes = fs.readSync(fd, header, 0, header.length, 0);
+          verified = bytes === header.length &&
+            header.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex')) &&
+            header.toString('ascii', 12, 16) === 'IHDR' &&
+            header.readUInt32BE(16) > 0 && header.readUInt32BE(20) > 0;
         } finally {
           fs.closeSync(fd);
         }
+      }
+      if (!verified && fs.existsSync(fullPath)) {
+        try { fs.unlinkSync(fullPath); } catch { /* Do not mask the capture error. */ }
       }
       return {
         success: verified,
