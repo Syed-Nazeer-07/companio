@@ -26,6 +26,7 @@ test('PowerShell helper does not open a separate foreground console window', asy
   assert.equal(invoked.command, 'powershell.exe');
   assert.equal(invoked.options.windowsHide, true);
   assert.ok(invoked.args.includes('-NoProfile'));
+  assert.ok(!invoked.args.includes('Bypass'));
   const encodedIndex = invoked.args.indexOf('-EncodedCommand');
   assert.ok(encodedIndex >= 0);
   assert.equal(Buffer.from(invoked.args[encodedIndex + 1], 'base64').toString('utf16le'), script);
