@@ -28,7 +28,7 @@
     "automation",
     "electron"
   ],
-  "author": "Companio Team",
+  "author": "Syed Nazeer S",
   "license": "MIT",
   "dependencies": {
     "canvas-confetti": "^1.9.4",
@@ -74,7 +74,6 @@
     ],
     "win": {
       "icon": "build/icon.ico",
-      "signExecutable": false,
       "target": [
         "nsis"
       ]
@@ -88,7 +87,10 @@
       "shortcutName": "Companio",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
-      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
+      "differentialPackage": false,
+      "useZip": true,
+      "runAfterFinish": false
     },
     "portable": {
       "artifactName": "${productName}-Portable-${version}-${arch}.${ext}"
