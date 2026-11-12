@@ -12,6 +12,7 @@ import { VoiceSettingsPage } from './components/dashboard/VoiceSettingsPage';
 import { HistoryPage } from './components/dashboard/HistoryPage';
 import { SettingsPage } from './components/dashboard/SettingsPage';
 import { HelpPage } from './components/dashboard/HelpPage';
+import { migrateVoicePreferences } from './services/voicePreferences';
 import { SetupWizardModal } from './components/onboarding/SetupWizardModal';
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -73,11 +74,7 @@ const mergeSettings = (saved: Partial<AppSettings> = {}): AppSettings => {
       ? value as Record<string, unknown> : {};
 
   const savedVoice = validSection(saved.voice);
-  // Earlier previews silently defaulted to legacy Windows dictation. Migrate
-  // that default to auto, but preserve explicit user choices made afterward.
-  const migratedVoice = savedVoice.recognitionEngine === 'windows' && savedVoice.recognitionEngineExplicit !== true
-    ? { ...savedVoice, recognitionEngine: 'auto' }
-    : savedVoice;
+  const migratedVoice = migrateVoicePreferences(savedVoice);
   return {
     ...DEFAULT_SETTINGS,
     ...saved,
