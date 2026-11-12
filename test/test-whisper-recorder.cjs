@@ -61,3 +61,36 @@ test('cancel resolves a capture even when MediaRecorder never sends its stop eve
  await assert.rejects(pending,/cancelled/);
  assert.ok(observed.stops>=1);
 });
+
+
+test('missing MediaRecorder stop event settles with actionable error instead of hanging',async()=>{
+  const observed={stops:0,released:0};
+  class Recorder {
+    static isTypeSupported(){return true;}
+    constructor(){this.state='inactive';}
+    start(){this.state='recording';}
+    stop(){observed.stops++;this.state='inactive'; /* driver never emits onstop */ }
+  }
+  class Context {
+    createAnalyser(){return {fftSize:2048,getFloatTimeDomainData(){}};}
+    createMediaStreamSource(){return {connect(){}};}
+    close(){return Promise.resolve();}
+  }
+  let ticks=0;
+  const FakeDate={now:()=>{ticks+=7000;return ticks;}};
+  const out={};
+  vm.runInNewContext(js,{
+    exports:out,require:loadDependency,Float32Array,Uint8Array,DataView,Math,Number,Error,
+    MediaRecorder:Recorder,Date:FakeDate,Promise,Blob,
+    window:{AudioContext:Context},
+    navigator:{mediaDevices:{getUserMedia:async()=>({getTracks:()=>[{stop(){observed.released++;}}]})}},
+    // Execute the recording monitor and the watchdog promptly in this
+    // deterministic test rather than waiting 6.5s + 1.8s.
+    setInterval:fn=>{queueMicrotask(fn);return 1;},clearInterval:()=>{},
+    setTimeout:fn=>{queueMicrotask(fn);return 2;},clearTimeout:()=>{}
+  });
+  const capture=new out.LocalWhisperRecorder();
+  await assert.rejects(capture.capture(),/did not finish recording/);
+  assert.equal(observed.stops,1);
+  assert.ok(observed.released>=1);
+});
