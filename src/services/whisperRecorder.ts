@@ -88,13 +88,12 @@ export class LocalWhisperRecorder {
       const started=Date.now();
       let heardSpeech=false;
       const trackActivity = createSpeechActivityTracker();
-      const finishRecording=()=>{if(recorder.state==='recording'&&!this.stopping){
-        this.stopping=true;recorder.stop();
-      }};
       return await new Promise<Uint8Array>((resolve,reject)=>{
         let finished=false;
+        let stopWatchdog: ReturnType<typeof setTimeout> | null = null;
         const settle=async(error?:Error)=>{
           if(finished)return;finished=true;
+          if (stopWatchdog) { clearTimeout(stopWatchdog); stopWatchdog = null; }
           if (this.pendingCancellation === cancelPending) this.pendingCancellation = null;
           if(this.monitor)clearInterval(this.monitor);
           this.monitor=null;
@@ -122,6 +121,19 @@ export class LocalWhisperRecorder {
           }
         };
         const cancelPending = (error: Error) => { void settle(error); };
+        const finishRecording = () => {
+          if (recorder.state !== 'recording' || this.stopping) return;
+          this.stopping = true;
+          // Windows audio drivers occasionally never deliver onstop. Without
+          // a deadline, the voice UI can remain stuck listening forever.
+          stopWatchdog = setTimeout(() => {
+            void settle(Error('The microphone stopped but did not finish recording. Reconnect it or select Windows dictation in Voice Settings.'));
+          }, 1800);
+          try { recorder.stop(); }
+          catch (error) {
+            void settle(error instanceof Error ? error : Error('Could not finish microphone recording.'));
+          }
+        };
         this.pendingCancellation = cancelPending;
         recorder.ondataavailable=event=>{if(event.data.size)chunks.push(event.data);};
         recorder.onerror=()=>{finishRecording();void settle(Error('Microphone recorder encountered an error.'));};
