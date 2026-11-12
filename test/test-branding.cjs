@@ -24,6 +24,13 @@ test('native windows, tray and installers refer to actual branded assets',()=>{
   assert.equal(pkg.build.win.icon,'build/icon.ico');
   assert.equal(pkg.build.win.target[0],'nsis');
   assert.equal(pkg.build.win.target.length,1);
+  const resources=pkg.build.extraResources || [];
+  assert.ok(resources.some(item => item.from === 'build/bundled-voice' && item.to === 'bundled-voice'));
+  for(const license of ['LICENSE-whisper.cpp.txt','LICENSE-whisper-model.txt']) {
+    const notice=read('build/bundled-voice/'+license);
+    assert.match(notice,/MIT License/);
+    assert.match(notice,/Copyright \(c\)/);
+  }
   assert.equal(pkg.build.nsis.useZip,true);
   assert.equal(pkg.build.nsis.differentialPackage,false);
   assert.equal(pkg.build.nsis.runAfterFinish,false);
