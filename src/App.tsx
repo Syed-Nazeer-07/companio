@@ -12,6 +12,7 @@ import { VoiceSettingsPage } from './components/dashboard/VoiceSettingsPage';
 import { HistoryPage } from './components/dashboard/HistoryPage';
 import { SettingsPage } from './components/dashboard/SettingsPage';
 import { HelpPage } from './components/dashboard/HelpPage';
+import { migrateVoicePreferences } from './services/voicePreferences';
 import { SetupWizardModal } from './components/onboarding/SetupWizardModal';
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -39,12 +40,12 @@ const DEFAULT_SETTINGS: AppSettings = {
   },
   voice: {
     wakePhraseEnabled: false,
-    autoSendSafeSpeech: false,
+    autoSendSafeSpeech: true,
     wakePhrase: 'Hey Companio',
     pushToTalkKey: 'Space',
     sttEngine: 'browser',
     recognitionLanguage: 'en-IN',
-    recognitionEngine: 'windows',
+    recognitionEngine: 'auto',
     ttsVoice: '',
     ttsRate: 1.0,
     ttsPitch: 1.05,
@@ -72,12 +73,14 @@ const mergeSettings = (saved: Partial<AppSettings> = {}): AppSettings => {
     value !== null && typeof value === 'object' && !Array.isArray(value)
       ? value as Record<string, unknown> : {};
 
+  const savedVoice = validSection(saved.voice);
+  const migratedVoice = migrateVoicePreferences(savedVoice);
   return {
     ...DEFAULT_SETTINGS,
     ...saved,
     character: { ...DEFAULT_SETTINGS.character, ...validSection(saved.character) },
     ai: { ...DEFAULT_SETTINGS.ai, ...validSection(saved.ai) },
-    voice: { ...DEFAULT_SETTINGS.voice, ...validSection(saved.voice) },
+    voice: { ...DEFAULT_SETTINGS.voice, ...migratedVoice },
     overlay: { ...DEFAULT_SETTINGS.overlay, ...validSection(saved.overlay) }
   };
 };
@@ -264,7 +267,14 @@ export const App: React.FC = () => {
           handleUpdateSettings(upd);
           setIsOnboardingOpen(false);
         }}
-        onClose={() => setIsOnboardingOpen(false)}
+        onClose={() => {
+          // Skipping character selection should still leave a usable default
+          // assistant and avoid repeating setup on every restart.
+          if (!settingsRef.current.firstTimeSetupDone) {
+            handleUpdateSettings({ firstTimeSetupDone: true });
+          }
+          setIsOnboardingOpen(false);
+        }}
       />
     </DashboardLayout>
   );

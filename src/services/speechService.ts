@@ -11,17 +11,17 @@ export interface CharacterVoiceProfile {
 export function getCharacterVoiceProfile(characterId: string): CharacterVoiceProfile {
   switch (characterId) {
     case 'sparky':
-      return { rate: 1.15, pitch: 0.95, voiceNameKeywords: ['David', 'George', 'Guy', 'Mark'] };
+      return { rate: 1.04, pitch: 0.94, voiceNameKeywords: ['David', 'Guy', 'George', 'Mark'] };
     case 'pixel':
-      return { rate: 1.25, pitch: 1.35, voiceNameKeywords: ['Zira', 'Samantha', 'Aria'] };
+      return { rate: 1.12, pitch: 1.12, voiceNameKeywords: ['Aria', 'Samantha', 'Zira'] };
     case 'mochi':
-      return { rate: 1.05, pitch: 1.45, voiceNameKeywords: ['Jenny', 'Zira', 'Aria'] };
+      return { rate: 0.96, pitch: 1.13, voiceNameKeywords: ['Jenny', 'Sonia', 'Zira'] };
     case 'cloudie':
-      return { rate: 0.88, pitch: 1.15, voiceNameKeywords: ['Jenny', 'Zira', 'Natural'] };
+      return { rate: 0.92, pitch: 1.02, voiceNameKeywords: ['Sonia', 'Hazel', 'Jenny'] };
     case 'kiko':
-      return { rate: 1.18, pitch: 1.55, voiceNameKeywords: ['Zira', 'Aria', 'Jenny'] };
+      return { rate: 1.08, pitch: 1.1, voiceNameKeywords: ['Zira', 'Aria', 'Jenny'] };
     case 'boba':
-      return { rate: 0.95, pitch: 0.92, voiceNameKeywords: ['David', 'Guy', 'George'] };
+      return { rate: 0.95, pitch: 0.92, voiceNameKeywords: ['George', 'Guy', 'David'] };
     default:
       return { rate: 1.05, pitch: 1.15, voiceNameKeywords: ['Zira', 'Jenny', 'Aria'] };
   }
@@ -64,7 +64,7 @@ export class SpeechService {
     onStop?: () => void,
     recognitionLanguage: 'en-IN' | 'en-US' | 'en-GB' | 'en-AU' = 'en-IN',
     playActivationChime = true,
-    engine: 'windows' | 'whisper' = 'windows'
+    engine: 'auto' | 'windows' | 'whisper' = 'windows'
   ): Promise<void> {
     this.stopListening();
     const token = ++this.listenToken;
@@ -87,7 +87,15 @@ export class SpeechService {
     if (playActivationChime) this.playChime('activate');
     onInterim('Listening…');
 
-    if (isNativeDesktop() && engine === 'whisper') {
+    let useOfflineWhisper = engine === 'whisper';
+    if (isNativeDesktop() && engine === 'auto') {
+      // Missing speech assets must not prevent built-in Windows voice from working.
+      const status = await desktopBridge.getWhisperStatus().catch(() => null);
+      if (!active()) return;
+      useOfflineWhisper = status?.configured === true && status?.supported === true;
+    }
+
+    if (isNativeDesktop() && useOfflineWhisper) {
       try {
         // Fail fast before requesting microphone permission or recording audio.
         const readiness = await desktopBridge.getWhisperStatus();
@@ -120,7 +128,7 @@ export class SpeechService {
 
     if (isNativeDesktop()) {
       try {
-        const res = await desktopBridge.startNativeSpeech(6, recognitionLanguage);
+        const res = await desktopBridge.startNativeSpeech(9, recognitionLanguage);
         if (!active()) return; // Discard transcripts from cancelled sessions.
         if (res.success && res.text?.trim()) {
           complete('result', res.text, { language: res.language, confidence: res.confidence, alternatives: res.alternatives });
@@ -268,9 +276,12 @@ export class SpeechService {
       const selectedVoice = voices.find(v => v.name === options.voiceName);
       if (selectedVoice) utterance.voice = selectedVoice;
     } else if (profile) {
-      const preferred = voices.find(v =>
-        v.lang.startsWith('en') && profile.voiceNameKeywords.some(k => v.name.includes(k))
-      ) || voices.find(v => v.lang.startsWith('en'));
+      // Preference order is character-specific; Windows returns voice lists in
+      // installation order, which previously made several characters sound alike.
+      const english = voices.filter(v => v.lang.toLowerCase().startsWith('en'));
+      const preferred = profile.voiceNameKeywords
+        .map(keyword => english.find(v => v.name.toLowerCase().includes(keyword.toLowerCase())))
+        .find((v): v is SpeechSynthesisVoice => Boolean(v)) || english[0];
       if (preferred) utterance.voice = preferred;
     } else {
       const preferred = voices.find(v =>

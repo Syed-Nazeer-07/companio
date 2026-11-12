@@ -1,6 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 180" role="img" aria-label="Boba companion"><defs><linearGradient id="bb" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffe5bd"/><stop offset="1" stop-color="#bd8e63"/></linearGradient></defs>
- <circle cx="45" cy="56" r="21" fill="#c99e77"/><circle cx="115" cy="56" r="21" fill="#c99e77"/><circle cx="45" cy="56" r="12" fill="#f1c7a0"/><circle cx="115" cy="56" r="12" fill="#f1c7a0"/>
- <ellipse cx="80" cy="103" rx="56" ry="56" fill="url(#bb)" stroke="#b98c65" stroke-width="2"/><ellipse cx="61" cy="100" rx="6" ry="7.5" fill="#47352e"/><ellipse cx="99" cy="100" rx="6" ry="7.5" fill="#47352e"/><circle cx="59" cy="98" r="2" fill="white"/><circle cx="97" cy="98" r="2" fill="white"/>
- <ellipse cx="80" cy="120" rx="19" ry="14" fill="#efd0b0"/><path d="m74 115 6 6 6-6Z" fill="#47352e"/><path d="M80 121q-5 7-10 1m10-1q5 7 10 1" stroke="#624a3b" stroke-width="2.5" stroke-linecap="round" fill="none"/>
- <rect x="60" y="138" width="40" height="28" rx="8" fill="#ead0a3" stroke="#ae7856" stroke-width="2"/><path d="m88 142 13-34" stroke="#80bcb4" stroke-width="5" stroke-linecap="round"/><path d="M62 145h36" stroke="#a77559" stroke-width="4"/><g fill="#6d4e44"><circle cx="69" cy="159" r="3"/><circle cx="81" cy="158" r="3"/><circle cx="93" cy="159" r="3"/></g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 180" role="img" aria-label="Boba bear companion">
+<defs><linearGradient id="bofur" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ffe6be"/><stop offset="1" stop-color="#edb77f"/></linearGradient></defs>
+<ellipse cx="80" cy="159" rx="39" ry="6" fill="#7c5537" opacity=".14"/>
+<circle cx="49" cy="53" r="18" fill="url(#bofur)" stroke="#ce9566" stroke-width="2"/><circle cx="111" cy="53" r="18" fill="url(#bofur)" stroke="#ce9566" stroke-width="2"/>
+<circle cx="49" cy="53" r="9" fill="#f6b9b3"/><circle cx="111" cy="53" r="9" fill="#f6b9b3"/>
+<ellipse cx="80" cy="128" rx="37" ry="27" fill="url(#bofur)" stroke="#ce9566" stroke-width="2"/><ellipse cx="80" cy="130" rx="21" ry="17" fill="#fff3dd"/>
+<ellipse cx="80" cy="90" rx="51" ry="46" fill="url(#bofur)" stroke="#ce9566" stroke-width="2"/>
+<ellipse cx="80" cy="110" rx="20" ry="14" fill="#fff2da"/>
+<ellipse cx="59" cy="150" rx="15" ry="9" fill="#f6cda3" stroke="#ce9566" stroke-width="1.5"/><ellipse cx="101" cy="150" rx="15" ry="9" fill="#f6cda3" stroke="#ce9566" stroke-width="1.5"/>
+<path d="M66 133Q54 119 52 134Q55 147 66 138L80 136L94 138Q105 147 108 134Q106 119 94 133Z" fill="#74b7b4" stroke="#4f918d" stroke-width="1.5"/><circle cx="80" cy="136" r="6" fill="#4f918d"/>
+<ellipse cx="45" cy="105" rx="8" ry="5" fill="#ed9e9e"/><ellipse cx="115" cy="105" rx="8" ry="5" fill="#ed9e9e"/>
+<ellipse cx="62" cy="91" rx="6" ry="7.5" fill="#303b4a"/><ellipse cx="98" cy="91" rx="6" ry="7.5" fill="#303b4a"/><circle cx="60" cy="88" r="2.5" fill="#fff"/><circle cx="96" cy="88" r="2.5" fill="#fff"/>
+<ellipse cx="80" cy="105" rx="5.5" ry="4" fill="#57423c"/><path d="M74 116Q80 121 86 116" stroke="#57423c" stroke-width="2" stroke-linecap="round" fill="none"/>
 </svg>

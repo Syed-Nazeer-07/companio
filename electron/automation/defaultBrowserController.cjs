@@ -38,7 +38,7 @@ class DefaultBrowserController {
         handoffOnly: true,
         verificationScope: 'windows-handoff',
         url: destination,
-        message: 'Sent ' + description + ' to your default browser. The website itself has not been verified.'
+        message: 'Asked Windows to open ' + description + ' in your default browser. Check the browser tab to confirm it loaded.'
       };
     } catch (error) {
       return {

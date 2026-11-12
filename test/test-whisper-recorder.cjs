@@ -2,7 +2,15 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),ts=require('typescript');
 const code=fs.readFileSync(path.join(__dirname,'../src/services/whisperRecorder.ts'),'utf8');
 const js=ts.transpileModule(code,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
-const exposed={};vm.runInNewContext(js,{exports:exposed,Float32Array,Uint8Array,DataView,Math,Error,Number,MediaRecorder:undefined});
+const activitySource=fs.readFileSync(path.join(__dirname,'../src/services/speechActivity.ts'),'utf8');
+const activityJs=ts.transpileModule(activitySource,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const activityModule={};
+vm.runInNewContext(activityJs,{exports:activityModule,Math,Number});
+const loadDependency=name=>{
+ if(name==='./speechActivity')return activityModule;
+ throw Error('Unexpected dependency: '+name);
+};
+const exposed={};vm.runInNewContext(js,{exports:exposed,require:loadDependency,Float32Array,Uint8Array,DataView,Math,Error,Number,MediaRecorder:undefined});
 const {encodeMonoPcm16}=exposed;
 test('offline speech recorder emits exact 16k mono RIFF PCM and linearly resamples',()=>{
  const source=new Float32Array(48000);
@@ -41,7 +49,7 @@ test('cancel resolves a capture even when MediaRecorder never sends its stop eve
  }
  const out={};
  vm.runInNewContext(js,{
-   exports:out,Float32Array,Uint8Array,DataView,Math,Number,Error,MediaRecorder:Recorder,
+   exports:out,require:loadDependency,Float32Array,Uint8Array,DataView,Math,Number,Error,MediaRecorder:Recorder,
    window:{AudioContext:Context},
    navigator:{mediaDevices:{getUserMedia:async()=>({getTracks:()=>[{stop(){observed.stops++;}}]})}},
    setInterval,clearInterval,Promise,Date,Blob

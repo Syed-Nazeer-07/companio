@@ -9,7 +9,6 @@ function runPowerShell(script, timeoutMs = 30000, spawnCommand = spawn) {
     const ps = spawnCommand('powershell.exe', [
       '-NoProfile',
       '-NonInteractive',
-      '-ExecutionPolicy', 'Bypass',
       '-EncodedCommand', base64Script
     ], { windowsHide: true });
 

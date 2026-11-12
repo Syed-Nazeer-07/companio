@@ -25,6 +25,7 @@ test('native recognizer uses hidden encoded PowerShell, and returns an actual tr
   const pending = recognizer.recognizeOnce(6);
   assert.equal(spawnArgs.command, 'powershell.exe');
   assert.equal(spawnArgs.options.windowsHide, true);
+  assert.ok(!spawnArgs.args.includes('Bypass'));
   const index = spawnArgs.args.indexOf('-EncodedCommand');
   assert.ok(index >= 0);
   const script = Buffer.from(spawnArgs.args[index + 1], 'base64').toString('utf16le');
@@ -128,7 +129,7 @@ test('Windows speech returns bounded, distinct alternatives without changing pri
     return child;
   });
   const pending=recognizer.recognizeOnce(6,'en-IN');
-  assert.match(script,/EndSilenceTimeout = \[TimeSpan\]::FromMilliseconds\(500\)/);
+  assert.match(script,/EndSilenceTimeout = \[TimeSpan\]::FromMilliseconds\(1000\)/);
   assert.match(script,/MaxAlternates = 5/);
   assert.match(script,/SPEECH_ALTERNATE_B64/);
   process.nextTick(()=>{

@@ -68,8 +68,8 @@ jobs:
   # Electron app actually starts on Windows ARM. Exercise the real ARM binary.
   arm64-native-smoke:
     name: Verify packaged Electron on native Windows ARM64
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release:')
-    needs: verify
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release:'))
+    needs: [verify, package-preview]
     runs-on: windows-11-arm
     timeout-minutes: 35
     env:
@@ -95,6 +95,9 @@ jobs:
       - name: Regenerate Windows icons
         shell: pwsh
         run: ./scripts/generate-icon.ps1
+      - name: Prepare verified ARM64 offline voice runtime
+        shell: pwsh
+        run: node scripts/prepare-bundled-voice.cjs arm64
       - name: Package native ARM64 app for smoke test
         shell: pwsh
         run: |
@@ -106,10 +109,21 @@ jobs:
           exit 1
       - name: Smoke test native ARM64 Electron UI and IPC
         run: npm run test:desktop-smoke
+      - name: Download the exact ARM64 release-candidate installer
+        uses: actions/download-artifact@v5
+        with:
+          name: Companio-arm64
+          path: release-artifacts
+      - name: Install cross-built ARM64 release candidate on native Windows ARM64
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem release-artifacts -Filter 'Companio-Setup-*-arm64.exe' | Select-Object -First 1
+          if (-not $installer) { throw "Cross-built ARM64 installer not found" }
+          ./scripts/test-installer.ps1 -Architecture arm64 -InstallerPath $installer.FullName
 
   package-preview:
     name: Build unsigned Windows ${{ matrix.arch }} preview
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release:')
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release:'))
     needs: verify
     runs-on: windows-latest
     timeout-minutes: 35
@@ -141,6 +155,9 @@ jobs:
       - name: Regenerate multi-resolution Windows icons
         shell: pwsh
         run: ./scripts/generate-icon.ps1
+      - name: Include verified offline voice engine and model
+        shell: pwsh
+        run: node scripts/prepare-bundled-voice.cjs ${{ matrix.arch }}
       - name: Package installer only
         shell: pwsh
         run: |
@@ -153,6 +170,13 @@ jobs:
             }
           }
           exit 1
+      - name: Validate x64 silent installation and measure setup overhead
+        if: matrix.arch == 'x64'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem release -Filter 'Companio-Setup-*-x64.exe' | Select-Object -First 1
+          if (-not $installer) { throw "x64 installer not found" }
+          ./scripts/test-installer.ps1 -Architecture x64 -InstallerPath $installer.FullName
       - name: Show installer SHA-256 in the workflow summary
         shell: pwsh
         run: |
@@ -206,8 +230,9 @@ jobs:
             echo "Unsigned pre-release for Windows 11. This build passed unit tests, packaged x64 verification and native Windows ARM64 smoke testing."
             echo "Choose **ARM64** for Snapdragon-based Windows laptops, or **x64** for Intel/AMD."
             echo "Downloads below are direct files; a GitHub account is not required."
-            echo "Optional offline Whisper setup is user-initiated in Voice Settings and verifies upstream SHA-256 before installing."
-            echo "Code signing and real-device speech accuracy benchmarking are not yet complete. Windows may show a publisher warning."
+            echo "Offline voice transcription is bundled for Windows ARM64 and x64; users do not need to set up Ollama or download a speech model for basic commands."
+            echo "Installation, native ARM64 startup and basic CI checks passed. Real-microphone quality and laptop thermal behavior need user validation."
+            echo "This preview is not code-signed. Windows SmartScreen may show a publisher warning. Do not disable Microsoft Defender."
             echo
             echo "## SHA-256 checksums"
             echo

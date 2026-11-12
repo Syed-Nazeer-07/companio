@@ -112,8 +112,8 @@ test('character TTS actually retains profile pitch/rate and settles once', () =>
     onStart:()=>started++,onEnd:()=>ended++
   });
   assert.equal(h.spoken.length,1);
-  assert.equal(h.spoken[0].pitch,1.55);
-  assert.equal(h.spoken[0].rate,1.18);
+  assert.equal(h.spoken[0].pitch,1.1);
+  assert.equal(h.spoken[0].rate,1.08);
   h.spoken[0].onstart();
   assert.equal(started,1);
   h.service.stopSpeaking();
@@ -205,4 +205,18 @@ test('unconfigured Whisper rejects before microphone capture or native transcrip
   await h.service.startListening(()=>{},()=>{},e=>errors.push(e),undefined,undefined,'en-IN',false,'whisper');
   assert.deepEqual(errors,['Choose Whisper model first']);
   assert.equal(h.api.cancels,0);
+});
+
+
+test('automatic voice uses packaged Whisper, falling back to Windows when unavailable',async()=>{
+ const ready=setup({native:true});
+ let transcript;
+ await ready.service.startListening(()=>{},text=>{transcript=text;},()=>{},undefined,undefined,'en-IN',false,'auto');
+ assert.equal(transcript,'Open Notepad');
+ assert.equal(ready.api.cancels,0);
+ const fallback=setup({native:true,listen:async()=>({success:true,text:'Open YouTube',language:'en-IN'})});
+ fallback.api.getWhisperStatus=async()=>({supported:true,configured:false});
+ let heard;
+ await fallback.service.startListening(()=>{},text=>{heard=text;},()=>{},undefined,undefined,'en-IN',false,'auto');
+ assert.equal(heard,'Open YouTube');
 });

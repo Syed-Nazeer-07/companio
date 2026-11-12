@@ -1,0 +1,1 @@
+Offline voice assets are prepared per architecture by `node scripts/prepare-bundled-voice.cjs arm64|x64` during Windows packaging. The source tree contains no downloaded executable or model. Release CI verifies official SHA-256 hashes before packaging. The runtime uses the bundled model only when the user activates speech input.

@@ -249,7 +249,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
       },
       settings.voice.recognitionLanguage || 'en-IN',
       settings.overlay.soundEffects,
-      settings.voice.recognitionEngine === 'whisper' ? 'whisper' : 'windows'
+      settings.voice.recognitionEngine === 'whisper' ? 'whisper' : settings.voice.recognitionEngine === 'windows' ? 'windows' : 'auto'
     );
   };
 
@@ -263,6 +263,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
         pitch: settings.voice.ttsPitch,
         volume: settings.voice.ttsVolume,
         muted: false,
+        characterId: settings.characterId,
         onEnd: () => setTestingVoice(false)
       }
     );
@@ -301,13 +302,13 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
             />
           </div>
 
-          {/* Hands-free is opt-in; Windows actions still need a reviewed transcript. */}
+          {/* Hands-free is restricted to exact known reversible commands. */}
           <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5">
             <div>
-              <label htmlFor="companio-voice-auto-send" className="text-sm font-bold text-slate-800">Hands-free safe messages</label>
+              <label htmlFor="companio-voice-auto-send" className="text-sm font-bold text-slate-800">Hands-free basic commands</label>
               <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                Auto-send clearly recognized conversation and Companio-only commands (sleep, wake, hide and move).
-                Website, app and system actions still wait for your review. Off by default.
+                Automatically send simple named app launches, local screenshots and conversation.
+                Unknown websites, searches and risky actions always require transcript review.
               </p>
             </div>
             <input id="companio-voice-auto-send" type="checkbox"
@@ -325,13 +326,14 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
             </label>
             <select
               id="companio-speech-engine"
-              value={settings.voice.recognitionEngine || 'windows'}
+              value={settings.voice.recognitionEngine || 'auto'}
               onChange={event => onUpdateSettings({
-                voice: {...settings.voice,recognitionEngine:event.target.value as 'windows' | 'whisper'}
+                voice: {...settings.voice,recognitionEngine:event.target.value as 'auto' | 'windows' | 'whisper', recognitionEngineExplicit: true}
               })}
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
             >
-              <option value="windows">Windows dictation — ready to use</option>
+              <option value="auto">Automatic — bundled offline voice when available</option>
+              <option value="windows">Windows dictation — no extra download</option>
               <option value="whisper">Local Whisper — optional offline mode</option>
             </select>
             {settings.voice.recognitionEngine === 'whisper' && (

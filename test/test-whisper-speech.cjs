@@ -104,3 +104,25 @@ test('partial Whisper setup shows what is selected without falsely claiming read
   assert.match(missing.message,/GGML speech model/);
  }finally{fs.rmSync(h.dir,{recursive:true,force:true});}
 });
+
+
+test('verified packaged speech engine is available without user configuration',async()=>{
+ const home=fs.mkdtempSync(path.join(os.tmpdir(),'companio-bundled-voice-test-'));
+ const bundled=path.join(home,'bundled-voice','arm64');
+ const binary=path.join(bundled,'Release','whisper-cli.exe');
+ const model=path.join(bundled,'ggml-base.en-q5_1.bin');
+ try{
+  fs.mkdirSync(path.dirname(binary),{recursive:true});
+  fs.writeFileSync(binary,'test');
+  const fd=fs.openSync(model,'w');
+  fs.ftruncateSync(fd,10_000_001);
+  fs.closeSync(fd);
+  const c=new WhisperSpeechController({userData:home,platform:'win32',bundledRoot:bundled});
+  assert.equal(c.status().configured,true);
+  assert.match(c.status().message,/Offline voice is ready/);
+  assert.equal(c.readConfig().binary,binary);
+  assert.equal(c.readConfig().model,model);
+  fs.unlinkSync(model);
+  assert.equal(c.status().configured,false);
+ }finally{fs.rmSync(home,{recursive:true,force:true});}
+});

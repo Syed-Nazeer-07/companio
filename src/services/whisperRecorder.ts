@@ -1,4 +1,6 @@
-// One-shot microphone capture for opt-in offline whisper.cpp inference.
+import { createSpeechActivityTracker } from './speechActivity';
+
+// One-shot microphone capture for offline whisper.cpp inference.
 // Audio is buffered only in memory, converted to 16kHz PCM and handed to the
 // trusted Electron process. No browser speech service receives the recording.
 export function encodeMonoPcm16(samples: Float32Array, sampleRate: number): Uint8Array {
@@ -84,7 +86,8 @@ export class LocalWhisperRecorder {
       const recorder=mediaType ? new MediaRecorder(stream,{mimeType:mediaType}) : new MediaRecorder(stream);
       this.recorder=recorder;
       const started=Date.now();
-      let heardSpeech=false, lastVoice=started;
+      let heardSpeech=false;
+      const trackActivity = createSpeechActivityTracker();
       const finishRecording=()=>{if(recorder.state==='recording'&&!this.stopping){
         this.stopping=true;recorder.stop();
       }};
@@ -135,9 +138,9 @@ export class LocalWhisperRecorder {
           const level=Math.min(1,rms*16);
           onLevel?.(level);
           const now=Date.now();
-          if(rms>=0.016){heardSpeech=true;lastVoice=now;}
-          if(now-started>=11000 || (!heardSpeech&&now-started>=5200) ||
-             (heardSpeech&&now-lastVoice>=1100&&now-started>=850))finishRecording();
+          const activity = trackActivity(rms, now-started);
+          heardSpeech = activity.detected;
+          if (activity.stop) finishRecording();
         },90);
       });
     }catch(error){
