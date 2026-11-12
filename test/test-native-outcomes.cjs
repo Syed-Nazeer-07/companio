@@ -151,3 +151,65 @@ test('Windows launch failures cannot be presented as completed desktop actions',
   assert.match(result.error,/handler not registered/);
  }
 });
+
+
+test('screenshots use the Windows redirected Pictures directory and unique PNG filenames', async () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'companio-redirected-pictures-'));
+  let knownFolderLookups = 0;
+  let capturePath;
+  try {
+    const win = new WinAppsController(async script => {
+      if (script.includes("GetFolderPath('MyPictures')")) {
+        knownFolderLookups++;
+        return { stdout: root };
+      }
+      assert.match(script, /CopyFromScreen/);
+      const filename = script.match(/Companio_Screenshot_[A-Za-z0-9-]+_[a-f0-9]{6}\.png/)?.[0];
+      assert.ok(filename, 'a unique screenshot filename is required');
+      capturePath = path.join(root, 'Companio_Captures', filename);
+      const header = Buffer.alloc(256);
+      Buffer.from('89504e470d0a1a0a', 'hex').copy(header);
+      header.write('IHDR', 12, 4, 'ascii');
+      header.writeUInt32BE(1920, 16);
+      header.writeUInt32BE(1080, 20);
+      fs.writeFileSync(capturePath, header);
+      return { stdout: 'True' };
+    });
+    const result = await win.takeScreenshot();
+    assert.equal(knownFolderLookups, 1);
+    assert.equal(result.success, true);
+    assert.equal(result.verified, true);
+    assert.equal(result.filePath, capturePath);
+    assert.match(result.message, /Companio_Captures/);
+    assert.ok(fs.existsSync(capturePath));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a fake PNG never counts as a successful screenshot or leaves a broken image', async () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'companio-broken-screenshot-'));
+  let capturePath;
+  try {
+    const win = new WinAppsController(async script => {
+      if (script.includes("GetFolderPath('MyPictures')")) return { stdout: root };
+      const filename = script.match(/Companio_Screenshot_[A-Za-z0-9-]+_[a-f0-9]{6}\.png/)?.[0];
+      assert.ok(filename);
+      capturePath = path.join(root, 'Companio_Captures', filename);
+      const invalid = Buffer.alloc(256);
+      Buffer.from('89504e470d0a1a0a', 'hex').copy(invalid);
+      // PNG signature but no valid IHDR or dimensions.
+      fs.writeFileSync(capturePath, invalid);
+      return { stdout: 'True' };
+    });
+    const result = await win.takeScreenshot();
+    assert.equal(result.success, false);
+    assert.equal(result.verified, false);
+    assert.match(result.error, /not a valid PNG/i);
+    assert.ok(!fs.existsSync(capturePath));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
