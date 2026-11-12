@@ -31,7 +31,8 @@ if (-not (Test-Path -LiteralPath $installed -PathType Leaf)) {
 }
 $sizeMiB = [math]::Round((Get-Item -LiteralPath $installer).Length / 1MB, 1)
 $seconds = [math]::Round($watch.Elapsed.TotalSeconds, 1)
-$peakMiB = [math]::Round($process.PeakWorkingSet64 / 1MB, 1)
+$peakMiB = 'unavailable'
+try { $peakMiB = [math]::Round($process.PeakWorkingSet64 / 1MB, 1) } catch { }
 $report = "Silent $Architecture install: $($seconds)s, setup peak working set $($peakMiB) MiB, installer $($sizeMiB) MiB."
 Write-Output $report
 if ($env:GITHUB_STEP_SUMMARY) {
