@@ -43,7 +43,8 @@ async function main() {
       'SHA-256 verified before inclusion in the installer.',
       'https://github.com/ggml-org/whisper.cpp',
       'https://huggingface.co/ggerganov/whisper.cpp',
-      'Upstream licenses and notices apply.'
+      'License notices included in bundled-voice/LICENSE-whisper.cpp.txt',
+      'and bundled-voice/LICENSE-whisper-model.txt.'
     ].join('\n')+'\n');
     console.log('Prepared verified '+arch+' offline speech assets for Windows packaging.');
   } finally {
