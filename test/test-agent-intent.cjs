@@ -60,6 +60,14 @@ test('explicit single actions still produce a legitimate plan',async()=>{
   assert.equal(quieter.steps[0].params.delta,-10);
 });
 
+test('named Google Home is a deterministic browser request, not an AI chat response',async()=>{
+  const plan=await engine.planTask('Open Google');
+  assert.equal(plan.steps.length,1);
+  assert.equal(plan.steps[0].tool,'browser.open_url');
+  assert.equal(plan.steps[0].params.url,'https://www.google.com');
+  assert.match(plan.steps[0].verification,/unverified/);
+});
+
 test('volume changes require an explicit safe level instead of guessing 50%',async()=>{
   const level=await engine.planTask('Set volume to 45%');
   assert.equal(level.steps[0].params.level,45);
