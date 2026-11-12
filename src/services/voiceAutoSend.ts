@@ -54,16 +54,22 @@ export function canonicalBasicVoiceCommand(
 
   // Exact destinations only. Canonical values are the literal actions already
   // implemented by the built-in planner, not arbitrary transcribed input.
-  const app = request.match(/^(?:open|launch|start)\s+(?:(?:the|windows)\s+)?(youtube|google|github|calculator|notepad|chatgpt|spotify|file explorer)$/);
+  const app = request.match(/^(?:open|launch|start)\s+(?:(?:the|windows)\s+)?(youtube|google|github|calculator|notepad|chatgpt|spotify|file explorer|vs code|vscode|visual studio code)$/);
   if (app) {
     const names: Record<string, string> = {
       youtube: 'YouTube', google: 'Google', github: 'GitHub',
       calculator: 'Calculator', notepad: 'Notepad', chatgpt: 'ChatGPT',
-      spotify: 'Spotify', 'file explorer': 'File Explorer'
+      spotify: 'Spotify', 'file explorer': 'File Explorer',
+      'vs code': 'VS Code', vscode: 'VS Code', 'visual studio code': 'VS Code'
     };
     return 'Open ' + names[app[1]];
   }
-  if (/^(?:take|capture|save)\s+(?:(?:a|the|my)\s+)?(?:screenshot|screen shot|screen|ss)$/.test(request))
+  // Speech often ends a simple screenshot request with "please", "now"
+  // or "for me". Trim only these fixed polite suffixes and still require
+  // the entire request to match a local screenshot command exactly.
+  const screenshotRequest = request.replace(/\s+(?:please|now|for me)$/, '').trim();
+  if (/^(?:take|capture|save|grab)\s+(?:(?:a|the|my)\s+)?(?:screenshot|screen shot|screen|ss)$/.test(screenshotRequest) ||
+      /^(?:screenshot|screen shot)$/.test(screenshotRequest))
     return 'Take a screenshot';
   return null;
 }
