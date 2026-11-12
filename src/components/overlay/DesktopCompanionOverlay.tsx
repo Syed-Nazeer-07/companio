@@ -247,7 +247,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
           setIsListeningVoice(false);
           setAudioLevel(0);
           setCharacterState('idle');
-          setBubbleText('No speech detected. Check microphone and speech language, then retry.');
+          setBubbleText('No speech recognized. Test your mic in Control Center → Voice Settings, and try offline Whisper for better accuracy.');
         },
         settings.voice.recognitionLanguage || 'en-IN',
         settings.overlay.soundEffects,
