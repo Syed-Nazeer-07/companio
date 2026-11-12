@@ -251,7 +251,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         },
         settings.voice.recognitionLanguage || 'en-IN',
         settings.overlay.soundEffects,
-        settings.voice.recognitionEngine === 'whisper' ? 'whisper' : 'windows'
+        settings.voice.recognitionEngine === 'whisper' ? 'whisper' : settings.voice.recognitionEngine === 'windows' ? 'windows' : 'auto'
       );
     }
   };
