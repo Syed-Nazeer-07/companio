@@ -62,7 +62,12 @@ test('natural voice variations are mapped to exact safe planner commands',()=>{
   ['Companion open the file explorer','Open File Explorer'],
   ['Please take a screenshot','Take a screenshot'],
   ['Capture my screen','Take a screenshot'],
-  ['take ss','Take a screenshot']
+  ['take ss','Take a screenshot'],
+  ['Please grab a screenshot now','Take a screenshot'],
+  ['Could you take a screenshot for me','Take a screenshot'],
+  ['Screenshot please','Take a screenshot'],
+  ['Open VS Code','Open VS Code'],
+  ['Launch Visual Studio Code','Open VS Code']
  ];
  for(const [input,expected] of examples) {
    assert.equal(canonical(input,undefined,true,[]),expected,input);
@@ -76,7 +81,9 @@ test('voice never auto-executes uncertain or compound instructions',()=>{
   'Start the malware installer',
   'Save my screen and upload it',
   'Open GitHub\nDelete repository',
-  'Can you open Google and search for personal data'
+  'Can you open Google and search for personal data',
+  'Grab a screenshot and upload it',
+  'Please open VS Code and execute a script'
  ]) assert.equal(canonical(text,undefined,true,[]),null,text);
  assert.equal(canonical('Open YouTube',NaN,true,[]),null);
  assert.equal(canonical('Open YouTube',1.5,true,[]),null);
