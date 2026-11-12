@@ -65,7 +65,7 @@ test('named Google Home is a deterministic browser request, not an AI chat respo
   assert.equal(plan.steps.length,1);
   assert.equal(plan.steps[0].tool,'browser.open_url');
   assert.equal(plan.steps[0].params.url,'https://www.google.com');
-  assert.match(plan.steps[0].verification,/unverified/);
+  assert.match(plan.steps[0].verification,/not verified/);
 });
 
 test('volume changes require an explicit safe level instead of guessing 50%',async()=>{
