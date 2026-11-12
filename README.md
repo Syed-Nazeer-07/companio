@@ -16,14 +16,14 @@ Summon a character, ask for help, and get back to what you were doing—without 
 
 [**Features**](#features) · [**Get started**](#getting-started) · [**How it works**](#how-it-works) · [**Development**](#development) · [**Roadmap**](#roadmap)
 
-[**Visit official website**](https://companio7.vercel.app) · [Website source](website/) · [Releases](https://github.com/Syed-Nazeer-07/companio/releases) · [Latest ARM64/x64 preview](https://github.com/Syed-Nazeer-07/companio/releases/tag/v1.1.0-rc.22) · [Report an issue](https://github.com/Syed-Nazeer-07/companio/issues)
+[**Visit official website**](https://companio7.vercel.app) · [Website source](website/) · [Releases](https://github.com/Syed-Nazeer-07/companio/releases) · [Latest ARM64/x64 preview](https://github.com/Syed-Nazeer-07/companio/releases/tag/v1.1.0-rc.23) · [Report an issue](https://github.com/Syed-Nazeer-07/companio/issues)
 
 </div>
 
 ---
 
 > [!IMPORTANT]
-> **Status: active preview.** Companio is a working Electron desktop project with Windows automation, character interactions, optional local AI integration, tests, and installer workflows. It is **not yet a signed, production-validated Windows release**. Downloadable releases may lag behind the source code; see the [preview-build workflow](https://github.com/Syed-Nazeer-07/companio/actions/workflows/release.yml) for newer build artifacts when available.
+> **Status: active preview.** Companio is a working Electron desktop project with Windows automation, character interactions, optional local AI integration, tests, and installer workflows. It is **not yet a signed, production-validated Windows release**. Releases may lag behind newer source changes; see the [preview-build workflow](https://github.com/Syed-Nazeer-07/companio/actions/workflows/release.yml) for newer build artifacts when available.
 
 ## Marketing website
 
@@ -38,7 +38,7 @@ python -m http.server 4173
 
 Visit **http://localhost:4173**. The website is plain HTML, CSS, JavaScript, and SVG—there is no npm install or build step for it.
 
-**Live landing page:** [https://companio7.vercel.app](https://companio7.vercel.app) — hosted on Vercel, connected to the `main` branch, with the Vercel root directory set to `website`. This public marketing site is separate from the Electron app and automatically deploys site changes pushed to `main`. Download buttons link directly to the published, architecture-specific [ARM64](https://github.com/Syed-Nazeer-07/companio/releases/download/v1.1.0-rc.22/Companio-Setup-1.1.0-rc.22-arm64.exe) and [x64](https://github.com/Syed-Nazeer-07/companio/releases/download/v1.1.0-rc.22/Companio-Setup-1.1.0-rc.22-x64.exe) rc.22 preview installers; release notes include SHA-256 checksums. No GitHub login or ZIP extraction is necessary.
+**Live landing page:** [https://companio7.vercel.app](https://companio7.vercel.app) — hosted on Vercel, connected to the `main` branch, with the Vercel root directory set to `website`. This public marketing site is separate from the Electron app and automatically deploys site changes pushed to `main`. Download buttons link directly to the published, architecture-specific [ARM64](https://github.com/Syed-Nazeer-07/companio/releases/download/v1.1.0-rc.23/Companio-Setup-1.1.0-rc.23-arm64.exe) and [x64](https://github.com/Syed-Nazeer-07/companio/releases/download/v1.1.0-rc.23/Companio-Setup-1.1.0-rc.23-x64.exe) rc.23 preview installers; release notes include SHA-256 checksums. No GitHub login or ZIP extraction is necessary.
 
 > The marketing site is intentionally independent of the Electron/Vite desktop UI. Existing desktop commands (`npm run build`, `npm start`) and installer packaging continue to use the root app; this change does not replace its floating overlay or Control Center.
 
@@ -100,7 +100,7 @@ Requests are handled through **recognized intents and allowlisted tools**, not u
 
 ### Install a Windows preview
 
-Download [Companio ARM64](https://github.com/Syed-Nazeer-07/companio/releases/download/v1.1.0-rc.22/Companio-Setup-1.1.0-rc.22-arm64.exe) for Snapdragon/Windows on ARM or [Companio x64](https://github.com/Syed-Nazeer-07/companio/releases/download/v1.1.0-rc.22/Companio-Setup-1.1.0-rc.22-x64.exe) for Intel/AMD Windows. Both are direct GitHub Release installer files. For integrity, check the SHA-256 values on the [rc.22 release page](https://github.com/Syed-Nazeer-07/companio/releases/tag/v1.1.0-rc.22). These are **unsigned preview builds** and Windows may show a publisher-reputation warning.
+Download [Companio ARM64](https://github.com/Syed-Nazeer-07/companio/releases/download/v1.1.0-rc.23/Companio-Setup-1.1.0-rc.23-arm64.exe) for Snapdragon/Windows on ARM or [Companio x64](https://github.com/Syed-Nazeer-07/companio/releases/download/v1.1.0-rc.23/Companio-Setup-1.1.0-rc.23-x64.exe) for Intel/AMD Windows. Both are direct GitHub Release installer files. For integrity, check the SHA-256 values on the [rc.23 release page](https://github.com/Syed-Nazeer-07/companio/releases/tag/v1.1.0-rc.23). These are **unsigned preview builds** and Windows may show a publisher-reputation warning.
 
 Choose the setup executable for your processor:
 
@@ -128,7 +128,7 @@ The first launch opens the Electron experience; configure your character and pre
 
 ## Voice and local AI
 
-**v1.1.0-rc.23 candidate (source branch):** The Windows ARM64 and x64 installer builds bundle an English offline Whisper speech engine and quantized model. Official archive and model SHA-256 hashes are checked before packaging. On first launch, choose a character and activate the microphone; **no Ollama, LM Studio, API key, or manual speech-model download** is needed for supported desktop commands. For source-only `npm start` runs without packaged assets, Automatic voice falls back to installed Windows dictation. Existing installations using the old default Windows recognizer migrate to Automatic unless the user explicitly selected a newer preference.
+**v1.1.0-rc.23 Windows preview:** The Windows ARM64 and x64 installer builds bundle an English offline Whisper speech engine and quantized model. Official archive and model SHA-256 hashes are checked before packaging. On first launch, choose a character and activate the microphone; **no Ollama, LM Studio, API key, or manual speech-model download** is needed for supported desktop commands. For source-only `npm start` runs without packaged assets, Automatic voice falls back to installed Windows dictation. Existing installations using the old default Windows recognizer migrate to Automatic unless the user explicitly selected a newer preference.
 
 - **Push to talk:** activate Companio, tap the microphone, and speak. New packaged builds use offline Whisper by default when its bundled engine is present. Audio is processed locally; it is not recorded in the background.
 - **Low-risk hands-free commands:** supported, exact one-step commands such as **Open YouTube**, **Open Calculator** and **Take a screenshot** can be sent directly after recognition. Unknown websites, searches, multi-step actions, and sensitive operations still show an editable transcript and may require approval.
@@ -136,7 +136,7 @@ The first launch opens the Electron experience; configure your character and pre
 - **Voice settings:** Control Center → Voice Settings includes a microphone test, recognition-language setting, a Windows dictation override, optional manual Whisper file selection, and individually tuned character voices.
 - **Advanced AI remains optional:** the Built-in Engine handles supported commands without third-party servers. Choose local AI only when Ollama or LM Studio is already running.
 
-**Older rc.22 public installers** still use the prior Windows dictation default and optional Whisper download. The improvements above require an updated, verified installer. Microphone permission from Windows and on-device performance testing remain applicable. No continuous always-on wake-word recording is enabled.
+**Earlier rc.22 installers** used the prior Windows dictation default and optional Whisper download. The rc.23 release includes the bundled offline recognizer and one-screen first launch. Microphone permission from Windows and on-device performance testing remain applicable. No continuous always-on wake-word recording is enabled.
 
 ### Use a local language model (optional)
 
