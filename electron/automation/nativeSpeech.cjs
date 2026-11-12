@@ -21,8 +21,8 @@ function buildRecognitionScript(timeoutSec, requestedLanguage = 'en-US') {
     '  $engine = [System.Speech.Recognition.SpeechRecognitionEngine]::new($selected)',
     '  Write-Output ("SPEECH_LOCALE:" + $selected.Culture.Name)',
     '  $engine.MaxAlternates = 5',
-    '  $engine.EndSilenceTimeout = [TimeSpan]::FromMilliseconds(500)',
-    '  $engine.EndSilenceTimeoutAmbiguous = [TimeSpan]::FromMilliseconds(900)',
+    '  $engine.EndSilenceTimeout = [TimeSpan]::FromMilliseconds(1000)',
+    '  $engine.EndSilenceTimeoutAmbiguous = [TimeSpan]::FromMilliseconds(1600)',
     // Strict, known spoken commands get a separate lightweight grammar.
     // The general dictation grammar remains available for arbitrary questions.
     // This does not run any commands: it only improves candidate recognition.
