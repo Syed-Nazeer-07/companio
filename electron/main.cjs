@@ -46,7 +46,10 @@ browserController.configureProfileDirectory(path.join(app.getPath('userData'), '
 const defaultBrowser = new DefaultBrowserController(shell);
 const youtubeFeed = new YoutubeFeedController({ browser: defaultBrowser });
 const startupController = createStartupController(app, { smokeTest: SMOKE_TEST });
-const whisperSpeech = new WhisperSpeechController({ userData: app.getPath('userData') });
+const whisperSpeech = new WhisperSpeechController({
+  userData: app.getPath('userData'),
+  bundledRoot: app.isPackaged ? path.join(process.resourcesPath, 'bundled-voice', process.arch) : null
+});
 const whisperModelInstaller = new WhisperModelInstaller({ userData: app.getPath('userData') });
 const whisperBinaryInstaller = new WhisperBinaryInstaller({ userData: app.getPath('userData') });
 
