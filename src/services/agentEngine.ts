@@ -553,7 +553,7 @@ export class AgentEngine {
         params: { path: '' },
         status: 'pending'
       });
-    } else if (q.includes('screenshot') || q.includes('take a screenshot')) {
+    } else if (q.includes('screenshot') || q.includes('screen shot') || /\b(?:capture|take|save)\s+(?:(?:a|the|my)\s+)?(?:screen|ss)\b/.test(q)) {
       intent = 'win.screenshot';
       steps.push({
         id: 'step_1',
@@ -1075,7 +1075,7 @@ export class AgentEngine {
         temperature: aiConfig.temperature
       });
       if (!result.success || !result.reply) {
-        throw new Error(result.error || 'The local model did not return a response. Check AI Settings.');
+        throw new Error((result.error || 'The local model did not reply.') + ' Local AI is optional. Start Ollama / LM Studio or switch AI Settings to Built-in for offline commands.');
       }
       return result.reply;
     }
@@ -1234,7 +1234,7 @@ export class AgentEngine {
         case 'win.volume.mute':
           return p.mute ? "Muted system audio! Shh... 🤫" : "Sound unmuted! Audio is back 🎶";
         case 'win.screenshot':
-          return "Screenshot captured and saved to your Pictures folder! 📸";
+          return step.result?.message || 'Screenshot saved to Pictures/Companio_Captures.';
         case 'win.spotify.play_track':
           return `Playing "${p.query}" on Spotify! 🎧`;
         case 'win.media.control':
