@@ -5,3 +5,7 @@ target/
 .env
 *.log
 *.download
+
+# Verified offline voice assets are downloaded during CI, never committed.
+build/bundled-voice/arm64/
+build/bundled-voice/x64/
