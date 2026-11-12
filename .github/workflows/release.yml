@@ -65,6 +65,10 @@ jobs:
       - name: Verify no high-severity advisories
         run: npm audit --audit-level=high
 
+      - name: Include verified offline voice runtime and model
+        shell: pwsh
+        run: node scripts/prepare-bundled-voice.cjs ${{ matrix.target.arch }}
+
       - name: Package the Windows installer (no portable duplicates)
         shell: pwsh
         run: |
@@ -130,7 +134,7 @@ jobs:
             echo 'Unsigned preview build for Windows 11, not a signed production installer.'
             echo 'Choose **arm64** for Snapdragon/Windows on ARM and **x64** for Intel or AMD.'
             echo 'No account is required to download the installer from this release.'
-            echo 'Local Whisper is optional and downloads CPU tools only after the user starts setup in Voice Settings.'
+            echo 'Offline voice is included with the installer. It runs only when the microphone is activated.'
             echo 'Windows SmartScreen may warn because these installers are not code-signed.'
             printf '\n## SHA-256 installer checksums\n\n```text\n'
             for arch in arm64 x64; do
