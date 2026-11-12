@@ -39,7 +39,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   },
   voice: {
     wakePhraseEnabled: false,
-    autoSendSafeSpeech: false,
+    autoSendSafeSpeech: true,
     wakePhrase: 'Hey Companio',
     pushToTalkKey: 'Space',
     sttEngine: 'browser',
