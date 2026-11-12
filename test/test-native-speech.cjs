@@ -128,7 +128,7 @@ test('Windows speech returns bounded, distinct alternatives without changing pri
     return child;
   });
   const pending=recognizer.recognizeOnce(6,'en-IN');
-  assert.match(script,/EndSilenceTimeout = \[TimeSpan\]::FromMilliseconds\(500\)/);
+  assert.match(script,/EndSilenceTimeout = \[TimeSpan\]::FromMilliseconds\(1000\)/);
   assert.match(script,/MaxAlternates = 5/);
   assert.match(script,/SPEECH_ALTERNATE_B64/);
   process.nextTick(()=>{
