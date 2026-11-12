@@ -20,4 +20,8 @@ test('landing page stays a clearly labeled demonstration and avoids user data co
  assert.doesNotMatch(js,/localStorage|sessionStorage|eval\(/);
  assert.match(html,/class="skip-link"/);
  assert.match(html,/rel="noopener noreferrer"/);
+ assert.match(html,/id="preview-guide"/);
+ assert.match(html,/Verify the published SHA-256 digest/);
+ assert.match(html,/Control Center → Voice Settings/);
+ assert.match(html,/Companio_Captures/);
 });
