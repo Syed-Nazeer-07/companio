@@ -44,7 +44,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     pushToTalkKey: 'Space',
     sttEngine: 'browser',
     recognitionLanguage: 'en-IN',
-    recognitionEngine: 'windows',
+    recognitionEngine: 'auto',
     ttsVoice: '',
     ttsRate: 1.0,
     ttsPitch: 1.05,
