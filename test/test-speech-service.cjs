@@ -206,3 +206,17 @@ test('unconfigured Whisper rejects before microphone capture or native transcrip
   assert.deepEqual(errors,['Choose Whisper model first']);
   assert.equal(h.api.cancels,0);
 });
+
+
+test('automatic voice uses packaged Whisper, falling back to Windows when unavailable',async()=>{
+ const ready=setup({native:true});
+ let transcript;
+ await ready.service.startListening(()=>{},text=>{transcript=text;},()=>{},undefined,undefined,'en-IN',false,'auto');
+ assert.equal(transcript,'Open Notepad');
+ assert.equal(ready.api.cancels,0);
+ const fallback=setup({native:true,listen:async()=>({success:true,text:'Open YouTube',language:'en-IN'})});
+ fallback.api.getWhisperStatus=async()=>({supported:true,configured:false});
+ let heard;
+ await fallback.service.startListening(()=>{},text=>{heard=text;},()=>{},undefined,undefined,'en-IN',false,'auto');
+ assert.equal(heard,'Open YouTube');
+});
