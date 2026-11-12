@@ -1,7 +1,7 @@
 'use strict';
-// Optional offline speech-to-text using the user-selected whisper.cpp CLI.
-// Executables and model files are never downloaded, executed or selected
-// silently. Paths are stored only after an explicit native file picker.
+// Offline speech-to-text using either a verified, installer-bundled whisper.cpp
+// runtime or explicitly configured user-owned speech files.
+// No speech executable is run until the user activates the microphone.
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -46,7 +46,7 @@ function safeSelection(kind, file, fileSystem = fs) {
 
 class WhisperSpeechController {
   constructor({userData, spawnProcess = spawn, fileSystem = fs, platform = process.platform,
-    timeoutMs = MAX_INFERENCE_MS} = {}) {
+    timeoutMs = MAX_INFERENCE_MS, bundledRoot = null} = {}) {
     if (typeof userData !== 'string' || !path.isAbsolute(userData)) throw Error('Missing application data directory.');
     this.userData = userData;
     this.spawnProcess = spawnProcess;
@@ -54,16 +54,29 @@ class WhisperSpeechController {
     this.platform = platform;
     this.timeoutMs = timeoutMs;
     this.configPath = path.join(userData, 'whisper-speech.json');
+    this.bundledRoot = typeof bundledRoot === 'string' && path.isAbsolute(bundledRoot) ? bundledRoot : null;
     this.active = null;
   }
 
+  bundledSelections() {
+    if (this.platform !== 'win32' || !this.bundledRoot) return {binary:null,model:null};
+    try {
+      // Both artifacts must be present; a partial installer must never
+      // trigger an executable without its matching speech model.
+      const binary=safeSelection('binary',path.join(this.bundledRoot,'Release','whisper-cli.exe'),this.fileSystem);
+      const model=safeSelection('model',path.join(this.bundledRoot,'ggml-base.en-q5_1.bin'),this.fileSystem);
+      return {binary,model};
+    } catch{return {binary:null,model:null};}
+  }
+
   selections() {
-    let obj;
+    let obj = {};
     try {obj=JSON.parse(this.fileSystem.readFileSync(this.configPath,'utf8'));}
-    catch{return {binary:null,model:null};}
+    catch { /* No user overrides, use verified bundled runtime if present. */ }
+    const bundled=this.bundledSelections();
     const valid=kind=>{
       try{return safeSelection(kind,obj[kind],this.fileSystem);}
-      catch{return null;}
+      catch{return bundled[kind];}
     };
     return {binary:valid('binary'),model:valid('model')};
   }
@@ -82,7 +95,7 @@ class WhisperSpeechController {
       busy: !!this.active,
       executable: selected.binary ? path.basename(selected.binary) : null,
       model: selected.model ? path.basename(selected.model) : null,
-      message: configured ? 'Local whisper.cpp is configured. Audio stays on this computer.'
+      message: configured ? (this.bundledSelections().binary ? 'Offline voice is ready. Audio stays on this computer.' : 'Local whisper.cpp is configured. Audio stays on this computer.')
         : !selected.binary ? 'Select whisper-cli.exe from the official Windows whisper.cpp release.'
         : 'Choose or download an English GGML speech model to finish setup.'
     };
