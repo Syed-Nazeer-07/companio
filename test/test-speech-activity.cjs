@@ -9,9 +9,9 @@ const source = fs.readFileSync(path.join(__dirname, '../src/services/speechActiv
 const transpiled = ts.transpileModule(source,{
  compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}
 }).outputText;
-const exports = {};
-vm.runInNewContext(transpiled,{exports,Math,Number});
-const { createSpeechActivityTracker } = exports;
+const moduleExports = {};
+vm.runInNewContext(transpiled,{exports:moduleExports,Math,Number});
+const { createSpeechActivityTracker } = moduleExports;
 test('quiet speech is detected without rejecting low-energy microphones',()=>{
  const sample=createSpeechActivityTracker();
  assert.equal(sample(0.0052,250).detected,false);
