@@ -7,130 +7,77 @@ interface Props {
   audioLevel?: number;
 }
 
+/** Soft, flat-shaded mochi mascot: same visual language as Kiko and Cloudie. */
 export const Mochi3D: React.FC<Props> = ({ state, scale = 1, audioLevel = 0 }) => {
-  const isSleeping = state === 'sleeping';
-  const isListening = state === 'listening';
-  const isThinking = state === 'thinking';
-  const isSuccess = state === 'success';
-  const isConfused = state === 'confused';
-  const isWaking = state === 'waking';
-  const mouthHeight = state === 'talking' ? Math.max(4, 4 + audioLevel * 12) : 3;
+  const sleeping = state === 'sleeping';
+  const listening = state === 'listening';
+  const thinking = state === 'thinking';
+  const success = state === 'success';
+  const confused = state === 'confused';
+  const waking = state === 'waking';
+  const mouthHeight = state === 'talking' ? 3 + Math.min(audioLevel, 1) * 9 : 3;
+  const motion = success ? 'animate-companio-celebrate'
+    : waking ? 'animate-companio-wake'
+    : listening ? 'animate-companio-listen'
+    : thinking ? 'animate-companio-think'
+    : confused ? 'rotate-[-6deg]'
+    : sleeping ? 'opacity-85 translate-y-3'
+    : 'animate-companio-idle';
 
   return (
-    <div 
-      className="relative flex items-center justify-center transition-transform duration-300 pointer-events-none select-none"
-      style={{ transform: `scale(${scale})` }}
-    >
-      <svg 
-        width="160" 
-        height="180" 
-        viewBox="0 0 160 180" 
-        className={`relative z-10 transition-all duration-300 drop-shadow-[0_12px_24px_rgba(0,0,0,0.12)] ${
-          isSuccess ? 'animate-companio-celebrate' :
-          isWaking ? 'animate-companio-wake' :
-          isListening ? 'animate-companio-listen' :
-          isThinking ? 'animate-companio-think' : 
-          isConfused ? 'rotate-[-8deg]' : 
-          isSleeping ? 'opacity-85 translate-y-3' : 'animate-companio-idle'
-        }`}
-      >
+    <div className="relative flex items-center justify-center pointer-events-none select-none transition-transform duration-300"
+      style={{ transform: 'scale(' + scale + ')' }}>
+      <svg width="160" height="180" viewBox="0 0 160 180" role="img" aria-label="Mochi companion"
+        className={'relative z-10 drop-shadow-[0_10px_20px_rgba(0,0,0,0.12)] transition-all duration-300 ' + motion}>
         <defs>
-          {/* 3D Radial Sphere Shading for Mochi */}
-          <radialGradient id="mochiShading" cx="35%" cy="30%" r="70%">
-            <stop offset="0%" stopColor="#ffffff" />
-            <stop offset="40%" stopColor="#fed7aa" />
-            <stop offset="85%" stopColor="#fb923c" />
-            <stop offset="100%" stopColor="#ea580c" />
-          </radialGradient>
-          <radialGradient id="earShading" cx="30%" cy="30%" r="70%">
-            <stop offset="0%" stopColor="#ffedd5" />
-            <stop offset="80%" stopColor="#f97316" />
-            <stop offset="100%" stopColor="#c2410c" />
-          </radialGradient>
-          <radialGradient id="cheekGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.8" />
-            <stop offset="100%" stopColor="#f43f5e" stopOpacity="0" />
-          </radialGradient>
-          <filter id="softShadow">
-            <feDropShadow dx="0" dy="8" stdDeviation="6" floodOpacity="0.25" />
-          </filter>
+          <linearGradient id="mochiFur" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#fffdf9" />
+            <stop offset="100%" stopColor="#fbe9d8" />
+          </linearGradient>
+          <linearGradient id="mochiBlush" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#f9a8b5" />
+            <stop offset="100%" stopColor="#fda4af" />
+          </linearGradient>
         </defs>
-
-        {/* Floating Crown / Star Antenna */}
-        <g className="animate-pulse">
-          <circle cx="80" cy="22" r="7" fill={isListening ? '#10b981' : isSuccess ? '#facc15' : '#fbbf24'} filter="url(#softShadow)" />
-          <path d="M80 12 L82 19 L89 19 L83 23 L85 30 L80 25 L75 30 L77 23 L71 19 L78 19 Z" fill="#ffffff" opacity="0.9" />
-          <line x1="80" y1="30" x2="80" y2="40" stroke="#f97316" strokeWidth="3" strokeLinecap="round" />
-        </g>
-
-        {/* Small Bunny / Bear Ears */}
-        <ellipse cx="48" cy="48" rx="14" ry="20" fill="url(#earShading)" transform="rotate(-20 48 48)" />
-        <ellipse cx="48" cy="48" rx="7" ry="12" fill="#fda4af" transform="rotate(-20 48 48)" />
-
-        <ellipse cx="112" cy="48" rx="14" ry="20" fill="url(#earShading)" transform="rotate(20 112 48)" />
-        <ellipse cx="112" cy="48" rx="7" ry="12" fill="#fda4af" transform="rotate(20 112 48)" />
-
-        {/* Main 3D Squishy Body */}
-        <path 
-          d="M32 95 C30 55, 130 55, 128 95 C128 145, 32 145, 32 95 Z" 
-          fill="url(#mochiShading)" 
-        />
-
-        {/* Specular 3D Gloss Highlight on Top-Left */}
-        <ellipse cx="58" cy="72" rx="16" ry="8" fill="#ffffff" opacity="0.6" transform="rotate(-25 58 72)" />
-        <circle cx="75" cy="65" r="4" fill="#ffffff" opacity="0.7" />
-
-        {/* Blush Cheeks */}
-        <circle cx="50" cy="104" r="10" fill="url(#cheekGlow)" />
-        <circle cx="110" cy="104" r="10" fill="url(#cheekGlow)" />
-
-        {/* Expressive Glossy Eyes */}
-        {isSleeping ? (
-          <g stroke="#7c2d12" strokeWidth="3" strokeLinecap="round" fill="none">
-            <path d="M54 94 Q64 100 74 94" />
-            <path d="M86 94 Q96 100 106 94" />
-            <text x="115" y="55" fill="#f97316" fontSize="13" fontWeight="bold">Z</text>
-            <text x="123" y="45" fill="#f97316" fontSize="10" opacity="0.6">z</text>
+        {/* Little folded wrapper and tiny feet keep the silhouette recognizable. */}
+        <ellipse cx="80" cy="155" rx="38" ry="6" fill="#c8b7ab" opacity="0.18" />
+        <ellipse cx="58" cy="146" rx="15" ry="10" fill="#f6d6c6" stroke="#e8bcab" strokeWidth="1.5" />
+        <ellipse cx="103" cy="146" rx="15" ry="10" fill="#f6d6c6" stroke="#e8bcab" strokeWidth="1.5" />
+        <path d="M32 100 C31 62 50 49 80 49 C110 49 129 62 128 100 C128 136 106 151 80 151 C54 151 32 136 32 100 Z"
+          fill="url(#mochiFur)" stroke="#e7cbbd" strokeWidth="2" />
+        <path d="M51 62 Q60 49 71 51" stroke="#fff" strokeWidth="5" strokeLinecap="round" opacity="0.68" />
+        <path d="M42 125 Q29 114 29 101" stroke="#e7cbbd" strokeWidth="8" strokeLinecap="round" fill="none" />
+        <path d="M118 125 Q131 114 131 101" stroke="#e7cbbd" strokeWidth="8" strokeLinecap="round" fill="none" />
+        <ellipse cx="51" cy="110" rx="8" ry="5" fill="url(#mochiBlush)" opacity="0.7" />
+        <ellipse cx="109" cy="110" rx="8" ry="5" fill="url(#mochiBlush)" opacity="0.7" />
+        {sleeping || success ? (
+          <g fill="none" stroke="#4b3e43" strokeWidth="3" strokeLinecap="round">
+            <path d={success ? 'M55 94 Q65 83 74 94' : 'M55 92 Q65 99 74 92'} />
+            <path d={success ? 'M86 94 Q95 83 105 94' : 'M86 92 Q95 99 105 92'} />
           </g>
-        ) : isSuccess ? (
-          <g stroke="#ea580c" strokeWidth="4" strokeLinecap="round" fill="none">
-            <path d="M54 94 Q64 84 74 94" />
-            <path d="M86 94 Q96 84 106 94" />
-          </g>
-        ) : isConfused ? (
+        ) : confused ? (
           <g>
-            <circle cx="64" cy="92" r="8" fill="#1e293b" />
-            <circle cx="62" cy="89" r="3" fill="#ffffff" />
-            {/* Confused tilted line for other eye */}
-            <line x1="88" y1="96" x2="104" y2="88" stroke="#1e293b" strokeWidth="3.5" strokeLinecap="round" />
-            <text x="114" y="65" fill="#e11d48" fontSize="16" fontWeight="bold">?</text>
+            <circle cx="65" cy="93" r="6.5" fill="#303b4a" />
+            <path d="M88 95 Q97 90 105 96" fill="none" stroke="#303b4a" strokeWidth="2.5" strokeLinecap="round" />
+            <path d="M119 67 Q128 59 128 72" fill="none" stroke="#d97789" strokeWidth="2" />
           </g>
         ) : (
           <g>
-            {/* Left Big Glassy Eye */}
-            <circle cx="64" cy="92" r={isListening ? 9 : 8} fill="#1e293b" />
-            <circle cx="62" cy="89" r="3.5" fill="#ffffff" />
-            <circle cx="67" cy="95" r="1.5" fill="#ffffff" />
-
-            {/* Right Big Glassy Eye */}
-            <circle cx="96" cy="92" r={isListening ? 9 : 8} fill="#1e293b" />
-            <circle cx="94" cy="89" r="3.5" fill="#ffffff" />
-            <circle cx="99" cy="95" r="1.5" fill="#ffffff" />
+            <ellipse cx="65" cy="93" rx={listening ? 7 : 6} ry="8" fill="#283244" />
+            <ellipse cx="95" cy="93" rx={listening ? 7 : 6} ry="8" fill="#283244" />
+            <circle cx="63" cy="90" r="2.5" fill="#fff" />
+            <circle cx="93" cy="90" r="2.5" fill="#fff" />
           </g>
         )}
-
-        {/* Cute Mouth */}
         {state === 'talking' ? (
-          <ellipse cx="80" cy="106" rx="6" ry={mouthHeight} fill="#be123c" stroke="#4c0519" strokeWidth="1" />
-        ) : isSuccess ? (
-          <path d="M74 104 Q80 112 86 104" stroke="#7c2d12" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+          <ellipse cx="80" cy="111" rx="5" ry={mouthHeight} fill="#aa526b" />
         ) : (
-          <path d="M76 104 Q80 108 84 104" stroke="#7c2d12" strokeWidth="2" strokeLinecap="round" fill="none" />
+          <path d={success ? 'M73 109 Q80 119 87 109' : 'M75 110 Q80 114 85 110'}
+            fill="none" stroke="#7d5362" strokeWidth="2.5" strokeLinecap="round" />
         )}
-
-        {/* Tiny Stubby Paws */}
-        <ellipse cx="44" cy="125" rx="8" ry="10" fill="url(#earShading)" />
-        <ellipse cx="116" cy="125" rx="8" ry="10" fill="url(#earShading)" />
+        {sleeping && <g fill="#b28c9a" fontWeight="bold"><text x="117" y="55" fontSize="14">z</text><text x="127" y="43" fontSize="10">z</text></g>}
+        {thinking && <circle cx="127" cy="53" r="4" fill="#eebd75" />}
+        {success && <path d="M123 57 L126 63 L132 66 L126 69 L123 75 L120 69 L114 66 L120 63 Z" fill="#f9c96b" />}
       </svg>
     </div>
   );
