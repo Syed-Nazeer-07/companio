@@ -95,6 +95,9 @@ jobs:
       - name: Regenerate Windows icons
         shell: pwsh
         run: ./scripts/generate-icon.ps1
+      - name: Prepare verified ARM64 offline voice runtime
+        shell: pwsh
+        run: node scripts/prepare-bundled-voice.cjs arm64
       - name: Package native ARM64 app for smoke test
         shell: pwsh
         run: |
@@ -141,6 +144,9 @@ jobs:
       - name: Regenerate multi-resolution Windows icons
         shell: pwsh
         run: ./scripts/generate-icon.ps1
+      - name: Include verified offline voice engine and model
+        shell: pwsh
+        run: node scripts/prepare-bundled-voice.cjs ${{ matrix.arch }}
       - name: Package installer only
         shell: pwsh
         run: |
