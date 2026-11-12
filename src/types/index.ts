@@ -42,6 +42,8 @@ export interface VoiceConfig {
   recognitionLanguage?: 'en-IN' | 'en-US' | 'en-GB' | 'en-AU';
   /** Installed Windows dictation is the default. Whisper needs user-selected local files. */
   recognitionEngine?: 'auto' | 'windows' | 'whisper';
+  /** True when the user deliberately chose a recognition engine after rc.22. */
+  recognitionEngineExplicit?: boolean;
   ttsVoice: string;
   ttsRate: number;
   ttsPitch: number;
