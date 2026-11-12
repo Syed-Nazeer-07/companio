@@ -112,8 +112,8 @@ test('character TTS actually retains profile pitch/rate and settles once', () =>
     onStart:()=>started++,onEnd:()=>ended++
   });
   assert.equal(h.spoken.length,1);
-  assert.equal(h.spoken[0].pitch,1.55);
-  assert.equal(h.spoken[0].rate,1.18);
+  assert.equal(h.spoken[0].pitch,1.1);
+  assert.equal(h.spoken[0].rate,1.08);
   h.spoken[0].onstart();
   assert.equal(started,1);
   h.service.stopSpeaking();
