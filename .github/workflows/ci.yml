@@ -229,7 +229,8 @@ jobs:
             echo "Choose **ARM64** for Snapdragon-based Windows laptops, or **x64** for Intel/AMD."
             echo "Downloads below are direct files; a GitHub account is not required."
             echo "Offline voice transcription is bundled for Windows ARM64 and x64; users do not need to set up Ollama or download a speech model for basic commands."
-            echo "Installation, native ARM64 startup and basic CI checks passed. Real-microphone quality and laptop thermal behavior need user validation."\n            echo "This preview is not code-signed. Windows SmartScreen may show a publisher warning. Do not disable Microsoft Defender."
+            echo "Installation, native ARM64 startup and basic CI checks passed. Real-microphone quality and laptop thermal behavior need user validation."
+            echo "This preview is not code-signed. Windows SmartScreen may show a publisher warning. Do not disable Microsoft Defender."
             echo
             echo "## SHA-256 checksums"
             echo
