@@ -11,7 +11,7 @@ import { dbService } from '../../services/dbService';
 import { requiresActionReview } from '../../services/actionApprovalPolicy';
 import { GripHorizontal, MessageSquare, Moon, Sun, X } from 'lucide-react';
 import { parseCompanionCommand } from '../../services/companionCommands';
-import { shouldAutoSubmitVoice } from '../../services/voiceAutoSend';
+import { shouldAutoSubmitVoice, shouldAutoRunBasicVoiceCommand } from '../../services/voiceAutoSend';
 
 interface Props {
   settings: AppSettings;
@@ -216,10 +216,13 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
           setIsListeningVoice(false);
           setAudioLevel(0);
           setCharacterState('idle');
-          // An explicit opt-in may auto-send only clear conversation and
-          // reversible Companio-only controls. Windows/browser actions still
-          // require a visible, editable transcript and Send.
-          if (shouldAutoSubmitVoice(final, details?.confidence, settings.voice.autoSendSafeSpeech === true) && !details?.alternatives?.length) {
+          // Only precise named apps, local screenshots, conversation and
+          // reversible companion commands can auto-send. Unfamiliar or risky
+          // automation still shows an editable transcript for confirmation.
+          if (!details?.alternatives?.length && (
+            shouldAutoRunBasicVoiceCommand(final, details?.confidence, settings.voice.autoSendSafeSpeech === true)
+            || shouldAutoSubmitVoice(final, details?.confidence, settings.voice.autoSendSafeSpeech === true)
+          )) {
             setVoiceTranscript(null);
             void handleExecuteQuery(final);
             return;
