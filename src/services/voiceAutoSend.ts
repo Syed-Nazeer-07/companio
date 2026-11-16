@@ -11,7 +11,8 @@ export function shouldAutoSubmitVoice(
   enabled: boolean
 ): boolean {
   if (!enabled || typeof transcript !== 'string' || transcript.trim().length < 3 ||
-      transcript.length > 500 || (Number.isFinite(confidence) && (confidence ?? 0) < 0.85)) {
+      transcript.length > 500 ||
+      (confidence !== undefined && (!Number.isFinite(confidence) || confidence < 0.85 || confidence > 1))) {
     return false;
   }
   const command = transcript.trim();
@@ -34,18 +35,10 @@ export function shouldAutoSubmitVoice(
  * instructions, or destructive commands. Unknown/untrusted speech is displayed
  * for review instead of automatically submitted.
  */
-export function canonicalBasicVoiceCommand(
-  transcript: string,
-  confidence: number | undefined,
-  enabled: boolean,
-  alternatives: string[] = []
-): string | null {
-  if (!enabled || typeof transcript !== 'string' || alternatives.length ||
-      transcript.length > 160 || !transcript.trim() ||
-      /[\u0000-\u001f\u007f]/.test(transcript) ||
-      (confidence !== undefined && (!Number.isFinite(confidence) || confidence < 0.85 || confidence > 1))) {
-    return null;
-  }
+/** Recognize only exact, allowlisted one-step intents. Not an arbitrary command parser. */
+function canonicalSupportedCommand(transcript: string): string | null {
+  if (typeof transcript !== 'string' || !transcript.trim() ||
+      transcript.length > 160 || /[\u0000-\u001f\u007f]/.test(transcript)) return null;
   const request = transcript.trim().toLowerCase()
     .replace(/^(?:(?:hey|hi|ok|okay)\s+)?(?:companio|companion)[,!:]?\s+/, '')
     .replace(/^(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:please\s+)?/, '')
@@ -72,6 +65,25 @@ export function canonicalBasicVoiceCommand(
       /^(?:screenshot|screen shot)$/.test(screenshotRequest))
     return 'Take a screenshot';
   return null;
+}
+
+/** Uncalibrated Whisper confidence is accepted only when it is genuinely absent.
+ * Windows alternatives may auto-run only when *all* recognized hypotheses
+ * resolve to the same explicitly allowlisted action.
+ */
+export function canonicalBasicVoiceCommand(
+  transcript: string,
+  confidence: number | undefined,
+  enabled: boolean,
+  alternatives: string[] = []
+): string | null {
+  if (!enabled || (confidence !== undefined &&
+      (!Number.isFinite(confidence) || confidence < 0.85 || confidence > 1)) ||
+      !Array.isArray(alternatives) || alternatives.length > 5) return null;
+  const candidate = canonicalSupportedCommand(transcript);
+  if (!candidate) return null;
+  if (!alternatives.every(other => canonicalSupportedCommand(other) === candidate)) return null;
+  return candidate;
 }
 
 /** Compatibility wrapper for callers that need only an allow/deny decision. */
