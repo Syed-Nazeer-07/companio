@@ -91,3 +91,27 @@ test('voice never auto-executes uncertain or compound instructions',()=>{
  assert.equal(canonical('Open YouTube',undefined,false,[]),null);
  assert.equal(canonical('Open YouTube',.9,true,['Open Notepad']),null);
 });
+
+
+test('malformed confidence is never a valid implicit approval',()=>{
+ for(const score of [NaN,Infinity,-Infinity,-0.1,1.5]) {
+   assert.equal(allow('How are you?',score,true),false,String(score));
+   assert.equal(allow('Go to sleep',score,true),false,String(score));
+   assert.equal(canonical('Open Calculator',score,true),null,String(score));
+ }
+ assert.equal(allow('How are you?',undefined,true),true);
+});
+
+test('equivalent Windows recognition alternatives permit a single safe action',()=>{
+ assert.equal(canonical('Open Notepad',.96,true,['Please open Notepad','Launch Windows Notepad']),'Open Notepad');
+ assert.equal(canonical('Take a screenshot',.92,true,['Capture my screen','Screenshot please']),'Take a screenshot');
+ assert.equal(canonical('Open VS Code',.98,true,['Launch Visual Studio Code']),'Open VS Code');
+});
+
+test('conflicting or unfamiliar alternatives still require user confirmation',()=>{
+ assert.equal(canonical('Open Notepad',.98,true,['Open Calculator']),null);
+ assert.equal(canonical('Open YouTube',.98,true,['Open YouTube and close windows']),null);
+ assert.equal(canonical('Take a screenshot',.98,true,['Upload my screen']),null);
+ assert.equal(canonical('Open Calculator',.98,true,['Open Calculator',null]),null);
+ assert.equal(canonical('Open Calculator',.98,true,Array(6).fill('Open Calculator')),null);
+});
