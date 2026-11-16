@@ -100,7 +100,7 @@ Requests are handled through **recognized intents and allowlisted tools**, not u
 
 ### Install a Windows preview
 
-Download [Companio ARM64](https://github.com/Syed-Nazeer-07/companio/releases/download/v1.1.0-rc.27/Companio-Setup-1.1.0-rc.27-arm64.exe) for Snapdragon/Windows on ARM or [Companio x64](https://github.com/Syed-Nazeer-07/companio/releases/download/v1.1.0-rc.27/Companio-Setup-1.1.0-rc.27-x64.exe) for Intel/AMD Windows. Both are direct GitHub Release installer files. For integrity, check the SHA-256 values on the [rc.26 release page](https://github.com/Syed-Nazeer-07/companio/releases/tag/v1.1.0-rc.27). These are **unsigned preview builds** and Windows may show a publisher-reputation warning.
+Download [Companio ARM64](https://github.com/Syed-Nazeer-07/companio/releases/download/v1.1.0-rc.27/Companio-Setup-1.1.0-rc.27-arm64.exe) for Snapdragon/Windows on ARM or [Companio x64](https://github.com/Syed-Nazeer-07/companio/releases/download/v1.1.0-rc.27/Companio-Setup-1.1.0-rc.27-x64.exe) for Intel/AMD Windows. Both are direct GitHub Release installer files. For integrity, check the SHA-256 values on the [rc.27 release page](https://github.com/Syed-Nazeer-07/companio/releases/tag/v1.1.0-rc.27). These are **unsigned preview builds** and Windows may show a publisher-reputation warning.
 
 Choose the setup executable for your processor:
 
@@ -136,7 +136,7 @@ The first launch opens the Electron experience; configure your character and pre
 - **Voice settings:** Control Center → Voice Settings includes a microphone test, recognition-language setting, a Windows dictation override, optional manual Whisper file selection, and individually tuned character voices.
 - **Advanced AI remains optional:** the Built-in Engine handles supported commands without third-party servers. Choose local AI only when Ollama or LM Studio is already running.
 
-**Earlier rc.22 installers** used the prior Windows dictation default and optional Whisper download. The rc.26 release includes the bundled offline recognizer and one-screen first launch. Microphone permission from Windows and on-device performance testing remain applicable. No continuous always-on wake-word recording is enabled.
+**Earlier rc.22 installers** used the prior Windows dictation default and optional Whisper download. The rc.26 release introduced the bundled offline recognizer and one-screen first launch. rc.27 adds safer voice recognition handling and screenshot capture fallback. Microphone permission from Windows and on-device performance testing remain applicable. No continuous always-on wake-word recording is enabled.
 
 ### Use a local language model (optional)
 
