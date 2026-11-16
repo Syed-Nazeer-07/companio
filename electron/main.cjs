@@ -1,4 +1,4 @@
-const { app, BrowserWindow, globalShortcut, ipcMain, screen, Tray, Menu, nativeImage, session, dialog, shell } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, screen, Tray, Menu, nativeImage, session, dialog, shell, desktopCapturer } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { fileURLToPath } = require('url');
@@ -26,6 +26,7 @@ const { planCompanionMove } = require('./automation/companionMovement.cjs');
 const { registerSingleInstance } = require('./automation/singleInstance.cjs');
 const { createDebouncedWork } = require('./automation/debouncedWork.cjs');
 const { createActivationGate } = require('./automation/activationGate.cjs');
+const { captureScreenshotWithFallback } = require('./automation/screenshotFallback.cjs');
 
 let overlayWindow = null;
 let dashboardWindow = null;
@@ -52,6 +53,7 @@ const whisperSpeech = new WhisperSpeechController({
 });
 const whisperModelInstaller = new WhisperModelInstaller({ userData: app.getPath('userData') });
 const whisperBinaryInstaller = new WhisperBinaryInstaller({ userData: app.getPath('userData') });
+const captureScreenshot = () => captureScreenshotWithFallback({winAppsController, desktopCapturer, screen});
 
 function loadSavedPosition() {
   try {
@@ -478,7 +480,7 @@ secureHandle('execute-tool', async (event, payload) => {
     case 'win.window.minimize':
       return await winAppsController.minimizeActiveWindow();
     case 'win.screenshot':
-      return await winAppsController.takeScreenshot();
+      return await captureScreenshot();
 
     // Volume tools
     case 'win.volume.set':
@@ -607,7 +609,7 @@ secureHandle('set-volume', async (_, level) => validVolume(level)
 secureHandle('set-mute', async (_, mute) => typeof mute === 'boolean'
   ? volumeController.setMute(mute)
   : { success: false, verified: false, error: 'Mute must be true or false.' });
-secureHandle('take-screenshot', async () => await winAppsController.takeScreenshot());
+secureHandle('take-screenshot', async () => await captureScreenshot());
 
 secureHandle('toggle-dashboard', async (_, show) => {
   // The packaged smoke test intentionally verifies only the overlay.
