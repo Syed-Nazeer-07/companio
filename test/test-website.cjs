@@ -9,6 +9,10 @@ test('website provides discoverable current ARM64/x64 preview without hiding the
  assert.match(html,/Snapdragon\/Windows on ARM laptops/);
  assert.match(html,/Intel\/AMD PCs/);
  assert.match(html,/Other versions/);
+ assert.match(html,/aria-labelledby="download-x64" aria-describedby="download-x64-detail"/);
+ assert.match(html,/aria-labelledby="download-arm64" aria-describedby="download-arm64-detail"/);
+ assert.match(html,/<summary>Which installer do I need\?<\/summary>/);
+ assert.match(html,/Settings → System → About/);
  assert.match(html,/no ZIP or GitHub sign-in needed/i);
  assert.match(html,/releases\/tag\/v1\.1\.0-rc\.27/);
  assert.match(html,/releases\/download\/v1\.1\.0-rc\.27\/Companio-Setup-1\.1\.0-rc\.27-arm64\.exe/);

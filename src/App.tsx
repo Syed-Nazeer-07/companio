@@ -216,16 +216,15 @@ export const App: React.FC = () => {
     <DashboardLayout
       currentTab={currentTab}
       onSelectTab={setCurrentTab}
-      settings={settings}
       onLaunchOverlay={handleLaunchOverlay}
     >
-      {currentTab === 'home' && (
+      <div hidden={currentTab !== 'home'}>
         <HomePage
           settings={settings}
-          onNavigate={(tab) => setCurrentTab(tab)}
+          onNavigate={setCurrentTab}
           onLaunchOverlay={handleLaunchOverlay}
         />
-      )}
+      </div>
       {currentTab === 'characters' && (
         <CharacterStudioPage
           settings={settings}

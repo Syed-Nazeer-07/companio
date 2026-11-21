@@ -1,81 +1,90 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { 
   Play, 
   Volume2, 
   Camera, 
-  Terminal, 
   CheckCircle2, 
   AlertCircle,
   Info,
   Activity, 
   Cpu, 
   ExternalLink,
-  MessageSquare,
-  Keyboard,
   Sun,
   Shield,
-  Clipboard
+  Clipboard,
+  X
 } from 'lucide-react';
+import type { DashboardTab } from './DashboardLayout';
+import { classifyActionOutcome } from '../../services/actionOutcome.mjs';
 import { AppSettings } from '../../types';
 import { CharacterRenderer } from '../characters/CharacterRenderer';
 import { desktopBridge, isNativeDesktop } from '../../services/desktopBridge';
 
 interface Props {
   settings: AppSettings;
-  onNavigate: (tab: any) => void;
+  onNavigate: (tab: DashboardTab) => void;
   onLaunchOverlay: () => void;
 }
 
 export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverlay }) => {
+  const nativeDesktop = isNativeDesktop();
+  const actionInFlight = useRef(false);
   const [actionStatus, setActionStatus] = useState<{
     message: string;
-    kind: 'running' | 'success' | 'unverified' | 'error';
+    kind: 'running' | 'verified' | 'unverified' | 'error';
+    detail?: string;
   } | null>(null);
 
-  const runQuickAction = async (tool: string, params: any = {}, label: string) => {
-    setActionStatus({ message: `Executing: ${label}...`, kind: 'running' });
+  const isRunning = actionStatus?.kind === 'running';
+
+  const runQuickAction = async (tool: string, params: Record<string, number>, label: string) => {
+    if (!nativeDesktop || actionInFlight.current) return;
+    actionInFlight.current = true;
+    setActionStatus({ message: `Running ${label}…`, kind: 'running' });
+
     try {
-      const res = await desktopBridge.executeTool(tool, params);
-      if (res?.success === true && res?.verified === true) {
-        setActionStatus({ message: `${label}: confirmed.`, kind: 'success' });
-      } else if (res?.success === true) {
+      const result = await desktopBridge.executeTool(tool, params);
+      const outcome = classifyActionOutcome(result, label);
+      if (outcome.kind === 'verified' && tool === 'win.clipboard.read' && typeof result.clipboard === 'string') {
         setActionStatus({
-          message: `${label}: attempted, but not verified. ${res?.error || ''}`.trim(),
-          kind: 'unverified'
+          kind: 'verified',
+          message: result.clipboard ? 'Clipboard text' : 'Clipboard is empty',
+          detail: result.clipboard
         });
       } else {
         setActionStatus({
-          message: `${label}: ${res?.error || 'The action did not complete.'}`,
-          kind: 'error'
+          ...outcome,
+          message: outcome.kind === 'verified' ? result.message || outcome.message : outcome.message,
+          detail: outcome.kind === 'unverified' ? result.error || result.message : undefined
         });
       }
-    } catch (err: unknown) {
-      setActionStatus({
-        message: `${label}: ${err instanceof Error ? err.message : 'An unexpected error occurred.'}`,
-        kind: 'error'
-      });
+    } catch (error: unknown) {
+      setActionStatus(classifyActionOutcome({
+        error: error instanceof Error ? error.message : undefined
+      }, label));
+    } finally {
+      actionInFlight.current = false;
     }
-    setTimeout(() => setActionStatus(null), 5000);
   };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Quick Desktop Status Card */}
-      <div className="acrylic-card rounded-2xl p-6 border border-slate-200 bg-white/90 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="flex items-center gap-5">
-          <div className="w-24 h-24 flex items-center justify-center shrink-0 p-1 bg-slate-50 rounded-2xl border border-slate-100 shadow-inner">
+      <div className="rounded-2xl p-4 sm:p-6 border border-slate-200 bg-white/90 shadow-sm flex flex-col xl:flex-row items-start xl:items-center justify-between gap-5">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-5">
+          <div className="w-16 h-16 sm:w-24 sm:h-24 flex items-center justify-center shrink-0 p-1 bg-slate-50 rounded-2xl border border-slate-100 shadow-inner">
             <CharacterRenderer
               characterId={settings.characterId}
               state="idle"
               scale={0.8}
             />
           </div>
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold text-slate-900">{settings.characterName || 'Companio'}</h2>
-              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${isNativeDesktop() ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${isNativeDesktop() ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                {isNativeDesktop() ? 'Desktop connected' : 'Web preview'}
+          <div className="min-w-0 space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="break-words text-xl font-bold text-slate-900">{settings.characterName || 'Companio'}</h2>
+              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${nativeDesktop ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${nativeDesktop ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                {nativeDesktop ? 'Desktop connected' : 'Web preview'}
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium">
@@ -88,13 +97,13 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
           </div>
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto">
+        <div className="flex items-center flex-wrap gap-3 w-full xl:w-auto">
           <button
             onClick={onLaunchOverlay}
-            className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold shadow-md shadow-sky-500/20 transition-all active:scale-95"
+            className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-sky-700 hover:bg-sky-800 text-white text-xs font-bold shadow-md shadow-sky-500/20 transition-all active:scale-95"
           >
             <Play className="w-3.5 h-3.5 fill-current" />
-            <span>Show / Focus Companion</span>
+            <span>Show Companion</span>
           </button>
           <button
             onClick={() => onNavigate('characters')}
@@ -105,22 +114,6 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
         </div>
       </div>
 
-      {/* Action Notification */}
-      {actionStatus && (
-        <div role="status" className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center gap-2 shadow-sm animate-in fade-in duration-150 ${
-          actionStatus.kind === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-            : actionStatus.kind === 'error' ? 'bg-rose-50 border-rose-200 text-rose-800'
-            : actionStatus.kind === 'unverified' ? 'bg-amber-50 border-amber-200 text-amber-800'
-            : 'bg-sky-50 border-sky-200 text-sky-800'
-        }`}>
-          {actionStatus.kind === 'running' ? <Activity className="w-4 h-4 shrink-0 animate-spin" />
-            : actionStatus.kind === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" />
-            : actionStatus.kind === 'unverified' ? <Info className="w-4 h-4 shrink-0" />
-            : <AlertCircle className="w-4 h-4 shrink-0" />}
-          <span>{actionStatus.message}</span>
-        </div>
-      )}
-
       {/* Quick Controls Grid */}
       <div>
         <div className="flex items-center justify-between mb-3">
@@ -129,65 +122,114 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
             onClick={() => onNavigate('automation')}
             className="text-xs text-sky-600 hover:text-sky-700 font-bold flex items-center gap-1"
           >
-            <span>All 25+ Tools</span>
+            <span>Browse tools</span>
             <ExternalLink className="w-3 h-3" />
           </button>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {!nativeDesktop && (
+          <p className="mb-3 text-sm text-slate-600">Quick controls are available in the Windows app.</p>
+        )}
+        <fieldset
+          aria-label="Quick PC controls"
+          disabled={!nativeDesktop}
+          className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6 disabled:opacity-60"
+        >
           <button
+            type="button"
+            aria-disabled={isRunning}
             onClick={() => runQuickAction('win.screenshot', {}, 'Take Screenshot')}
-            className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 text-left transition-all group"
+            className="p-3.5 rounded-xl border border-slate-200 bg-white enabled:hover:border-slate-400 aria-disabled:cursor-wait aria-disabled:opacity-60 text-left transition-colors"
           >
-            <Camera className="w-5 h-5 text-sky-600 mb-2 group-hover:scale-110 transition-transform" />
+            <Camera className="w-5 h-5 text-sky-600 mb-2" />
             <div className="text-xs font-bold text-slate-900">Screenshot</div>
             <div className="text-[10px] text-slate-500">Capture monitor</div>
           </button>
 
           <button
+            type="button"
+            aria-disabled={isRunning}
             onClick={() => runQuickAction('win.volume.change', { delta: 10 }, 'Volume Up')}
-            className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 text-left transition-all group"
+            className="p-3.5 rounded-xl border border-slate-200 bg-white enabled:hover:border-slate-400 aria-disabled:cursor-wait aria-disabled:opacity-60 text-left transition-colors"
           >
-            <Volume2 className="w-5 h-5 text-emerald-600 mb-2 group-hover:scale-110 transition-transform" />
-            <div className="text-xs font-bold text-slate-900">Volume +10%</div>
-            <div className="text-[10px] text-slate-500">Louder audio</div>
+            <Volume2 className="w-5 h-5 text-emerald-600 mb-2" />
+            <div className="text-xs font-bold text-slate-900">Volume up</div>
+            <div className="text-[10px] text-slate-500">+10 percentage points</div>
           </button>
 
           <button
+            type="button"
+            aria-disabled={isRunning}
             onClick={() => runQuickAction('win.volume.change', { delta: -10 }, 'Volume Down')}
-            className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 text-left transition-all group"
+            className="p-3.5 rounded-xl border border-slate-200 bg-white enabled:hover:border-slate-400 aria-disabled:cursor-wait aria-disabled:opacity-60 text-left transition-colors"
           >
-            <Volume2 className="w-5 h-5 text-amber-600 mb-2 group-hover:scale-110 transition-transform" />
-            <div className="text-xs font-bold text-slate-900">Volume -10%</div>
-            <div className="text-[10px] text-slate-500">Softer audio</div>
+            <Volume2 className="w-5 h-5 text-amber-600 mb-2" />
+            <div className="text-xs font-bold text-slate-900">Volume down</div>
+            <div className="text-[10px] text-slate-500">−10 percentage points</div>
           </button>
 
           <button
+            type="button"
+            aria-disabled={isRunning}
             onClick={() => runQuickAction('win.brightness.change', { delta: -15 }, 'Screen Dimmer')}
-            className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 text-left transition-all group"
+            className="p-3.5 rounded-xl border border-slate-200 bg-white enabled:hover:border-slate-400 aria-disabled:cursor-wait aria-disabled:opacity-60 text-left transition-colors"
           >
-            <Sun className="w-5 h-5 text-indigo-600 mb-2 group-hover:scale-110 transition-transform" />
+            <Sun className="w-5 h-5 text-indigo-600 mb-2" />
             <div className="text-xs font-bold text-slate-900">Dim Screen</div>
             <div className="text-[10px] text-slate-500">-15% brightness</div>
           </button>
 
           <button
+            type="button"
+            aria-disabled={isRunning}
             onClick={() => runQuickAction('win.clipboard.read', {}, 'Read Clipboard')}
-            className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 text-left transition-all group"
+            className="p-3.5 rounded-xl border border-slate-200 bg-white enabled:hover:border-slate-400 aria-disabled:cursor-wait aria-disabled:opacity-60 text-left transition-colors"
           >
-            <Clipboard className="w-5 h-5 text-purple-600 mb-2 group-hover:scale-110 transition-transform" />
+            <Clipboard className="w-5 h-5 text-purple-600 mb-2" />
             <div className="text-xs font-bold text-slate-900">Clipboard</div>
             <div className="text-[10px] text-slate-500">Read copied text</div>
           </button>
 
           <button
+            type="button"
+            aria-disabled={isRunning}
             onClick={() => runQuickAction('win.desktop.show', {}, 'Show Desktop')}
-            className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 text-left transition-all group"
+            className="p-3.5 rounded-xl border border-slate-200 bg-white enabled:hover:border-slate-400 aria-disabled:cursor-wait aria-disabled:opacity-60 text-left transition-colors"
           >
-            <Shield className="w-5 h-5 text-rose-600 mb-2 group-hover:scale-110 transition-transform" />
+            <Shield className="w-5 h-5 text-rose-600 mb-2" />
             <div className="text-xs font-bold text-slate-900">Show Desktop</div>
             <div className="text-[10px] text-slate-500">Minimize windows</div>
           </button>
+        </fieldset>
+        <div className={actionStatus ? 'mt-3' : undefined}>
+          <span role="status" className="sr-only">{actionStatus?.message}</span>
+          {actionStatus && (
+            <div className={`flex items-start gap-3 rounded-xl border p-3.5 text-sm ${
+              actionStatus.kind === 'verified' ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                : actionStatus.kind === 'error' ? 'border-rose-200 bg-rose-50 text-rose-900'
+                : actionStatus.kind === 'unverified' ? 'border-amber-200 bg-amber-50 text-amber-900'
+                : 'border-sky-200 bg-sky-50 text-sky-900'
+            }`}>
+              {actionStatus.kind === 'running' ? <Activity className="mt-0.5 h-4 w-4 shrink-0" />
+                : actionStatus.kind === 'verified' ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                : actionStatus.kind === 'unverified' ? <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                : <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />}
+              <div className="min-w-0 flex-1">
+                <p className="select-text break-words font-semibold">{actionStatus.message}</p>
+                {actionStatus.detail && (
+                  <div tabIndex={0} className="mt-2 max-h-32 overflow-auto select-text whitespace-pre-wrap break-words rounded-md bg-white/70 p-2 text-xs">
+                    {actionStatus.detail}
+                  </div>
+                )}
+              </div>
+              {actionStatus.kind !== 'running' && (
+                <button type="button" onClick={() => setActionStatus(null)} aria-label="Dismiss action result"
+                  className="shrink-0 rounded-md p-1 hover:bg-black/5">
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -40,7 +40,10 @@ if (toggle && mobileNav) {
   toggle.addEventListener('click', () => setMenuOpen(toggle.getAttribute('aria-expanded') !== 'true'));
   mobileNav.querySelectorAll('a').forEach(link => link.addEventListener('click', () => setMenuOpen(false)));
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape') setMenuOpen(false);
+    if (event.key === 'Escape' && !mobileNav.hidden) {
+      setMenuOpen(false);
+      toggle.focus();
+    }
   });
   window.addEventListener('resize', () => {
     if (window.innerWidth > 760) setMenuOpen(false);
