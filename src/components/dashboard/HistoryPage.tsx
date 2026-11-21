@@ -130,15 +130,13 @@ export const HistoryPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-1">Execution History & Logs</h2>
-          <p className="text-sm text-slate-600">
-            Search your conversations and command results, stored locally on this device. Export a backup before clearing or restoring.
-          </p>
-        </div>
+      <div className="flex flex-col sm:flex-row items-start lg:flex-row lg:items-center justify-between gap-4">
+        <header className="workspace-heading">
+          <h1>History</h1>
+          <p>Search local conversations and command results, or manage a backup.</p>
+        </header>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <input
             ref={fileInputRef}
             type="file"
@@ -152,7 +150,7 @@ export const HistoryPage: React.FC = () => {
             disabled={importing || !isNativeDesktop()}
             title={isNativeDesktop() ? 'Restore a Companio JSON history backup' : 'History restore requires the installed desktop app'}
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-sky-50 text-sky-700 border border-sky-200 text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-teal-50 text-teal-700 border border-teal-200 text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Upload className="w-3.5 h-3.5" />
             <span>{importing ? 'Validating...' : 'Restore History'}</span>
@@ -160,7 +158,7 @@ export const HistoryPage: React.FC = () => {
           <button
             type="button"
             onClick={handleExport}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-sky-50 text-sky-700 border border-sky-200 text-xs font-bold transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-teal-50 text-teal-700 border border-teal-200 text-xs font-bold transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Export History</span>
@@ -201,6 +199,8 @@ export const HistoryPage: React.FC = () => {
         {/* View Mode Toggle */}
         <div className="flex p-1 rounded-xl bg-slate-100 border border-slate-200">
           <button
+            type="button"
+            aria-pressed={viewMode === 'automations'}
             onClick={() => setViewMode('automations')}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
               viewMode === 'automations'
@@ -211,6 +211,8 @@ export const HistoryPage: React.FC = () => {
             Automation Logs ({logs.length})
           </button>
           <button
+            type="button"
+            aria-pressed={viewMode === 'conversations'}
             onClick={() => setViewMode('conversations')}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
               viewMode === 'conversations'
@@ -229,8 +231,9 @@ export const HistoryPage: React.FC = () => {
             type="text"
             value={filterQuery}
             onChange={(e) => setFilterQuery(e.target.value)}
-            placeholder="Search records..."
-            className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500 shadow-sm"
+            aria-label="Search history"
+            placeholder="Search records…"
+            className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-teal-500 shadow-sm"
           />
         </div>
       </div>
@@ -239,25 +242,25 @@ export const HistoryPage: React.FC = () => {
       {viewMode === 'automations' ? (
         <div className="space-y-3">
           {filteredLogs.length === 0 ? (
-            <div className="acrylic-card rounded-2xl p-8 text-center text-slate-500 text-sm border border-slate-200">
-              No automation logs recorded yet. Run commands from the companion overlay to see results here.
+            <div className="workspace-panel rounded-2xl p-8 text-center text-slate-500 text-sm">
+              {filterQuery.trim() ? 'No matching automation logs.' : 'Run a command from the companion to see its result here.'}
             </div>
           ) : (
             filteredLogs.map((log) => (
               <div
                 key={log.id}
-                className="acrylic-card rounded-xl p-4 border border-slate-200 text-xs space-y-2 shadow-sm"
+                className="workspace-panel rounded-xl p-4 text-xs space-y-2"
               >
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-900 font-mono text-sm">{log.tool}</span>
+                    <span className="break-all font-bold text-slate-900 font-mono text-sm">{log.tool}</span>
                     {log.verified ? (
-                      <span className="flex items-center gap-1 text-[10px] text-emerald-700 font-bold px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200">
+                      <span className="flex items-center gap-1 text-[11px] text-emerald-700 font-bold px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200">
                         <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                         Verified
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-[10px] text-rose-700 font-bold px-2 py-0.5 rounded bg-rose-50 border border-rose-200">
+                      <span className="flex items-center gap-1 text-[11px] text-rose-700 font-bold px-2 py-0.5 rounded bg-rose-50 border border-rose-200">
                         <AlertCircle className="w-3 h-3 text-rose-600" />
                         Unverified
                       </span>
@@ -274,7 +277,7 @@ export const HistoryPage: React.FC = () => {
                 </div>
 
                 <div className="p-2.5 rounded-lg bg-slate-50 font-mono text-[11px] text-slate-700 break-all border border-slate-200">
-                  <span className="text-sky-700 font-bold">params:</span> {log.params}
+                  <span className="text-teal-700 font-bold">params:</span> {log.params}
                 </div>
                 <div className="p-2.5 rounded-lg bg-slate-50 font-mono text-[11px] text-slate-700 break-all border border-slate-200">
                   <span className="text-emerald-700 font-bold">output:</span> {log.result}
@@ -286,8 +289,8 @@ export const HistoryPage: React.FC = () => {
       ) : (
         <div className="space-y-3">
           {filteredMessages.length === 0 ? (
-            <div className="acrylic-card rounded-2xl p-8 text-center text-slate-500 text-sm border border-slate-200">
-              No chat messages recorded yet.
+            <div className="workspace-panel rounded-2xl p-8 text-center text-slate-500 text-sm">
+              {filterQuery.trim() ? 'No matching conversations.' : 'Your conversations will appear here.'}
             </div>
           ) : (
             filteredMessages.map((msg) => (
@@ -295,17 +298,17 @@ export const HistoryPage: React.FC = () => {
                 key={msg.id}
                 className={`p-4 rounded-xl text-xs space-y-1.5 border shadow-sm ${
                   msg.sender === 'user'
-                    ? 'bg-sky-50/60 border-sky-200 ml-8'
+                    ? 'bg-teal-50/60 border-teal-200 ml-8'
                     : 'bg-white border-slate-200 mr-8'
                 }`}
               >
-                <div className="flex items-center justify-between text-slate-500 text-[10px]">
+                <div className="flex items-center justify-between text-slate-500 text-[11px]">
                   <span className="font-bold uppercase tracking-wider text-slate-700">
                     {msg.sender === 'user' ? 'You' : 'Companio'}
                   </span>
                   <span>{new Date(msg.timestamp).toLocaleString()}</span>
                 </div>
-                <p className="text-slate-800 text-sm leading-relaxed">{msg.content}</p>
+                <p className="text-slate-800 text-sm leading-relaxed break-words select-text">{msg.content}</p>
               </div>
             ))
           )}

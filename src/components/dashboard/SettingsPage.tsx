@@ -109,30 +109,29 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200 max-w-4xl">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900 mb-1.5">Settings</h2>
-        <p className="text-sm text-slate-600">
-          Simple, essential preferences for your Companio desktop companion.
-        </p>
-      </div>
+      <header className="workspace-heading">
+        <h1>Settings</h1>
+        <p>Set the activation shortcut and choose how Companio behaves on Windows.</p>
+      </header>
 
-      <div className="acrylic-card rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6">
+      <div className="workspace-panel rounded-2xl p-4 sm:p-6 space-y-6">
         {/* Global Activation Shortcut */}
         <div>
-          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <Keyboard className="w-4 h-4 text-sky-600" />
+          <label htmlFor="activation-shortcut" className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+            <Keyboard className="w-4 h-4 text-teal-600" />
             <span>Global Activation Shortcut</span>
           </label>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <input
+              id="activation-shortcut"
               type="text"
               value={shortcutDraft}
               onChange={(e) => setShortcutDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleSaveShortcut(); } }}
-              className="px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sky-700 font-mono font-bold text-sm focus:outline-none focus:border-sky-500 focus:bg-white w-64 shadow-sm"
+              className="px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-teal-700 font-mono font-bold text-sm focus:outline-none focus:border-teal-500 focus:bg-white w-full min-w-0 max-w-64 shadow-sm"
             />
             <button type="button" onClick={handleSaveShortcut} disabled={savingShortcut}
-              className="rounded-lg bg-sky-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">
+              className="rounded-lg bg-teal-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">
               {savingShortcut ? 'Saving...' : 'Save shortcut'}
             </button>
             <span className="text-xs text-slate-500">Example: Ctrl+Shift+Space</span>
@@ -142,7 +141,7 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
 
         <div className="border-t border-slate-100 pt-5 space-y-4">
           <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-            <Power className="w-4 h-4 text-sky-600" />
+            <Power className="w-4 h-4 text-teal-600" />
             <span>Windows Startup</span>
           </h3>
           <div className="flex items-center justify-between gap-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
@@ -156,7 +155,7 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
               checked={startupStatus?.enabled === true}
               disabled={loadingStartup || savingStartup || !startupStatus?.success || !startupStatus.supported}
               onChange={event => void handleStartupToggle(event.target.checked)}
-              className="w-5 h-5 shrink-0 accent-sky-600 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-5 h-5 shrink-0 accent-teal-600 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div>
           {loadingStartup && <p className="text-xs text-slate-500" role="status">Reading Windows startup preference…</p>}
@@ -172,21 +171,22 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
 
         <div className="border-t border-slate-100 pt-5 space-y-4">
           <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-            <Monitor className="w-4 h-4 text-sky-600" />
+            <Monitor className="w-4 h-4 text-teal-600" />
             <span>Desktop Behavior</span>
           </h3>
 
           {/* Always on Top */}
           <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
             <div>
-              <p className="text-sm font-bold text-slate-800">Always On Top</p>
+              <label htmlFor="always-on-top" className="text-sm font-bold text-slate-800">Always on top</label>
               <p className="text-xs text-slate-500">Keep companion character visible over other open windows</p>
             </div>
             <input
               type="checkbox"
+              id="always-on-top"
               checked={settings.overlay.alwaysOnTop}
               onChange={(e) => void handleOverlayOption('alwaysOnTop', e.target.checked)}
-              className="w-5 h-5 accent-sky-600 rounded cursor-pointer"
+              className="w-5 h-5 shrink-0 accent-teal-600 rounded cursor-pointer"
             />
           </div>
 
@@ -198,28 +198,30 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
             </div>
             <input
               type="checkbox"
+              id="snap-to-edge"
               checked={settings.overlay.snapToEdge}
               onChange={(e) => void handleOverlayOption('snapToEdge', e.target.checked)}
-              className="w-5 h-5 accent-sky-600 rounded cursor-pointer"
+              className="w-5 h-5 shrink-0 accent-teal-600 rounded cursor-pointer"
             />
           </div>
 
           {/* Sound Effects & Chimes */}
           <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
             <div>
-              <p className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                <Bell className="w-3.5 h-3.5 text-sky-600" />
-                <span>Audio Chimes & Cues</span>
-              </p>
+              <label htmlFor="audio-chimes" className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <Bell className="w-3.5 h-3.5 text-teal-600" />
+                <span>Audio chimes &amp; cues</span>
+              </label>
               <p className="text-xs text-slate-500">Play pleasant audio tones on task completion and activation</p>
             </div>
             <input
               type="checkbox"
+              id="audio-chimes"
               checked={settings.overlay.soundEffects}
               onChange={(e) => onUpdateSettings({
                 overlay: { ...settings.overlay, soundEffects: e.target.checked }
               })}
-              className="w-5 h-5 accent-sky-600 rounded cursor-pointer"
+              className="w-5 h-5 shrink-0 accent-teal-600 rounded cursor-pointer"
             />
           </div>
 
@@ -234,18 +236,18 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
               checked={false}
               disabled
               aria-label="Fullscreen detection is not yet available"
-              className="w-5 h-5 accent-sky-600 rounded cursor-pointer"
+              className="w-5 h-5 shrink-0 accent-teal-600 rounded cursor-pointer"
             />
           </div>
         </div>
       </div>
 
       {/* Honest, read-only diagnostics for actual Windows installation. */}
-      <section className="acrylic-card rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+      <section className="workspace-panel rounded-2xl bg-white p-5 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
-              <Activity className="h-4 w-4 text-sky-600" />
+              <Activity className="h-4 w-4 text-teal-600" />
               Device diagnostics
             </h3>
             <p className="mt-1 text-xs text-slate-500">Read-only checks for your installed Windows app. No microphone recording or commands.</p>
@@ -254,7 +256,7 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
             type="button"
             disabled={checkingDevice || !isNativeDesktop()}
             onClick={() => void handleCheckDevice()}
-            className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-bold text-sky-700 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-bold text-teal-700 hover:bg-teal-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${checkingDevice ? 'animate-spin' : ''}`} />
             {checkingDevice ? 'Checking…' : 'Run diagnostics'}

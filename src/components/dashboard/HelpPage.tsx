@@ -57,30 +57,27 @@ export const HelpPage: React.FC<Props> = ({ onStartOnboarding }) => {
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-1">Help & Command Reference</h2>
-          <p className="text-sm text-slate-600">
-            Supported commands for the Windows desktop app. Questions about apps won't launch them automatically.
-            Some actions depend on installed programs or active browser sessions.
-          </p>
-        </div>
+        <header className="workspace-heading">
+          <h1>Help &amp; commands</h1>
+          <p>Find examples for built-in commands and learn how Companio runs them.</p>
+        </header>
 
         <button
           onClick={onStartOnboarding}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold shadow-md shadow-sky-500/20 transition-all active:scale-95"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold shadow-md shadow-teal-500/20 transition-all active:scale-95"
         >
           <BookOpen className="w-3.5 h-3.5" />
           <span>Rerun Setup Wizard</span>
         </button>
       </div>
 
-      <div className="rounded-xl border border-sky-200 bg-sky-50/60 px-4 py-3 text-xs leading-relaxed text-slate-700">
+      <div className="rounded-xl border border-teal-200 bg-teal-50/60 px-4 py-3 text-xs leading-relaxed text-slate-700">
         <strong className="text-slate-900">How commands work:</strong> Use clear action words such as
         {' '}<code>open</code>, <code>set</code>, <code>search</code> or <code>save</code>.
         Single, clearly requested low-risk app and website launches run directly.
         Multi-step and higher-risk proposed actions still need confirmation. Websites and
         searches open in your default browser; verified YouTube playback uses Companio's
-        separate controlled Edge session. Dictated text must be reviewed before pressing Send.
+        separate controlled Edge session. Review dictated text before sending, or enable hands-free basic commands in Voice Settings.
       </div>
 
       {/* Command Cheat Sheets */}
@@ -88,16 +85,16 @@ export const HelpPage: React.FC<Props> = ({ onStartOnboarding }) => {
         {commandSections.map((sec, i) => {
           const Icon = sec.icon;
           return (
-            <div key={i} className="acrylic-card rounded-2xl p-6 border border-slate-200 shadow-sm space-y-3">
+            <div key={i} className="workspace-panel rounded-2xl p-4 sm:p-6 space-y-3">
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Icon className="w-4 h-4 text-sky-600" />
+                <Icon className="w-4 h-4 text-teal-600" />
                 <span>{sec.title}</span>
               </h3>
               <ul className="space-y-2">
                 {sec.examples.map((ex, idx) => (
                   <li
                     key={idx}
-                    className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 font-mono text-xs text-sky-800 font-medium"
+                    className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 font-mono text-xs text-teal-800 font-medium"
                   >
                     {ex}
                   </li>

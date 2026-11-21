@@ -330,6 +330,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
           setActivePlan({ ...plan });
           setCharacterState('idle');
           setBubbleText('Action plan cancelled. Nothing was executed.');
+          setIsInputOpen(true);
           dbService.addMessage({
             id: 'msg_' + crypto.randomUUID(),
             sender: 'companio',
@@ -492,98 +493,104 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     wake: () => { if (approvalResolverRef.current) handleDismiss(); else handleWakeAndActivate(); }
   };
 
+  // Give the scaled renderer a matching layout box so large characters stay inside the native window.
+  const displayedScale = isInputOpen ? Math.min(settings.overlay.scale, 1) : settings.overlay.scale;
+
   return (
-    <div className={`companio-overlay relative w-full h-full flex flex-col items-center justify-end p-4 select-none overflow-hidden box-border ${isClosing ? 'companio-overlay--closing' : ''}`}>
-      {/* Speech Bubble */}
-      <SpeechBubble
-        text={bubbleText}
-        state={characterState}
-        activePlan={activePlan}
-        onCancel={handleCancelTask}
-        audioLevel={audioLevel}
-      />
+    <div className={`companio-overlay relative h-full w-full overflow-hidden select-none ${isClosing ? 'companio-overlay--closing' : ''}`}>
+      <div className="flex h-full w-full flex-col items-center justify-end px-3 pb-3 pt-2" inert={!!pendingApproval}>
+        {/* Speech Bubble */}
+        <SpeechBubble
+          text={bubbleText}
+          state={characterState}
+          activePlan={activePlan}
+          onCancel={handleCancelTask}
+          audioLevel={audioLevel}
+        />
 
-      {/* Compact Text/Voice Input */}
-      {isInputOpen && (
-        <div className="w-full max-w-[328px] mb-3 z-30">
-          <CompactInput
-            onSend={handleExecuteQuery}
-            onVoiceToggle={() => handleVoiceToggle()}
-            isListening={isListeningVoice}
-            voiceTranscript={voiceTranscript}
-            voiceAlternatives={voiceAlternatives}
-            activationShortcut={settings.activationShortcut}
-            onOpenDashboard={onOpenDashboard}
-            isSleeping={isSleeping}
-            onToggleSleep={handleToggleSleep}
-            onClose={handleDismiss}
-          />
+        {/* Compact Text/Voice Input */}
+        {isInputOpen && (
+          <div className="z-30 mb-2 w-full max-w-[328px] shrink-0">
+            <CompactInput
+              onSend={handleExecuteQuery}
+              onVoiceToggle={() => handleVoiceToggle()}
+              isListening={isListeningVoice}
+              voiceTranscript={voiceTranscript}
+              voiceAlternatives={voiceAlternatives}
+              activationShortcut={settings.activationShortcut}
+              onOpenDashboard={onOpenDashboard}
+              isSleeping={isSleeping}
+              onToggleSleep={handleToggleSleep}
+              onClose={handleDismiss}
+            />
+          </div>
+        )}
+
+        {/* Persistent drag handle: never hide it on hover, and keep it in
+            normal document flow so the pointer cannot fall through a gap. */}
+        <div className="relative flex shrink-0 flex-col items-center justify-center">
+          <div
+            className="app-drag-region mb-1 flex h-7 min-w-[117px] items-center justify-center gap-1.5 overlay-panel rounded-full px-3 text-[11px] font-semibold cursor-grab select-none"
+            title="Hold and drag to move Companio"
+            aria-label="Drag to move Companio around your desktop"
+          >
+            <GripHorizontal className="w-3.5 h-3.5 pointer-events-none" />
+            <span className="pointer-events-none">Move Companio</span>
+          </div>
+          {/* The Companion Character */}
+          <div
+            onClick={handleCharacterTouch}
+            onKeyDown={event => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                handleCharacterTouch();
+              }
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label={isSleeping ? 'Wake Companio' : 'Open Companio command bar'}
+            key={settings.characterId}
+            className={`companio-character relative flex items-center justify-center cursor-pointer app-no-drag focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-600 rounded-full ${
+              isPetted ? 'scale-[1.035]' : ''
+            }`}
+            style={{ width: 170 * displayedScale, height: 180 * displayedScale }}
+            data-state={isSleeping ? 'sleeping' : characterState}
+            title={isSleeping ? 'Wake Companio' : 'Click to talk to Companio'}
+          >
+            <CharacterRenderer
+              characterId={settings.characterId}
+              state={isSleeping ? 'sleeping' : characterState}
+              scale={displayedScale}
+              audioLevel={audioLevel}
+            />
+          </div>
+
+          {/* Sleep control remains visible even when the command input is closed. */}
+          {!isInputOpen && <button type="button" onClick={handleToggleSleep}
+            aria-label={isSleeping ? 'Wake Companio' : 'Put Companio to sleep'}
+            title={isSleeping ? 'Wake Companio' : 'Sleep mode'}
+            className="app-no-drag absolute -left-9 bottom-8 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-500 shadow-[0_4px_14px_rgba(15,23,42,0.12)] transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-teal-600">
+            {isSleeping ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4" />}
+          </button>}
+          {/* Visible Floating Circle Action Button on the Right Side */}
+          <button
+            type="button"
+            onClick={() => {
+              if (isSleeping || !isInputOpen) handleWakeAndActivate();
+              else setIsInputOpen(false);
+            }}
+            aria-label={isInputOpen ? "Close command bar" : "Open command bar"}
+            aria-expanded={isInputOpen}
+            title={isInputOpen ? "Close command bar" : `Ask Companio (${settings.activationShortcut})`}
+            className="app-no-drag absolute -right-9 bottom-8 z-20 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-teal-200 bg-white/95 text-teal-700 shadow-[0_4px_14px_rgba(15,23,42,0.12)] transition-colors hover:bg-teal-50 focus-visible:ring-2 focus-visible:ring-teal-600"
+          >
+            {isInputOpen ? (
+              <X className="w-4 h-4 stroke-[2.5]" />
+            ) : (
+              <MessageSquare className="w-4 h-4" />
+            )}
+          </button>
         </div>
-      )}
-
-      {/* Persistent drag handle: never hide it on hover, and keep it in
-          normal document flow so the pointer cannot fall through a gap. */}
-      <div className="relative flex flex-col items-center justify-center">
-        <div
-          className="app-drag-region mb-2 flex h-8 min-w-[125px] items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white/95 px-3 text-[11px] font-semibold text-slate-600 shadow-[0_3px_12px_rgba(15,23,42,0.09)] cursor-grab select-none"
-          title="Hold and drag to move Companio"
-          aria-label="Drag to move Companio around your desktop"
-        >
-          <GripHorizontal className="w-3.5 h-3.5 pointer-events-none" />
-          <span className="pointer-events-none">Move Companio</span>
-        </div>
-        {/* The Companion Character */}
-        <div
-          onClick={handleCharacterTouch}
-          onKeyDown={event => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault();
-              handleCharacterTouch();
-            }
-          }}
-          role="button"
-          tabIndex={0}
-          aria-label={isSleeping ? 'Wake Companio' : 'Open Companio command bar'}
-          key={settings.characterId}
-          className={`companio-character relative cursor-pointer app-no-drag focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-500 rounded-full ${
-            isPetted ? 'scale-[1.035]' : ''
-          }`}
-          data-state={isSleeping ? 'sleeping' : characterState}
-          title={isSleeping ? 'Wake Companio' : 'Click to talk to Companio'}
-        >
-          <CharacterRenderer
-            characterId={settings.characterId}
-            state={isSleeping ? 'sleeping' : characterState}
-            scale={settings.overlay.scale}
-            audioLevel={audioLevel}
-          />
-
-
-        </div>
-
-        {/* Sleep control remains visible even when the command input is closed. */}
-        {!isInputOpen && <button type="button" onClick={handleToggleSleep}
-          aria-label={isSleeping ? 'Wake Companio' : 'Put Companio to sleep'}
-          title={isSleeping ? 'Wake Companio' : 'Sleep mode'}
-          className="app-no-drag absolute -left-9 bottom-8 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-500 shadow-[0_4px_14px_rgba(15,23,42,0.12)] transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-sky-400">
-          {isSleeping ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4" />}
-        </button>}
-        {/* Visible Floating Circle Action Button on the Right Side */}
-        <button
-          type="button"
-          onClick={() => {
-            if (isSleeping || !isInputOpen) handleWakeAndActivate();
-            else setIsInputOpen(false);
-          }}
-          title={isInputOpen ? "Close command bar" : `Ask Companio (${settings.activationShortcut})`}
-          className="app-no-drag absolute -right-9 bottom-8 z-20 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-sky-200 bg-white/95 text-sky-600 shadow-[0_4px_14px_rgba(15,23,42,0.12)] transition-colors hover:bg-sky-50 focus-visible:ring-2 focus-visible:ring-sky-400"
-        >
-          {isInputOpen ? (
-            <X className="w-4 h-4 stroke-[2.5]" />
-          ) : (
-            <MessageSquare className="w-4 h-4" />
-          )}
-        </button>
       </div>
       {pendingApproval && (
         <ActionApprovalDialog

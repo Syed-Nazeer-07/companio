@@ -56,82 +56,53 @@ export const CompactInput: React.FC<Props> = ({
   const suggestions = ['Open YouTube', 'Search for Python tutorials', 'Open Notepad'];
 
   return (
-    <div className="companio-input w-full max-w-[328px] mx-auto rounded-2xl border border-slate-200 bg-white/95 p-2.5 text-slate-800 shadow-[0_8px_28px_rgba(15,23,42,0.12)] box-border">
-      <form onSubmit={handleSubmit} className="flex items-center gap-1.5">
-        {/* Push-to-Talk Mic Button */}
-        <button
-          type="button"
-          onClick={onVoiceToggle}
-          title={isListening ? 'Stop listening' : 'Push to talk (Microphone)'}
+    <div className="companio-input overlay-panel w-full rounded-2xl p-2.5">
+      <form onSubmit={handleSubmit} className="flex items-center gap-2">
+        <button type="button" onClick={onVoiceToggle}
+          title={isListening ? 'Stop listening' : 'Start voice input'}
           aria-label={isListening ? 'Stop listening' : 'Start voice input'}
           aria-pressed={isListening}
-          className={`shrink-0 p-2 rounded-xl transition-colors ${
-            isListening 
-              ? 'bg-rose-500 text-white' 
-              : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-          }`}
-        >
-          {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+          className={`overlay-icon ${isListening ? 'overlay-icon-listening' : ''}`}>
+          {isListening ? <MicOff size={16} aria-hidden="true" /> : <Mic size={16} aria-hidden="true" />}
         </button>
-
-        {/* Text Input */}
         <input
           ref={inputRef}
           type="text"
           value={text}
-          onChange={(e) => { setText(e.target.value); setShowAlternatives(false); }}
+          onChange={(event) => { setText(event.target.value); setShowAlternatives(false); }}
           aria-label="Companio command"
           autoComplete="off"
-          placeholder={isListening ? "Listening..." : "Ask Companio..."}
-          className="min-w-0 flex-1 bg-transparent border-0 text-[13px] placeholder-slate-400 focus:outline-none text-slate-800 px-1 font-medium"
+          placeholder={isListening ? 'Listening…' : 'Ask Companio…'}
+          className="min-w-0 flex-1 rounded-md bg-[#f2f6ef] px-2.5 py-2 text-[13px] font-medium text-slate-800 placeholder-slate-600"
         />
-
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={!text.trim() || isListening}
-          title="Send command (Enter)"
-          className="shrink-0 p-2 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-30 disabled:hover:bg-sky-600 text-white transition-colors shadow-sm"
-        >
-          <Send className="w-3.5 h-3.5" />
-        </button>
-
-        {/* Control Center button */}
-        <button
-          type="button"
-          onClick={onOpenDashboard}
-          title="Open Settings Dashboard"
-          className="shrink-0 p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
-        >
-          <Sliders className="w-3.5 h-3.5" />
-        </button>
-
-        {/* Sleep / Wake toggle */}
-        <button
-          type="button"
-          onClick={onToggleSleep}
-          title={isSleeping ? "Wake Up" : "Sleep Mode"}
-          className="shrink-0 p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
-        >
-          {isSleeping ? <Sun className="w-3.5 h-3.5 text-amber-500" /> : <Moon className="w-3.5 h-3.5 text-sky-500" />}
-        </button>
-
-        {/* Close Button on Right Side (Clearly Visible Circle) */}
-        <button
-          type="button"
-          onClick={onClose}
-          title={`Hide Companio (Esc or ${activationShortcut})`}
-          aria-label="Hide Companio"
-          className="shrink-0 p-1.5 rounded-full bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors border border-slate-200 shadow-sm"
-        >
-          <X className="w-3.5 h-3.5 stroke-[2.5]" />
+        <button type="submit" disabled={!text.trim() || isListening} aria-label="Send command"
+          title="Send command (Enter)" className="overlay-icon overlay-icon-primary">
+          <Send size={15} aria-hidden="true" />
         </button>
       </form>
 
+      <div className="mt-2 flex items-center justify-between gap-2 border-t border-[#e3ebe3] pt-2">
+        <button type="button" onClick={onOpenDashboard} className="overlay-tool-link">
+          <Sliders size={14} aria-hidden="true" /> Control Center
+        </button>
+        <div className="flex gap-1.5">
+          <button type="button" onClick={onToggleSleep}
+            aria-label={isSleeping ? 'Wake Companio' : 'Put Companio to sleep'}
+            title={isSleeping ? 'Wake Companio' : 'Sleep mode'}
+            className="overlay-icon overlay-icon-small">
+            {isSleeping ? <Sun size={15} aria-hidden="true" /> : <Moon size={15} aria-hidden="true" />}
+          </button>
+          <button type="button" onClick={onClose} title={`Hide Companio (Esc or ${activationShortcut})`}
+            aria-label="Hide Companio" className="overlay-icon overlay-icon-small hover:text-rose-700">
+            <X size={16} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+
       {/* Alternative hypotheses are local to this recognized audio, not AI guesses. */}
       {showAlternatives && voiceAlternatives.length > 0 && !isListening && (
-        <div className="mt-2 border-t border-slate-100 pt-2">
-          <p className="mb-1.5 text-[11px] text-slate-500">Other possible matches — select to correct</p>
+        <div className="mt-2 border-t border-[#e3ebe3] pt-2">
+          <p className="mb-1.5 text-[11px] text-slate-600">Choose a different transcription</p>
           <div className="flex max-h-20 flex-wrap gap-1.5 overflow-y-auto">
             {voiceAlternatives.slice(0, 3).map((alternative, index) => (
               <button
@@ -143,7 +114,7 @@ export const CompactInput: React.FC<Props> = ({
                   inputRef.current?.focus();
                   inputRef.current?.select();
                 }}
-                className="app-no-drag max-w-full truncate rounded-lg border border-sky-200 bg-sky-50 px-2 py-1 text-[11px] text-sky-800 hover:bg-sky-100"
+                className="app-no-drag max-w-full truncate rounded-lg border border-teal-200 bg-teal-50 px-2 py-1 text-[11px] text-teal-800 hover:bg-teal-100"
                 title={alternative}
               >
                 {alternative}
@@ -153,13 +124,13 @@ export const CompactInput: React.FC<Props> = ({
         </div>
       )}
       {/* Suggestions are quiet while composing or dictating. */}
-      {!text.trim() && !isListening && <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-100 overflow-x-auto no-scrollbar">
+      {!text.trim() && !isListening && <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-100 overflow-x-auto px-0.5 pb-1">
         {suggestions.map((s, idx) => (
           <button
             key={idx}
             type="button"
             onClick={() => onSend(s)}
-            className="text-[11px] whitespace-nowrap px-2.5 py-1 rounded-lg bg-slate-100/90 hover:bg-sky-50 hover:text-sky-700 text-slate-600 border border-slate-200/80 transition-all font-medium"
+            className="min-h-7 text-[11px] whitespace-nowrap px-2 py-1 rounded-lg bg-slate-100/90 hover:bg-teal-50 hover:text-teal-800 text-slate-600 border border-slate-200/80 transition-all font-medium"
           >
             {s}
           </button>

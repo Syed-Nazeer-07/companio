@@ -271,18 +271,16 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900 mb-1.5">Voice & Speech Interaction</h2>
-        <p className="text-sm text-slate-600">
-          Configure speech recognition, push-to-talk, and text-to-speech companion voices.
-        </p>
-      </div>
+      <header className="workspace-heading">
+        <h1>Voice settings</h1>
+        <p>Set up speech recognition and choose how your companion speaks.</p>
+      </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Input: Microphone & Wake Word */}
-        <div className="acrylic-card rounded-2xl p-6 space-y-5 border border-slate-200 shadow-sm">
+        <div className="workspace-panel rounded-2xl p-4 sm:p-6 space-y-5">
           <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <Mic className="w-4 h-4 text-sky-600" />
+            <Mic className="w-4 h-4 text-teal-600" />
             <span>Voice Input (Speech-to-Text)</span>
           </h3>
 
@@ -298,7 +296,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
               onChange={(e) => onUpdateSettings({
                 voice: { ...settings.voice, wakePhraseEnabled: e.target.checked }
               })}
-              className="w-5 h-5 accent-sky-600 rounded cursor-pointer"
+              className="w-5 h-5 accent-teal-600 rounded cursor-pointer"
             />
           </div>
 
@@ -316,7 +314,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
               onChange={event => onUpdateSettings({
                 voice: { ...settings.voice, autoSendSafeSpeech: event.target.checked }
               })}
-              className="h-5 w-5 shrink-0 cursor-pointer accent-sky-600" />
+              className="h-5 w-5 shrink-0 cursor-pointer accent-teal-600" />
           </div>
 
           {/* Local Whisper is optional, explicit, private and uses no API credentials. */}
@@ -339,7 +337,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
             {settings.voice.recognitionEngine === 'whisper' && (
               <div className="space-y-2 text-xs text-slate-600">
                 <p>Whisper transcribes speech on your computer without an API key. The optional CPU engine and quantized English base model (~60 MB) use more disk space and CPU than Windows dictation, but can handle natural speech better on some microphones.</p>
-                <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-3 space-y-2">
+                <div className="rounded-xl border border-teal-200 bg-teal-50/70 p-3 space-y-2">
                   <p className="text-xs font-semibold text-slate-800">Offline Whisper setup</p>
                   <p className="text-[11px] leading-relaxed text-slate-600">
                     Click to download the official Windows CPU engine for your processor and the English model. SHA-256 checks are required before either component is installed. Setup does not require administrator access.
@@ -347,7 +345,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
                   <div className="flex flex-wrap gap-2">
                     <button type="button" disabled={installingOfflineWhisper || choosingWhisper || downloadingWhisper || !isNativeDesktop() || Boolean(whisperStatus?.configured)}
                       onClick={() => void installOfflineWhisper()}
-                      className="rounded-lg bg-sky-600 px-3 py-2 font-semibold text-white hover:bg-sky-700 disabled:opacity-50">
+                      className="rounded-lg bg-teal-600 px-3 py-2 font-semibold text-white hover:bg-teal-700 disabled:opacity-50">
                       {whisperStatus?.configured ? 'Offline Whisper ready' : installingOfflineWhisper ? 'Setting up Whisper…' : 'Set up offline Whisper'}
                     </button>
                     {installingOfflineWhisper && (
@@ -361,7 +359,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
                   {installingOfflineWhisper && (
                     <div className="space-y-1" aria-label="Offline Whisper setup progress">
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
-                        <div className="h-full bg-sky-600 transition-[width] duration-200"
+                        <div className="h-full bg-teal-600 transition-[width] duration-200"
                           style={{width:((whisperBinaryPercent ?? whisperDownloadPercent) ?? 0) + '%'}} />
                       </div>
                       <span className="text-[11px]">{whisperDownloadPercent !== null ? 'Model' : 'Engine'} download: {whisperDownloadPercent ?? whisperBinaryPercent ?? 0}%</span>
@@ -369,11 +367,11 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
                   )}
                 </div>
                 <p className="font-semibold text-slate-600">Advanced: use your own whisper.cpp executable or model</p>
-                <p>Official sources: <a href="https://github.com/ggml-org/whisper.cpp/releases" target="_blank" rel="noopener noreferrer" className="font-semibold text-sky-700 underline">whisper.cpp releases</a> and <a href="https://huggingface.co/ggerganov/whisper.cpp/tree/main" target="_blank" rel="noopener noreferrer" className="font-semibold text-sky-700 underline">GGML speech models</a>. Select a native Windows ARM64 CPU build on Snapdragon devices.</p>
+                <p>Official sources: <a href="https://github.com/ggml-org/whisper.cpp/releases" target="_blank" rel="noopener noreferrer" className="font-semibold text-teal-700 underline">whisper.cpp releases</a> and <a href="https://huggingface.co/ggerganov/whisper.cpp/tree/main" target="_blank" rel="noopener noreferrer" className="font-semibold text-teal-700 underline">GGML speech models</a>. Select a native Windows ARM64 CPU build on Snapdragon devices.</p>
                 <div className="flex flex-wrap gap-2">
                   <button type="button" disabled={downloadingWhisper || installingOfflineWhisper || choosingWhisper || !isNativeDesktop() || Boolean(whisperStatus?.model)}
                     onClick={() => void downloadRecommendedSpeechModel()}
-                    className="rounded-lg bg-sky-600 px-3 py-2 font-semibold text-white hover:bg-sky-700 disabled:opacity-50">
+                    className="rounded-lg bg-teal-600 px-3 py-2 font-semibold text-white hover:bg-teal-700 disabled:opacity-50">
                     {whisperStatus?.model ? 'Speech model selected' : downloadingWhisper ? 'Downloading…' : 'Download English base model only (~60 MB)'}
                   </button>
                   {downloadingWhisper && (
@@ -383,18 +381,18 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
                     </button>
                   )}
                   <button type="button" disabled={choosingWhisper || downloadingWhisper || installingOfflineWhisper || !isNativeDesktop()} onClick={() => void chooseWhisperFile('binary')}
-                    className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-50">
+                    className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-50">
                     Choose whisper-cli.exe
                   </button>
                   <button type="button" disabled={choosingWhisper || downloadingWhisper || installingOfflineWhisper || !isNativeDesktop()} onClick={() => void chooseWhisperFile('model')}
-                    className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-50">
+                    className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-50">
                     Choose speech model
                   </button>
                 </div>
                 {downloadingWhisper && (
                   <div role="status" className="space-y-1">
                     <div className="h-2 overflow-hidden rounded-full bg-slate-200">
-                      <div className="h-full bg-sky-600 transition-[width] duration-200" style={{width:(whisperDownloadPercent || 0)+'%'}} />
+                      <div className="h-full bg-teal-600 transition-[width] duration-200" style={{width:(whisperDownloadPercent || 0)+'%'}} />
                     </div>
                     <p>Downloading and verifying model — {whisperDownloadPercent ?? 0}%</p>
                   </div>
@@ -440,11 +438,9 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
 
           {/* Push to Talk Info */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Push-to-Talk Activation
-            </label>
+            <h4 className="mb-1.5 text-sm font-semibold text-slate-800">Push to talk</h4>
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700">
-              Press <span className="font-mono font-bold text-sky-700">{settings.activationShortcut}</span> to open the assistant.
+              Press <span className="font-mono font-bold text-teal-700">{settings.activationShortcut}</span> to open the assistant.
               Click its microphone button to speak. Turn on auto-start above if you want the shortcut to start listening immediately.
             </div>
           </div>
@@ -455,14 +451,14 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
             Speech recognition in browser previews may depend on the browser's online speech service.
           </p>
 
-          <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-3.5 space-y-2">
+          <div className="rounded-xl border border-teal-200 bg-teal-50/60 p-3.5 space-y-2">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-bold text-slate-800">Test Speech Recognition</p>
                 <p className="text-[11px] text-slate-600">Shows actual transcript, locale and confidence where supported</p>
               </div>
               <button type="button" onClick={handleRecognitionTest}
-                className="shrink-0 rounded-lg bg-sky-600 px-3 py-2 text-xs font-bold text-white hover:bg-sky-700">
+                className="shrink-0 rounded-lg bg-teal-600 px-3 py-2 text-xs font-bold text-white hover:bg-teal-700">
                 {testingRecognition ? 'Stop' : 'Try Dictation'}
               </button>
             </div>
@@ -487,7 +483,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
                   testingMic
                     ? 'bg-rose-500 text-white shadow-sm'
-                    : 'bg-sky-500 text-white shadow-sm hover:bg-sky-600'
+                    : 'bg-teal-700 text-white shadow-sm hover:bg-teal-600'
                 }`}
               >
                 {testingMic ? 'Stop Mic Test' : 'Test Mic'}
@@ -515,9 +511,9 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
         </div>
 
         {/* Output: Text-To-Speech Synthesis */}
-        <div className="acrylic-card rounded-2xl p-6 space-y-5 border border-slate-200 shadow-sm">
+        <div className="workspace-panel rounded-2xl p-4 sm:p-6 space-y-5">
           <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <Volume2 className="w-4 h-4 text-sky-600" />
+            <Volume2 className="w-4 h-4 text-teal-600" />
             <span>Spoken Replies (Text-to-Speech)</span>
           </h3>
 
@@ -533,18 +529,18 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
               onChange={(e) => onUpdateSettings({
                 voice: { ...settings.voice, muted: !e.target.checked }
               })}
-              className="w-5 h-5 accent-sky-600 rounded cursor-pointer"
+              className="w-5 h-5 accent-teal-600 rounded cursor-pointer"
             />
           </div>
 
           {/* Character Voice Profile Preview */}
-          <div className="p-3.5 rounded-xl bg-sky-50/60 border border-sky-200 space-y-1.5">
+          <div className="p-3.5 rounded-xl bg-teal-50/60 border border-teal-200 space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-sky-600" />
+                <Sparkles className="w-3.5 h-3.5 text-teal-600" />
                 <span>Auto-Matched for {settings.characterName || 'Companion'}</span>
               </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">
                 {settings.characterId} profile
               </span>
             </div>
@@ -556,15 +552,16 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
 
           {/* Voice Selector */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Specific Windows System Voice (Optional Override)
+            <label htmlFor="windows-system-voice" className="mb-1.5 block text-sm font-semibold text-slate-800">
+              Windows system voice
             </label>
             <select
+              id="windows-system-voice"
               value={settings.voice.ttsVoice}
               onChange={(e) => onUpdateSettings({
                 voice: { ...settings.voice, ttsVoice: e.target.value }
               })}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-xs font-semibold focus:outline-none focus:border-sky-500"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-xs font-semibold focus:outline-none focus:border-teal-500"
             >
               <option value="">Auto-Match Character Profile (Recommended)</option>
               {availableVoices
@@ -581,7 +578,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
           <button
             onClick={handleTestVoice}
             disabled={testingVoice}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 text-xs font-bold transition-all disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 text-xs font-bold transition-all disabled:opacity-50"
           >
             <Play className={`w-3.5 h-3.5 fill-current ${testingVoice ? 'animate-spin' : ''}`} />
             <span>{testingVoice ? 'Speaking...' : 'Test Voice Audio'}</span>

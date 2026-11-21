@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AppSettings } from '../../types';
-import { Cpu, CheckCircle2, AlertCircle, RefreshCw, Zap, Server, Send } from 'lucide-react';
+import { CheckCircle2, AlertCircle, RefreshCw, Zap, Server, Send } from 'lucide-react';
 import { desktopBridge } from '../../services/desktopBridge';
 
 const DEFAULT_LOCAL_ENDPOINT = 'http://127.0.0.1:11434/v1';
@@ -201,17 +201,15 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      <div>
-        <h2 className="text-xl font-bold text-slate-900">AI Intelligence Settings</h2>
-        <p className="text-xs text-slate-500 mt-1">
-          Configure how Companio understands natural language conversations.
-        </p>
-      </div>
+      <header className="workspace-heading">
+        <h1>Local AI</h1>
+        <p>Choose the built-in command engine or connect a local model for conversations and reviewed actions.</p>
+      </header>
 
-      {/* 3-Way Mode Selector */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {/* Option 1: Local Offline LLM */}
-        <div
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <button
+          type="button"
+          aria-pressed={settings.ai.provider === 'local'}
           onClick={() => onUpdateSettings({ ai: {
             ...settings.ai,
             provider: 'local',
@@ -220,64 +218,42 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
               : (detectedLocalModels[0] || (settings.ai.model !== 'companio-deterministic-v1' ? settings.ai.model : '')),
             localEndpoint: settings.ai.localEndpoint || DEFAULT_LOCAL_ENDPOINT
           } })}
-          className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-            settings.ai.provider === 'local'
-              ? 'bg-sky-50/70 border-sky-500 ring-2 ring-sky-500/20 shadow-sm'
-              : 'bg-white border-slate-200 hover:border-slate-300'
-          }`}
+          className="workspace-panel workspace-choice rounded-xl p-4 text-left transition-colors"
         >
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Server className="w-4 h-4 text-sky-600" />
-              <span className="text-xs font-bold text-slate-900">Local Offline LLM</span>
-            </div>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+          <span className="flex items-center justify-between mb-2">
+            <span className="flex items-center gap-2">
+              <Server className="w-4 h-4 text-teal-600" />
+              <span className="text-xs font-bold text-slate-900">Local model</span>
+            </span>
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
               {settings.ai.provider === 'local' ? 'Selected' : 'Optional'}
             </span>
-          </div>
-          <p className="text-[11px] text-slate-500 leading-relaxed">
-            Connects to a separately installed local inference server such as Ollama. Downloaded GGUF files are not automatically runnable.
-          </p>
-        </div>
+          </span>
+          <span className="block text-xs text-slate-600 leading-relaxed">
+            Connect to Ollama or LM Studio for conversations and reviewed action plans.
+          </span>
+        </button>
 
-        {/* Option 2: Built-in Fast Engine */}
-        <div
+        <button
+          type="button"
+          aria-pressed={settings.ai.provider === 'mock'}
           onClick={() => onUpdateSettings({ ai: { ...settings.ai, provider: 'mock' } })}
-          className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-            settings.ai.provider === 'mock'
-              ? 'bg-sky-50/70 border-sky-500 ring-2 ring-sky-500/20 shadow-sm'
-              : 'bg-white border-slate-200 hover:border-slate-300'
-          }`}
+          className="workspace-panel workspace-choice rounded-xl p-4 text-left transition-colors"
         >
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
+          <span className="flex items-center justify-between mb-2">
+            <span className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
-              <span className="text-xs font-bold text-slate-900">Built-in Engine</span>
-            </div>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-              No API Key
+              <span className="text-xs font-bold text-slate-900">Built-in commands</span>
             </span>
-          </div>
-          <p className="text-[11px] text-slate-500 leading-relaxed">
-            Fast offline handling for supported commands. Complex requests need a properly configured model.
-          </p>
-        </div>
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+              {settings.ai.provider === 'mock' ? 'Selected' : 'Default'}
+            </span>
+          </span>
+          <span className="block text-xs text-slate-600 leading-relaxed">
+            Runs supported commands offline, with no additional setup.
+          </span>
+        </button>
 
-        {/* Cloud reasoning is not available yet; don't invite users to store API keys. */}
-        <div aria-disabled="true" className="p-4 rounded-2xl border border-slate-200 bg-slate-50 opacity-75">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Cpu className="w-4 h-4 text-slate-500" />
-              <span className="text-xs font-bold text-slate-800">Cloud API</span>
-            </div>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">
-              Not available
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-500 leading-relaxed">
-            Cloud model integration is unfinished. Built-in commands and local AI do not require a paid API key.
-          </p>
-        </div>
       </div>
 
       {/* Local LLM Active Status & Live Test */}
@@ -288,7 +264,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
               <div className="flex items-center gap-2">
                 <span className={`w-2.5 h-2.5 rounded-full ${testResult?.success ? 'bg-emerald-500' : 'bg-slate-300'}`} />
                 <span className="text-xs font-bold text-slate-900">
-                  Selected local model: <span className="font-mono text-sky-700">{settings.ai.model || 'No model selected'}</span>
+                  Selected local model: <span className="font-mono text-teal-700">{settings.ai.model || 'No model selected'}</span>
                 </span>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
@@ -296,7 +272,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
                   type="button"
                   onClick={handleFindLocalAi}
                   disabled={testingConnection}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold transition-all disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold transition-all disabled:opacity-50"
                 >
                   <Server className="w-3.5 h-3.5" />
                   <span>{testingConnection ? 'Checking...' : 'Find Local AI'}</span>
@@ -337,7 +313,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
                   onChange={(e) => onUpdateSettings({ ai: { ...settings.ai, localEndpoint: e.target.value } })}
                   placeholder="http://127.0.0.1:11434/v1"
                   spellCheck={false}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono focus:outline-none focus:border-sky-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono focus:outline-none focus:border-teal-500"
                 />
               </label>
               <label className="text-[11px] font-bold text-slate-600 space-y-1.5">
@@ -348,7 +324,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
                   value={settings.ai.model || ''}
                   onChange={(e) => onUpdateSettings({ ai: { ...settings.ai, model: e.target.value } })}
                   placeholder="Choose a model or enter its ID"
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono focus:outline-none focus:border-sky-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono focus:outline-none focus:border-teal-500"
                 />
                 <datalist id="companio-local-models">
                   {detectedLocalModels.map((model) => <option key={model} value={model} />)}
@@ -372,13 +348,13 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
                   value={testPrompt}
                   onChange={(e) => setTestPrompt(e.target.value)}
                   placeholder="Ask your local LLM anything..."
-                  className="flex-1 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-sky-500 focus:bg-white"
+                  className="flex-1 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-teal-500 focus:bg-white"
                   onKeyDown={(e) => e.key === 'Enter' && handleRunLiveTest()}
                 />
                 <button
                   onClick={handleRunLiveTest}
                   disabled={isTestingPrompt || !testPrompt.trim()}
-                  className="flex items-center gap-1 px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold shadow-sm transition-all disabled:opacity-50"
+                  className="flex items-center gap-1 px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold shadow-sm transition-all disabled:opacity-50"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>{isTestingPrompt ? 'Thinking...' : 'Test'}</span>
@@ -387,7 +363,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
 
               {testReply && (
                 <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 animate-in fade-in duration-150">
-                  <span className="font-bold text-sky-700 block mb-1">Companio (via {settings.ai.model}):</span>
+                  <span className="font-bold text-teal-700 block mb-1">Companio (via {settings.ai.model}):</span>
                   <p className="leading-relaxed">{testReply}</p>
                 </div>
               )}

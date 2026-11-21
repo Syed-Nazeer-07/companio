@@ -16,15 +16,7 @@ for (const tab of document.querySelectorAll('.demo-tab')) {
       other.setAttribute('aria-pressed', String(selected));
     }
     document.getElementById('demo-command').textContent = demo.command;
-    const bubble = document.getElementById('demo-bubble');
-    bubble.replaceChildren(document.createTextNode(demo.response + ' '));
-    const arrow = document.createElement('span');
-    arrow.setAttribute('aria-hidden', 'true');
-    arrow.textContent = '↗';
-    bubble.appendChild(arrow);
-    bubble.classList.remove('bubble-enter');
-    void bubble.offsetWidth;
-    bubble.classList.add('bubble-enter');
+    document.getElementById('demo-bubble').textContent = demo.response;
   });
 }
 
@@ -35,10 +27,16 @@ if (toggle && mobileNav) {
     toggle.setAttribute('aria-expanded', String(open));
     toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
     mobileNav.hidden = !open;
-    document.body.classList.toggle('menu-open', open);
   }
   toggle.addEventListener('click', () => setMenuOpen(toggle.getAttribute('aria-expanded') !== 'true'));
-  mobileNav.querySelectorAll('a').forEach(link => link.addEventListener('click', () => setMenuOpen(false)));
+  mobileNav.querySelectorAll('a').forEach(link => link.addEventListener('click', () => {
+    setMenuOpen(false);
+    const target = link.hash && document.getElementById(link.hash.slice(1));
+    if (target) {
+      target.tabIndex = -1;
+      target.focus({ preventScroll: true });
+    }
+  }));
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && !mobileNav.hidden) {
       setMenuOpen(false);
