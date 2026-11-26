@@ -25,14 +25,15 @@ interface CompanioDesktopAPI {
   onGlobalShortcutDismiss?: (callback: () => void) => () => void;
   startNativeSpeech?: (timeoutSec?: number, language?: string) => Promise<{ success: boolean; text?: string; confidence?: number; language?: string; alternatives?: string[]; silence?: boolean; cancelled?: boolean; error?: string }>;
   cancelNativeSpeech?: () => Promise<any>;
-  getWhisperStatus?: () => Promise<{supported:boolean; configured:boolean; busy:boolean; executable:string|null; model:string|null; message:string; binaryDownload?:{downloading:boolean;received:number;total:number};download?:{downloading:boolean;received:number;total:number}}>;
+  getWhisperStatus?: () => Promise<{supported:boolean; arch?:string; configured:boolean; busy:boolean; executable:string|null; model:string|null; message:string; binaryDownload?:{downloading:boolean;received:number;total:number};download?:{downloading:boolean;received:number;total:number}}>;
   chooseWhisperFile?: (kind:'binary'|'model') => Promise<{success:boolean; cancelled?:boolean; configured?:boolean; error?:string}>;
   transcribeWithWhisper?: (wav:Uint8Array) => Promise<{success:boolean; text?:string; silence?:boolean; cancelled?:boolean; language?:string; error?:string}>;
   cancelWhisper?: () => Promise<{success:boolean;cancelled:boolean}>;
-  downloadWhisperModel?: () => Promise<{success:boolean;configured?:boolean;reused?:boolean;error?:string}>;
+  downloadWhisperModel?: (options?: {forceReinstall?:boolean}) => Promise<{success:boolean;configured?:boolean;reused?:boolean;corrupted?:boolean;error?:string}>;
   cancelWhisperModelDownload?: () => Promise<{success:boolean;cancelled:boolean}>;
-  installWhisperBinary?: () => Promise<{success:boolean;reused?:boolean;configured?:boolean;error?:string}>;
+  installWhisperBinary?: (options?: {forceReinstall?:boolean}) => Promise<{success:boolean;reused?:boolean;configured?:boolean;corrupted?:boolean;error?:string}>;
   cancelWhisperBinaryInstall?: () => Promise<{success:boolean;cancelled:boolean}>;
+  verifyWhisperRuntime?: () => Promise<{success:boolean;verified:boolean;arch?:string;executable?:string;model?:string;output?:string;error?:string}>;
   onWhisperBinaryProgress?: (callback:(progress:{stage:string;received:number;total:number;percent:number})=>void) => () => void;
   onWhisperModelProgress?: (callback:(progress:{received:number;total:number;percent:number})=>void) => () => void;
   onStateUpdate: (callback: (state: any) => void) => () => void;
@@ -292,9 +293,9 @@ export const desktopBridge = {
     const api = getDesktopAPI();
     return api?.cancelWhisper ? await api.cancelWhisper() : {success:false,cancelled:false};
   },
-  async installWhisperBinary() {
+  async installWhisperBinary(options?: {forceReinstall?:boolean}) {
     const api=getDesktopAPI();
-    return api?.installWhisperBinary ? await api.installWhisperBinary() :
+    return api?.installWhisperBinary ? await (options?.forceReinstall ? api.installWhisperBinary({forceReinstall:true}) : api.installWhisperBinary()) :
       {success:false,error:'Offline speech engine setup requires the installed Windows desktop app.'};
   },
   async cancelWhisperBinaryInstall() {
@@ -306,10 +307,15 @@ export const desktopBridge = {
     const api=getDesktopAPI();
     return api?.onWhisperBinaryProgress ? api.onWhisperBinaryProgress(callback) : () => {};
   },
-  async downloadWhisperModel() {
+  async downloadWhisperModel(options?: {forceReinstall?:boolean}) {
     const api=getDesktopAPI();
-    return api?.downloadWhisperModel ? await api.downloadWhisperModel()
+    return api?.downloadWhisperModel ? await (options?.forceReinstall ? api.downloadWhisperModel({forceReinstall:true}) : api.downloadWhisperModel())
       : {success:false,error:'Model download requires the Windows desktop app.'};
+  },
+  async verifyWhisperRuntime() {
+    const api=getDesktopAPI();
+    return api?.verifyWhisperRuntime ? await api.verifyWhisperRuntime()
+      : {success:false,verified:false,error:'Whisper runtime verification requires the Windows desktop app.'};
   },
   async cancelWhisperModelDownload() {
     const api=getDesktopAPI();

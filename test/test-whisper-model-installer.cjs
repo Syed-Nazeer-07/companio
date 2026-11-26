@@ -58,3 +58,20 @@ test('only one model download runs at once and cancellation aborts the request',
   assert.equal(h.instance.status().downloading,false);
  }finally{fs.rmSync(h.dir,{recursive:true,force:true});}
 });
+
+test('corrupted existing model reports corrupted state and recovers cleanly via forceReinstall',async()=>{
+ let calls=0;
+ const h=create(async()=>{calls++;return response();});
+ try{
+  const first=await h.instance.install();
+  assert.equal(first.success,true);
+  fs.appendFileSync(first.filePath,'tampered');
+  const corrupted=await h.instance.install();
+  assert.equal(corrupted.success,false);
+  assert.equal(corrupted.corrupted,true);
+  const repaired=await h.instance.install(()=>{},{forceReinstall:true});
+  assert.equal(repaired.success,true);
+  assert.equal(repaired.reused,false);
+  assert.equal(calls,2);
+ }finally{fs.rmSync(h.dir,{recursive:true,force:true});}
+});

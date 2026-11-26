@@ -16,12 +16,13 @@ class WhisperModelInstaller {
     this.userData=userData;this.fetchImpl=fetchImpl;this.fs=fileSystem;this.manifest=manifest;
     this.timeoutMs=timeoutMs;this.current=null;
   }
-  status(){return this.current?{downloading:true,received:this.current.received,total:this.current.total}:{
-    downloading:false,received:0,total:0
+  status(){return this.current?{downloading:true,received:this.current.received,total:this.current.total,id:this.manifest.id}:{
+    downloading:false,received:0,total:0,id:this.manifest.id
   };}
   cancel(){if(!this.current)return {success:true,cancelled:false};this.current.abort.abort();return {success:true,cancelled:true};}
-  async install(onProgress=()=>{}){
+  async install(onProgress=()=>{}, options={}){
     if(this.current)return {success:false,error:'A Whisper speech model download is already running.'};
+    const forceReinstall=Boolean(options && typeof options==='object' && options.forceReinstall===true);
     const {file,url,sha256,minBytes,maxBytes}=this.manifest;
     const dir=path.join(this.userData,'speech-models');
     const target=path.join(dir,file);
@@ -30,21 +31,28 @@ class WhisperModelInstaller {
     this.current={abort,received:0,total:maxBytes};
     const timer=setTimeout(()=>abort.abort(),this.timeoutMs);
     let handle=null;
+    let corrupted=false;
     try{
       this.fs.mkdirSync(dir,{recursive:true});
-      // Reuse a previously verified model instead of downloading it again.
+      // Reuse a previously verified model instead of downloading it again unless repairing.
       if(this.fs.existsSync(target)){
-        const existingSize=this.fs.statSync(target).size;
-        if(existingSize<minBytes || existingSize>maxBytes) {
-          throw Error('The existing Whisper model size is invalid. Remove it before retrying.');
+        if(forceReinstall){
+          this.fs.unlinkSync(target);
+        } else {
+          const existingSize=this.fs.statSync(target).size;
+          if(existingSize<minBytes || existingSize>maxBytes) {
+            corrupted=true;
+            throw Error('The existing Whisper model size is invalid. Repair offline Whisper before retrying.');
+          }
+          const hash=crypto.createHash('sha256');
+          const reader=this.fs.createReadStream(target);
+          for await(const part of reader)hash.update(part);
+          if(hash.digest('hex')===sha256){
+            return {success:true,filePath:target,reused:true,bytes:this.fs.statSync(target).size};
+          }
+          corrupted=true;
+          throw Error('An existing Whisper model failed its checksum. Repair offline Whisper before retrying.');
         }
-        const hash=crypto.createHash('sha256');
-        const reader=this.fs.createReadStream(target);
-        for await(const part of reader)hash.update(part);
-        if(hash.digest('hex')===sha256){
-          return {success:true,filePath:target,reused:true,bytes:this.fs.statSync(target).size};
-        }
-        throw Error('An existing Whisper model failed its checksum. Remove the file before downloading again.');
       }
       try{this.fs.unlinkSync(temporary);}catch{}
       const response=await this.fetchImpl(url,{signal:abort.signal,redirect:'follow',
@@ -87,7 +95,9 @@ class WhisperModelInstaller {
       onProgress({received,total:received,percent:100});
       return {success:true,filePath:target,reused:false,bytes:received};
     }catch(error){
-      return {success:false,error:abort.signal.aborted
+      return {success:false,
+        ...(corrupted ? {corrupted:true} : {}),
+        error:abort.signal.aborted
         ? 'Speech model download cancelled or timed out.'
         : error?.message||'Could not install the speech model.'};
     }finally{

@@ -52,10 +52,15 @@ const desktopAPI = {
   chooseWhisperFile: (kind) => ipcRenderer.invoke('whisper-choose-file', kind),
   transcribeWithWhisper: (wav) => ipcRenderer.invoke('whisper-transcribe', wav),
   cancelWhisper: () => ipcRenderer.invoke('whisper-cancel'),
-  downloadWhisperModel: () => ipcRenderer.invoke('whisper-download-model'),
+  downloadWhisperModel: (options) => options && options.forceReinstall === true
+    ? ipcRenderer.invoke('whisper-download-model', { forceReinstall: true })
+    : ipcRenderer.invoke('whisper-download-model'),
   cancelWhisperModelDownload: () => ipcRenderer.invoke('whisper-cancel-download'),
-  installWhisperBinary: () => ipcRenderer.invoke('whisper-install-binary'),
+  installWhisperBinary: (options) => options && options.forceReinstall === true
+    ? ipcRenderer.invoke('whisper-install-binary', { forceReinstall: true })
+    : ipcRenderer.invoke('whisper-install-binary'),
   cancelWhisperBinaryInstall: () => ipcRenderer.invoke('whisper-cancel-binary-install'),
+  verifyWhisperRuntime: () => ipcRenderer.invoke('whisper-verify-runtime'),
   onWhisperBinaryProgress: (callback) => {
     const handler = (_event, progress) => callback(progress);
     ipcRenderer.on('whisper-binary-progress', handler);

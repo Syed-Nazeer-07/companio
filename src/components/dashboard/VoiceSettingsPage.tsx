@@ -29,54 +29,113 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
   const [whisperDownloadPercent, setWhisperDownloadPercent] = useState<number | null>(null);
   const [installingOfflineWhisper, setInstallingOfflineWhisper] = useState(false);
   const [whisperBinaryPercent, setWhisperBinaryPercent] = useState<number | null>(null);
+  const [whisperProgressBytes, setWhisperProgressBytes] = useState<{received:number;total:number}|null>(null);
   const [whisperSetupStage, setWhisperSetupStage] = useState('');
+  const [whisperCorrupted, setWhisperCorrupted] = useState(false);
+  const [verifyingWhisperRuntime, setVerifyingWhisperRuntime] = useState(false);
+  const [whisperRuntimeCheck, setWhisperRuntimeCheck] = useState<{verified:boolean;message:string}|null>(null);
   const setupRequestRef = React.useRef(0);
 
   useEffect(() => desktopBridge.onWhisperModelProgress(progress => {
     setWhisperDownloadPercent(progress.percent);
+    setWhisperProgressBytes({received: progress.received, total: progress.total});
     setWhisperSetupStage('Downloading and checking English model…');
   }), []);
   useEffect(() => desktopBridge.onWhisperBinaryProgress(progress => {
     setWhisperBinaryPercent(progress.percent);
+    setWhisperProgressBytes({received: progress.received, total: progress.total});
     setWhisperSetupStage(progress.stage === 'extract'
       ? 'Verifying and unpacking the CPU speech engine…'
       : 'Downloading official whisper.cpp CPU engine…');
   }), []);
 
+  const verifyOfflineWhisperRuntime = async () => {
+    if (verifyingWhisperRuntime || !isNativeDesktop()) return;
+    setVerifyingWhisperRuntime(true);
+    try {
+      const check = await desktopBridge.verifyWhisperRuntime();
+      if (check.verified) {
+        setWhisperRuntimeCheck({
+          verified: true,
+          message: `Verified ${check.arch || 'CPU'} runtime (${check.executable || 'whisper-cli.exe'}) with ${check.model || 'GGML model'}.`
+        });
+      } else {
+        setWhisperRuntimeCheck({
+          verified: false,
+          message: check.error || 'Whisper executable could not be started.'
+        });
+      }
+      return check;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Whisper runtime check failed.';
+      setWhisperRuntimeCheck({ verified: false, message });
+      return { success: false, verified: false, error: message };
+    } finally {
+      setVerifyingWhisperRuntime(false);
+    }
+  };
+
   // Opt-in only: no background downloads, admin elevation or automatic native
   // binary execution. Both archives are pinned to verified upstream hashes.
-  const installOfflineWhisper = async () => {
+  const installOfflineWhisper = async (forceReinstall = false) => {
     if (installingOfflineWhisper || choosingWhisper || downloadingWhisper || !isNativeDesktop()) return;
     const request = ++setupRequestRef.current;
     setInstallingOfflineWhisper(true);
     setWhisperSetupError('');
+    setWhisperCorrupted(false);
+    setWhisperRuntimeCheck(null);
     setWhisperBinaryPercent(null);
     setWhisperDownloadPercent(null);
+    setWhisperProgressBytes(null);
     try {
       let state = await desktopBridge.getWhisperStatus();
-      if (!state.executable) {
-        setWhisperSetupStage('Downloading official CPU speech engine…');
-        const binary = await desktopBridge.installWhisperBinary();
+      if (!state.executable || forceReinstall) {
+        setWhisperSetupStage(forceReinstall ? 'Repairing official CPU speech engine…' : 'Downloading official CPU speech engine…');
+        const binary = forceReinstall
+          ? await desktopBridge.installWhisperBinary({ forceReinstall: true })
+          : await desktopBridge.installWhisperBinary();
         if (request !== setupRequestRef.current) return;
-        if (!binary.success) throw Error(binary.error || 'The speech engine could not be installed.');
+        if (!binary.success) {
+          if (binary.corrupted) setWhisperCorrupted(true);
+          throw Error(binary.error || 'The speech engine could not be installed.');
+        }
         state = await desktopBridge.getWhisperStatus();
       }
       if (request !== setupRequestRef.current) return;
-      if (!state.model) {
-        setWhisperSetupStage('Downloading and verifying the English speech model…');
-        const model = await desktopBridge.downloadWhisperModel();
+      if (!state.model || forceReinstall) {
+        setWhisperSetupStage(forceReinstall ? 'Re-verifying English speech model…' : 'Downloading and verifying the English speech model…');
+        const model = forceReinstall
+          ? await desktopBridge.downloadWhisperModel({ forceReinstall: true })
+          : await desktopBridge.downloadWhisperModel();
         if (request !== setupRequestRef.current) return;
-        if (!model.success) throw Error(model.error || 'The speech model could not be installed.');
+        if (!model.success) {
+          if (model.corrupted) setWhisperCorrupted(true);
+          throw Error(model.error || 'The speech model could not be installed.');
+        }
       }
       if (request !== setupRequestRef.current) return;
       const installed = await desktopBridge.getWhisperStatus();
       setWhisperStatus(installed);
       if (!installed.configured) throw Error('Both Whisper components were installed, but local speech is not ready.');
-      setWhisperSetupStage('Offline Whisper is ready.');
+      setWhisperSetupStage('Verifying Whisper runtime…');
+      const runtime = await desktopBridge.verifyWhisperRuntime();
+      if (request !== setupRequestRef.current) return;
+      if (!runtime.verified) {
+        setWhisperCorrupted(true);
+        setWhisperRuntimeCheck({ verified: false, message: runtime.error || 'Whisper runtime check failed.' });
+        throw Error(runtime.error || 'Whisper components installed cleanly, but whisper-cli.exe failed runtime verification.');
+      }
+      setWhisperRuntimeCheck({
+        verified: true,
+        message: `Verified ${runtime.arch || 'CPU'} runtime (${runtime.executable || 'whisper-cli.exe'}).`
+      });
+      setWhisperSetupStage('Offline Whisper is verified and ready.');
       onUpdateSettings({voice:{...settings.voice,recognitionEngine:'whisper'}});
     } catch (error) {
       if (request === setupRequestRef.current) {
-        setWhisperSetupError(error instanceof Error ? error.message : 'Offline Whisper setup could not be completed.');
+        const message = error instanceof Error ? error.message : 'Offline Whisper setup could not be completed.';
+        if (/verification|checksum|corrupt|invalid/i.test(message)) setWhisperCorrupted(true);
+        setWhisperSetupError(message);
         setWhisperStatus(await desktopBridge.getWhisperStatus().catch(() => null));
       }
     } finally {
@@ -336,20 +395,49 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
               <option value="windows">Windows dictation — no extra download</option>
               <option value="whisper">Local Whisper — optional offline mode</option>
             </select>
-            {settings.voice.recognitionEngine === 'whisper' && (
+            {(settings.voice.recognitionEngine === 'whisper' || settings.voice.recognitionEngine === 'auto' || !settings.voice.recognitionEngine) && (
               <div className="space-y-2 text-xs text-slate-600">
-                <p>Whisper transcribes speech on your computer without an API key. The optional CPU engine and quantized English base model (~60 MB) use more disk space and CPU than Windows dictation, but can handle natural speech better on some microphones.</p>
-                <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-3 space-y-2">
-                  <p className="text-xs font-semibold text-slate-800">Offline Whisper setup</p>
+                <p>Whisper transcribes speech on your computer without an API key. Automatic mode prefers verified local Whisper once set up, or falls back to Windows dictation.</p>
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-slate-800">Offline Whisper setup ({(whisperStatus?.arch || 'win32').toUpperCase()})</p>
+                    <div className="flex flex-wrap gap-1.5 text-[11px] font-semibold">
+                      <span className={`rounded-full px-2 py-0.5 ${whisperStatus?.executable ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200/80 text-slate-700'}`}>
+                        {whisperStatus?.executable ? `Engine: ${whisperStatus.executable}` : 'Engine missing'}
+                      </span>
+                      <span className={`rounded-full px-2 py-0.5 ${whisperStatus?.model ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200/80 text-slate-700'}`}>
+                        {whisperStatus?.model ? `Model: ${whisperStatus.model}` : 'Model missing'}
+                      </span>
+                      {whisperRuntimeCheck && (
+                        <span className={`rounded-full px-2 py-0.5 ${whisperRuntimeCheck.verified ? 'bg-emerald-700 text-white' : 'bg-rose-100 text-rose-800'}`}>
+                          {whisperRuntimeCheck.verified ? 'Runtime verified' : 'Check failed'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                   <p className="text-[11px] leading-relaxed text-slate-600">
-                    Click to download the official Windows CPU engine for your processor and the English model. SHA-256 checks are required before either component is installed. Setup does not require administrator access.
+                    One-click setup downloads the official Windows {whisperStatus?.arch === 'arm64' ? 'ARM64 ' : ''}CPU engine (~4.4 MB) and English base model (~59.7 MB) with SHA-256 verification before installing. No admin access needed.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <button type="button" disabled={installingOfflineWhisper || choosingWhisper || downloadingWhisper || !isNativeDesktop() || Boolean(whisperStatus?.configured)}
-                      onClick={() => void installOfflineWhisper()}
-                      className="rounded-lg bg-sky-600 px-3 py-2 font-semibold text-white hover:bg-sky-700 disabled:opacity-50">
+                      onClick={() => void installOfflineWhisper(false)}
+                      className="rounded-lg bg-emerald-700 px-3 py-2 font-semibold text-white hover:bg-emerald-800 disabled:opacity-50">
                       {whisperStatus?.configured ? 'Offline Whisper ready' : installingOfflineWhisper ? 'Setting up Whisper…' : 'Set up offline Whisper'}
                     </button>
+                    {whisperStatus?.configured && !installingOfflineWhisper && (
+                      <button type="button" disabled={verifyingWhisperRuntime || !isNativeDesktop()}
+                        onClick={() => void verifyOfflineWhisperRuntime()}
+                        className="rounded-lg border border-emerald-300 bg-white px-3 py-2 font-semibold text-emerald-800 hover:bg-emerald-50 disabled:opacity-50">
+                        {verifyingWhisperRuntime ? 'Verifying…' : 'Verify runtime'}
+                      </button>
+                    )}
+                    {(whisperCorrupted || whisperStatus?.configured) && !installingOfflineWhisper && (
+                      <button type="button" disabled={choosingWhisper || downloadingWhisper || !isNativeDesktop()}
+                        onClick={() => void installOfflineWhisper(true)}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50">
+                        {whisperCorrupted ? 'Repair offline Whisper' : 'Reinstall'}
+                      </button>
+                    )}
                     {installingOfflineWhisper && (
                       <button type="button" onClick={() => void cancelOfflineWhisperSetup()}
                         className="rounded-lg border border-slate-300 bg-white px-3 py-2 font-semibold text-slate-700 hover:bg-slate-100">
@@ -357,23 +445,35 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
                       </button>
                     )}
                   </div>
-                  {whisperSetupStage && <p role="status" aria-live="polite">{whisperSetupStage}</p>}
+                  {whisperSetupStage && <p role="status" aria-live="polite" className="text-slate-700">{whisperSetupStage}</p>}
+                  {whisperRuntimeCheck && (
+                    <p role="status" className={`text-[11px] font-medium ${whisperRuntimeCheck.verified ? 'text-emerald-800' : 'text-rose-700'}`}>
+                      {whisperRuntimeCheck.message}
+                    </p>
+                  )}
                   {installingOfflineWhisper && (
                     <div className="space-y-1" aria-label="Offline Whisper setup progress">
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
-                        <div className="h-full bg-sky-600 transition-[width] duration-200"
-                          style={{width:((whisperBinaryPercent ?? whisperDownloadPercent) ?? 0) + '%'}} />
+                        <div className="h-full bg-emerald-700 transition-[width] duration-200"
+                          style={{width:((whisperDownloadPercent ?? whisperBinaryPercent) ?? 0) + '%'}} />
                       </div>
-                      <span className="text-[11px]">{whisperDownloadPercent !== null ? 'Model' : 'Engine'} download: {whisperDownloadPercent ?? whisperBinaryPercent ?? 0}%</span>
+                      <span className="text-[11px]">
+                        {whisperDownloadPercent !== null ? 'Model' : 'Engine'} download: {whisperDownloadPercent ?? whisperBinaryPercent ?? 0}%
+                        {whisperProgressBytes && whisperProgressBytes.total > 0
+                          ? ` (${(whisperProgressBytes.received / 1048576).toFixed(1)} / ${(whisperProgressBytes.total / 1048576).toFixed(1)} MB)`
+                          : ''}
+                      </span>
                     </div>
                   )}
                 </div>
+                {settings.voice.recognitionEngine === 'whisper' && (
+                  <>
                 <p className="font-semibold text-slate-600">Advanced: use your own whisper.cpp executable or model</p>
-                <p>Official sources: <a href="https://github.com/ggml-org/whisper.cpp/releases" target="_blank" rel="noopener noreferrer" className="font-semibold text-sky-700 underline">whisper.cpp releases</a> and <a href="https://huggingface.co/ggerganov/whisper.cpp/tree/main" target="_blank" rel="noopener noreferrer" className="font-semibold text-sky-700 underline">GGML speech models</a>. Select a native Windows ARM64 CPU build on Snapdragon devices.</p>
+                <p>Official sources: <a href="https://github.com/ggml-org/whisper.cpp/releases" target="_blank" rel="noopener noreferrer" className="font-semibold text-emerald-800 underline">whisper.cpp releases</a> and <a href="https://huggingface.co/ggerganov/whisper.cpp/tree/main" target="_blank" rel="noopener noreferrer" className="font-semibold text-emerald-800 underline">GGML speech models</a>. Select a native Windows ARM64 CPU build on Snapdragon devices.</p>
                 <div className="flex flex-wrap gap-2">
                   <button type="button" disabled={downloadingWhisper || installingOfflineWhisper || choosingWhisper || !isNativeDesktop() || Boolean(whisperStatus?.model)}
                     onClick={() => void downloadRecommendedSpeechModel()}
-                    className="rounded-lg bg-sky-600 px-3 py-2 font-semibold text-white hover:bg-sky-700 disabled:opacity-50">
+                    className="rounded-lg bg-emerald-700 px-3 py-2 font-semibold text-white hover:bg-emerald-800 disabled:opacity-50">
                     {whisperStatus?.model ? 'Speech model selected' : downloadingWhisper ? 'Downloading…' : 'Download English base model only (~60 MB)'}
                   </button>
                   {downloadingWhisper && (
@@ -383,21 +483,23 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
                     </button>
                   )}
                   <button type="button" disabled={choosingWhisper || downloadingWhisper || installingOfflineWhisper || !isNativeDesktop()} onClick={() => void chooseWhisperFile('binary')}
-                    className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-50">
+                    className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-50">
                     Choose whisper-cli.exe
                   </button>
                   <button type="button" disabled={choosingWhisper || downloadingWhisper || installingOfflineWhisper || !isNativeDesktop()} onClick={() => void chooseWhisperFile('model')}
-                    className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-50">
+                    className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-50">
                     Choose speech model
                   </button>
                 </div>
                 {downloadingWhisper && (
                   <div role="status" className="space-y-1">
                     <div className="h-2 overflow-hidden rounded-full bg-slate-200">
-                      <div className="h-full bg-sky-600 transition-[width] duration-200" style={{width:(whisperDownloadPercent || 0)+'%'}} />
+                      <div className="h-full bg-emerald-700 transition-[width] duration-200" style={{width:(whisperDownloadPercent || 0)+'%'}} />
                     </div>
                     <p>Downloading and verifying model — {whisperDownloadPercent ?? 0}%</p>
                   </div>
+                )}
+                  </>
                 )}
                 <p role="status">{whisperStatus?.configured
                   ? 'Ready: ' + whisperStatus.model + ' — audio remains on this device.'

@@ -727,12 +727,13 @@ secureHandle('whisper-status', () => ({
   download: whisperModelInstaller.status(),
   binaryDownload: whisperBinaryInstaller.status()
 }));
-secureHandle('whisper-install-binary', async event => {
+secureHandle('whisper-install-binary', async (event, options) => {
   // The verified release URL and archive checksum live exclusively in the
   // privileged process. Renderer code never supplies executable URLs or paths.
+  const forceReinstall = Boolean(options && typeof options === 'object' && options.forceReinstall === true);
   const result = await whisperBinaryInstaller.install(progress => {
     if (!event.sender.isDestroyed()) event.sender.send('whisper-binary-progress', progress);
-  });
+  }, { forceReinstall });
   if (!result.success) return result;
   const configured = whisperSpeech.choose('binary', result.filePath);
   return configured.success
@@ -740,16 +741,18 @@ secureHandle('whisper-install-binary', async event => {
     : {success:false,error:configured.error || 'Downloaded speech engine could not be activated.'};
 });
 secureHandle('whisper-cancel-binary-install', () => whisperBinaryInstaller.cancel());
-secureHandle('whisper-download-model', async (event) => {
+secureHandle('whisper-download-model', async (event, options) => {
+  const forceReinstall = Boolean(options && typeof options === 'object' && options.forceReinstall === true);
   const result = await whisperModelInstaller.install(progress => {
     if (!event.sender.isDestroyed()) event.sender.send('whisper-model-progress', progress);
-  });
+  }, { forceReinstall });
   if (!result.success) return result;
   const configured = whisperSpeech.choose('model', result.filePath);
   if (!configured.success) return {success:false,error:configured.error || 'Could not activate downloaded Whisper model.'};
   return {success:true,reused:result.reused,...whisperSpeech.status()};
 });
 secureHandle('whisper-cancel-download', () => whisperModelInstaller.cancel());
+secureHandle('whisper-verify-runtime', () => whisperSpeech.verifyRuntime());
 secureHandle('whisper-choose-file', async (event, kind) => {
   if (!['binary', 'model'].includes(kind)) return { success: false, error: 'Unknown file selection.' };
   const win = BrowserWindow.fromWebContents(event.sender);

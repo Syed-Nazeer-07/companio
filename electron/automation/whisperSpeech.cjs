@@ -5,7 +5,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
-const { spawn } = require('node:child_process');
+const { spawn, execFile } = require('node:child_process');
 
 const MAX_WAV_BYTES = 16 * 1024 * 1024;
 const MAX_TRANSCRIPT = 1600;
@@ -45,13 +45,15 @@ function safeSelection(kind, file, fileSystem = fs) {
 }
 
 class WhisperSpeechController {
-  constructor({userData, spawnProcess = spawn, fileSystem = fs, platform = process.platform,
-    timeoutMs = MAX_INFERENCE_MS, bundledRoot = null} = {}) {
+  constructor({userData, spawnProcess = spawn, execFileProcess = execFile, fileSystem = fs, platform = process.platform,
+    arch = process.arch, timeoutMs = MAX_INFERENCE_MS, bundledRoot = null} = {}) {
     if (typeof userData !== 'string' || !path.isAbsolute(userData)) throw Error('Missing application data directory.');
     this.userData = userData;
     this.spawnProcess = spawnProcess;
+    this.execFileProcess = execFileProcess;
     this.fileSystem = fileSystem;
     this.platform = platform;
+    this.arch = arch;
     this.timeoutMs = timeoutMs;
     this.configPath = path.join(userData, 'whisper-speech.json');
     this.bundledRoot = typeof bundledRoot === 'string' && path.isAbsolute(bundledRoot) ? bundledRoot : null;
@@ -91,6 +93,7 @@ class WhisperSpeechController {
     const configured=!!selected.binary && !!selected.model && this.platform==='win32';
     return {
       supported: this.platform === 'win32',
+      arch: this.arch,
       configured,
       busy: !!this.active,
       executable: selected.binary ? path.basename(selected.binary) : null,
@@ -99,6 +102,43 @@ class WhisperSpeechController {
         : !selected.binary ? 'Select whisper-cli.exe from the official Windows whisper.cpp release.'
         : 'Choose or download an English GGML speech model to finish setup.'
     };
+  }
+
+  verifyRuntime() {
+    if (this.platform !== 'win32') {
+      return Promise.resolve({ success: false, verified: false, error: 'Whisper runtime check is supported on Windows only.' });
+    }
+    const config = this.readConfig();
+    if (!config) {
+      return Promise.resolve({ success: false, verified: false, error: 'Set up both whisper-cli.exe and a GGML speech model first.' });
+    }
+    return new Promise((resolve) => {
+      this.execFileProcess(
+        config.binary,
+        ['--help'],
+        { windowsHide: true, shell: false, timeout: 8000, maxBuffer: 256 * 1024, cwd: path.dirname(config.binary) },
+        (error, stdout, stderr) => {
+          const text = String(stdout || stderr || '').trim();
+          if (error) {
+            resolve({
+              success: false,
+              verified: false,
+              arch: this.arch,
+              error: 'whisper-cli.exe failed runtime check: ' + String(stderr || error.message || '').slice(0, 160)
+            });
+            return;
+          }
+          resolve({
+            success: true,
+            verified: true,
+            arch: this.arch,
+            executable: path.basename(config.binary),
+            model: path.basename(config.model),
+            output: text.slice(0, 160)
+          });
+        }
+      );
+    });
   }
 
   choose(kind, selectedPath) {

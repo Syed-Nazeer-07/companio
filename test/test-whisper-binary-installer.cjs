@@ -36,7 +36,13 @@ test('verifies archive digest before extracting and reuses the verified binary',
   assert.equal(reused.success,true);assert.equal(reused.reused,true);
   assert.equal(extracted,1);assert.equal(calls,1);
   fs.appendFileSync(first.filePath,'tampered');
-  assert.equal((await h.instance.install()).success,false);
+  const corrupted=await h.instance.install();
+  assert.equal(corrupted.success,false);
+  assert.equal(corrupted.corrupted,true);
+  const repaired=await h.instance.install(()=>{},{forceReinstall:true});
+  assert.equal(repaired.success,true);
+  assert.equal(repaired.reused,false);
+  assert.equal(calls,2);
  } finally {fs.rmSync(h.userData,{recursive:true,force:true});}
 });
 test('failed hash and insecure redirect never install executable files',async()=>{
@@ -80,15 +86,19 @@ test('unsupported operating systems and architectures never download binaries',a
  }finally{fs.rmSync(h.userData,{recursive:true,force:true});}
 });
 
-test('voice settings exposes explicit install and cancellation with manual fallback',()=>{
+test('voice settings exposes explicit install, repair, runtime verification, and cancellation with manual fallback',()=>{
  const source=fs.readFileSync(path.join(__dirname,'../src/components/dashboard/VoiceSettingsPage.tsx'),'utf8');
  const main=fs.readFileSync(path.join(__dirname,'../electron/main.cjs'),'utf8');
  const preload=fs.readFileSync(path.join(__dirname,'../electron/preload.cjs'),'utf8');
  assert.match(source,/Set up offline Whisper/);
+ assert.match(source,/Repair offline Whisper/);
  assert.match(source,/cancelOfflineWhisperSetup/);
  assert.match(source,/installWhisperBinary\(\)/);
  assert.match(source,/downloadWhisperModel\(\)/);
+ assert.match(source,/verifyWhisperRuntime\(\)/);
  assert.match(source,/recognitionEngine:'whisper'/);
  assert.match(main,/secureHandle\('whisper-install-binary'/);
+ assert.match(main,/secureHandle\('whisper-verify-runtime'/);
  assert.match(preload,/ipcRenderer.invoke\('whisper-install-binary'\)/);
+ assert.match(preload,/ipcRenderer.invoke\('whisper-verify-runtime'\)/);
 });
