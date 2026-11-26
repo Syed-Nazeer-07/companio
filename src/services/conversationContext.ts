@@ -16,7 +16,7 @@ export function recentConversation(messages: ChatMessage[], currentQuery: string
     const answer = turns[index];
     const question = turns[index - 1];
     if (!['companio', 'aura'].includes(answer.sender) || question.sender !== 'user'
-      || answer.taskPlan || question.taskPlan || answer.status !== 'info'
+      || answer.taskPlan || question.taskPlan || answer.taskReceipt || question.taskReceipt || answer.status !== 'info'
       || isCommandRequest(question.content)) continue;
     const userText = question.content.trim().slice(0, 600);
     const assistantText = answer.content.trim().slice(0, 600);

@@ -76,3 +76,13 @@ test('enforces per-section record limits', () => {
   }));
   assert.equal(validateHistoryBackup(JSON.stringify(p)).success,false);
 });
+
+test('display receipts survive backup validation without restoring executable metadata',()=>{
+ const input={format:'companio-local-history',schemaVersion:1,exportedAt:new Date().toISOString(),conversations:[{id:'receipt',sender:'companio',content:'Task stopped',timestamp:Date.now(),status:'info',taskPlan:{steps:[{tool:'untrusted'}]},taskReceipt:{status:'cancelled',steps:[{description:'Open Calculator',outcome:'stopped',tool:'untrusted',params:{danger:true}}]}}],automationLogs:[],notes:[]};
+ const result=validateHistoryBackup(JSON.stringify(input));
+ assert.equal(result.success,true);
+ assert.deepEqual(result.backup.conversations[0].taskReceipt,{status:'cancelled',steps:[{description:'Open Calculator',outcome:'stopped'}]});
+ assert.equal(result.backup.conversations[0].taskPlan,undefined);
+ input.conversations[0].taskReceipt.steps[0].outcome='execute';
+ assert.equal(validateHistoryBackup(JSON.stringify(input)).success,false);
+});

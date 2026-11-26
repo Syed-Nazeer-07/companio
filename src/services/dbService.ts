@@ -181,6 +181,18 @@ class DbService {
   // Conversation logs
   addMessage(msg: ChatMessage) {
     try {
+      // Persist a bounded read-only receipt, not the runnable plan or its args.
+      const {taskPlan, ...record} = msg;
+      if (taskPlan && ['completed','failed','cancelled'].includes(taskPlan.status) && taskPlan.steps.length) {
+        record.taskReceipt = {
+          status: taskPlan.status as 'completed'|'failed'|'cancelled',
+          steps: taskPlan.steps.slice(0,32).map(step => ({
+            description: step.description.slice(0,300),
+            outcome: step.status==='success' ? (step.result?.handoffOnly?'sent':'verified') : step.status==='failed' ? (step.result?.success?'unverified':'failed') : 'stopped'
+          }))
+        };
+      }
+      msg = record;
       const history = this.getMessages();
       history.push(msg);
       // Keep last 100 messages

@@ -49,12 +49,24 @@ function validateMessage(value, index) {
   const status = value.status === undefined ? 'info' : requireString(value.status, 'status', 16);
   if (!['success', 'error', 'info'].includes(status)) fail('unsupported message status.');
   // Do not import taskPlan: historical executable JSON is not trusted input.
+  // A receipt contains only display text and bounded enumerated outcomes.
+  let taskReceipt;
+  if (value.taskReceipt !== undefined) {
+    const r = value.taskReceipt;
+    if (!plainObject(r) || !['completed','failed','cancelled'].includes(r.status) || !Array.isArray(r.steps) || r.steps.length < 1 || r.steps.length > 32) fail('invalid task receipt.');
+    const steps = r.steps.map(step => {
+      if (!plainObject(step) || !['verified','sent','failed','unverified','stopped'].includes(step.outcome)) fail('invalid receipt step.');
+      return {description:requireString(step.description,'receipt description',300),outcome:step.outcome};
+    });
+    taskReceipt = {status:r.status,steps};
+  }
   return {
     id: requireString(value.id, 'message ID', 160),
     sender,
     content: requireString(value.content, 'message content', 12000, true),
     timestamp: requireTimestamp(value.timestamp, 'message'),
-    status
+    status,
+    ...(taskReceipt ? {taskReceipt} : {})
   };
 }
 

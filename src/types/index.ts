@@ -101,11 +101,18 @@ export interface TaskPlan {
   createdAt: number;
 }
 
+// Display-only receipt; cannot be executed and carries no tool parameters.
+export interface TaskReceipt {
+  status: 'completed' | 'failed' | 'cancelled';
+  steps: { description: string; outcome: 'verified' | 'sent' | 'failed' | 'unverified' | 'stopped' }[];
+}
+
 export interface ChatMessage {
   id: string;
   sender: 'user' | 'companio' | 'aura' | 'system';
   content: string;
   timestamp: number;
   taskPlan?: TaskPlan;
+  taskReceipt?: TaskReceipt;
   status?: 'success' | 'error' | 'info';
 }

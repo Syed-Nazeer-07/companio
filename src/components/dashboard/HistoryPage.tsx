@@ -117,10 +117,10 @@ export const HistoryPage: React.FC = () => {
     }
   };
 
-  const taskMessages = messages.filter(message => message.taskPlan && message.taskPlan.steps.length > 0);
-  const completedTasks = taskMessages.filter(message => message.taskPlan?.status === 'completed').length;
-  const failedTasks = taskMessages.filter(message => message.taskPlan?.status === 'failed').length;
-  const stoppedTasks = taskMessages.filter(message => message.taskPlan?.status === 'cancelled').length;
+  const taskMessages = messages.filter(message => message.taskReceipt && Array.isArray(message.taskReceipt.steps) && message.taskReceipt.steps.length > 0);
+  const completedTasks = taskMessages.filter(message => message.taskReceipt?.status === 'completed').length;
+  const failedTasks = taskMessages.filter(message => message.taskReceipt?.status === 'failed').length;
+  const stoppedTasks = taskMessages.filter(message => message.taskReceipt?.status === 'cancelled').length;
   const filteredLogs = logs.filter(
     (l) =>
       l.tool.toLowerCase().includes(filterQuery.toLowerCase()) ||
@@ -313,7 +313,7 @@ export const HistoryPage: React.FC = () => {
                   <span>{new Date(msg.timestamp).toLocaleString()}</span>
                 </div>
                 <p className="text-slate-800 text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
-                {msg.taskPlan?.steps.length ? <details className="mt-3 border-t border-slate-200 pt-3"><summary className="cursor-pointer font-semibold text-slate-700">{msg.taskPlan.steps.length} action(s) · {msg.taskPlan.status}</summary><ol className="mt-2 space-y-2">{msg.taskPlan.steps.map(step=><li key={step.id} className="flex justify-between gap-3"><span className="break-words min-w-0">{step.description}</span><span className="shrink-0 font-semibold">{step.status==='success'?(step.result?.handoffOnly?'Sent':'Verified'):step.status==='cancelled'?'Stopped':step.status==='failed'&&step.result?.success?'Unverified':step.status}</span></li>)}</ol></details>:null}
+                {Array.isArray(msg.taskReceipt?.steps) && msg.taskReceipt.steps.length ? <details className="mt-3 border-t border-slate-200 pt-3"><summary className="cursor-pointer font-semibold text-slate-700">{msg.taskReceipt.steps.length} action(s) · {msg.taskReceipt.status}</summary><ol className="mt-2 space-y-2">{msg.taskReceipt.steps.map((step,index)=><li key={index} className="flex justify-between gap-3"><span className="break-words min-w-0">{step.description}</span><span className="shrink-0 font-semibold capitalize">{step.outcome}</span></li>)}</ol></details>:null}
               </div>
             ))
           )}
