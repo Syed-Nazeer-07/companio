@@ -52,6 +52,12 @@ function chooseCharacter(button) {
   preview.alt = name + ' — ' + role;
   hero.src = source;
   hero.alt = name + ', ' + role;
+  const portrait = document.getElementById('hero-portrait');
+  portrait.src = source;
+  portrait.alt = name + ' — ' + role;
+  document.getElementById('hero-character-name').textContent = name.toUpperCase();
+  document.getElementById('hero-character-role').textContent = role;
+  document.getElementById('hero-character-number').textContent = number;
   document.getElementById('character-name').textContent = name;
   document.getElementById('character-role').textContent = role;
   document.getElementById('character-description').textContent = description;
