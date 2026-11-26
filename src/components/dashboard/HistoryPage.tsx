@@ -7,7 +7,7 @@ import { Search, Trash2, Download, Upload, CheckCircle2, AlertCircle, Clock } fr
 export const HistoryPage: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [logs, setLogs] = useState<AutomationLogRecord[]>([]);
-  const [viewMode, setViewMode] = useState<'conversations' | 'automations'>('automations');
+  const [viewMode, setViewMode] = useState<'conversations' | 'automations'>('conversations');
   const [filterQuery, setFilterQuery] = useState<string>('');
   const [exportStatus, setExportStatus] = useState<string>('');
   const [importing, setImporting] = useState(false);
@@ -117,6 +117,10 @@ export const HistoryPage: React.FC = () => {
     }
   };
 
+  const taskMessages = messages.filter(message => message.taskPlan && message.taskPlan.steps.length > 0);
+  const completedTasks = taskMessages.filter(message => message.taskPlan?.status === 'completed').length;
+  const failedTasks = taskMessages.filter(message => message.taskPlan?.status === 'failed').length;
+  const stoppedTasks = taskMessages.filter(message => message.taskPlan?.status === 'cancelled').length;
   const filteredLogs = logs.filter(
     (l) =>
       l.tool.toLowerCase().includes(filterQuery.toLowerCase()) ||
@@ -196,6 +200,9 @@ export const HistoryPage: React.FC = () => {
         </p>
       )}
 
+      <section aria-label="Retained task history summary" className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {([{label:'Recorded tasks',value:taskMessages.length},{label:'Completed / sent',value:completedTasks},{label:'Needs attention',value:failedTasks},{label:'Stopped',value:stoppedTasks}]).map(item=><div key={item.label} className="acrylic-card p-4"><p className="text-xs text-slate-600">{item.label}</p><strong className="block text-2xl font-semibold mt-1 text-slate-900">{item.value}</strong></div>)}
+      </section>
       {/* Controls Bar */}
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
         {/* View Mode Toggle */}
@@ -229,7 +236,7 @@ export const HistoryPage: React.FC = () => {
             type="text"
             value={filterQuery}
             onChange={(e) => setFilterQuery(e.target.value)}
-            placeholder="Search records..."
+            placeholder="Search records..." aria-label="Search history"
             className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500 shadow-sm"
           />
         </div>
@@ -305,7 +312,8 @@ export const HistoryPage: React.FC = () => {
                   </span>
                   <span>{new Date(msg.timestamp).toLocaleString()}</span>
                 </div>
-                <p className="text-slate-800 text-sm leading-relaxed">{msg.content}</p>
+                <p className="text-slate-800 text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
+                {msg.taskPlan?.steps.length ? <details className="mt-3 border-t border-slate-200 pt-3"><summary className="cursor-pointer font-semibold text-slate-700">{msg.taskPlan.steps.length} action(s) · {msg.taskPlan.status}</summary><ol className="mt-2 space-y-2">{msg.taskPlan.steps.map(step=><li key={step.id} className="flex justify-between gap-3"><span className="break-words min-w-0">{step.description}</span><span className="shrink-0 font-semibold">{step.status==='success'?(step.result?.handoffOnly?'Sent':'Verified'):step.status==='cancelled'?'Stopped':step.status==='failed'&&step.result?.success?'Unverified':step.status}</span></li>)}</ol></details>:null}
               </div>
             ))
           )}

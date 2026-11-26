@@ -45,6 +45,7 @@ export function actionTimeoutMs(tool:string):number {
 
 export class TaskExecutor {
   private activeAbortController: AbortController | null = null;
+  private nativeInFlight: Promise<unknown> | null = null;
 
   // Emergency Cancel
   cancelActiveTask() {
@@ -59,6 +60,7 @@ export class TaskExecutor {
     plan: TaskPlan, 
     onProgress: (updatedPlan: TaskPlan) => void
   ): Promise<TaskPlan> {
+    if (this.nativeInFlight && !this.activeAbortController) throw new Error('A previous Windows action has not returned. Check its outcome before starting another command.');
     if (this.activeAbortController) throw new Error('Another task is still settling. Wait before starting a new action.');
     if (plan.steps.length > 0 && (plan.status !== 'planning' || plan.steps.some(step => step.status !== 'pending'))) {
       throw new Error('This task was already started. Request a fresh plan rather than replaying it.');
@@ -165,13 +167,23 @@ export class TaskExecutor {
         } else {
           const timeout=actionTimeoutMs(step.tool);
           const outcome=await runWithActionDeadline(
-            () => desktopBridge.executeTool(step.tool, step.params),
+            () => {
+              // A UI timeout/cancel cannot interrupt a native IPC call. Hold the
+              // native lease until the real operation settles, not just the race.
+              const pending = Promise.resolve(desktopBridge.executeTool(step.tool, step.params));
+              this.nativeInFlight = pending;
+              const release = () => { if (this.nativeInFlight === pending) this.nativeInFlight = null; };
+              void pending.then(release, release);
+              return pending;
+            },
             timeout,
             signal
           );
           if(outcome.kind==='done') result=outcome.value;
           else if(outcome.kind==='cancelled'){
             step.status='cancelled';
+            step.result={success:false,verified:false,cancelled:true,outcomeUnknown:true};
+            dbService.addLog(step.tool,step.params,step.result,false,Date.now()-startTime);
             plan.status='cancelled';
             plan.error='Stopped by user. An already-started Windows action may still finish.';
             for(let j=i+1;j<plan.steps.length;j++)plan.steps[j].status='cancelled';
@@ -190,6 +202,8 @@ export class TaskExecutor {
 
         if (signal.aborted) {
           step.status = 'cancelled';
+          step.result = {success:false,verified:false,cancelled:true,outcomeUnknown:true};
+          dbService.addLog(step.tool,step.params,step.result,false,duration);
           plan.status = 'cancelled';
           plan.error = 'Stopped by user. An already-started Windows action may still finish.';
           for(let j=i+1;j<plan.steps.length;j++)plan.steps[j].status='cancelled';
@@ -214,6 +228,8 @@ export class TaskExecutor {
       } catch (err: any) {
         step.status = 'failed';
         step.error = err instanceof Error ? err.message : String(err);
+        step.result = {success:false,verified:false,error:step.error};
+        dbService.addLog(step.tool,step.params,step.result,false,Date.now()-startTime);
         fail(i, `Error executing ${step.tool}: ${step.error}`);
         publish();
         return plan;

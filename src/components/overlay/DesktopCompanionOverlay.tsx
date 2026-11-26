@@ -266,6 +266,8 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
   const handleExecuteQuery = async (query: string) => {
     // Only one automation may be active in this overlay at a time.
     agentEngine.cancelActiveTask();
+    if (approvalResolverRef.current) resolveApproval(false);
+    speechService.stopSpeaking();
     setVoiceTranscript(null);
     setVoiceAlternatives([]);
     clearTimeout(resetTimerRef.current);
@@ -352,6 +354,11 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         }
       });
 
+      // Record the outcome even when the overlay was hidden or superseded.
+      // Rendering is request-scoped, but the local audit trail must survive.
+      if (finalPlan.status === 'cancelled') {
+        dbService.addMessage({id:'msg_'+crypto.randomUUID(),sender:'companio',content:finalPlan.error || 'Task stopped.',timestamp:Date.now(),taskPlan:finalPlan,status:'info'});
+      }
       if (requestId !== requestIdRef.current) return;
       if (finalPlan.status === 'completed') {
         const browserHandoffOnly = finalPlan.steps.length > 0 &&
@@ -456,7 +463,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     requestIdRef.current++;
     agentEngine.cancelActiveTask();
     speechService.stopSpeaking();
-    setActivePlan(previous => previous ? { ...previous, status: 'cancelled' } : null);
+    setActivePlan(previous => previous ? {...previous,status:'cancelled',steps:previous.steps.map(step => step.status==='pending'||step.status==='running'?{...step,status:'cancelled'}:step)} : null);
     setCharacterState('idle');
     setBubbleText('Stopped. Remaining steps will not run; an already-started Windows action may still finish.');
   };

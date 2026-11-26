@@ -101,3 +101,30 @@ test('partial completion reports verified steps before a later failure',async()=
   assert.equal(result.status,'failed');
   assert.match(result.error,/1 earlier step\(s\) verified/);
 });
+
+test('cancelled native call keeps its lease until the underlying operation settles',async()=>{
+ let release,calls=0;
+ const {engine,logs}=createEngine(()=>{calls++;return new Promise(resolve=>{release=resolve;});});
+ const first=engine.executePlan(plan(),()=>{});
+ assert.equal(engine.cancelActiveTask(),true);
+ const result=await first;
+ assert.equal(result.status,'cancelled');
+ assert.equal(result.steps[0].result.outcomeUnknown,true);
+ assert.equal(logs.length,1);
+ await assert.rejects(engine.executePlan(plan(),()=>{}),/previous Windows action/);
+ assert.equal(calls,1);
+ release({success:true,verified:true});
+ await Promise.resolve();
+ const next=engine.executePlan(plan(),()=>{});
+ assert.equal(calls,2);
+ engine.cancelActiveTask();release({success:true,verified:true});
+ await next;
+});
+test('native exceptions leave a failed audit record',async()=>{
+ const {engine,logs}=createEngine(async()=>{throw Error('IPC failure');});
+ const result=await engine.executePlan(plan(),()=>{});
+ assert.equal(result.status,'failed');
+ assert.equal(logs.length,1);
+ assert.equal(logs[0][2].error,'IPC failure');
+ assert.equal(logs[0][3],false);
+});

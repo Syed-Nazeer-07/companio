@@ -15,9 +15,10 @@ export const SpeechBubble: React.FC<Props> = ({ text, state, activePlan, onCance
   if (!text && (!activePlan || activePlan.steps.length === 0) && state === 'idle') return null;
 
   const isExecuting = activePlan?.status === 'executing';
+  const isStopped = activePlan?.status === 'cancelled';
   const isFailed = activePlan?.status === 'failed' || state === 'confused';
   const isCompleted = !!(activePlan && activePlan.steps.length > 0 && activePlan.status === 'completed');
-  const isHandoff = !!(isCompleted && activePlan?.steps.length && activePlan.steps.every(step => step.result?.handoffOnly === true));
+  const isHandoff = !!(isCompleted && activePlan?.steps.length && activePlan.steps.some(step => step.result?.handoffOnly === true));
   const isListening = state === 'listening';
   const isThinking = state === 'thinking';
 
@@ -32,10 +33,12 @@ export const SpeechBubble: React.FC<Props> = ({ text, state, activePlan, onCance
               <><LoaderCircle className="h-3.5 w-3.5 animate-spin text-sky-600" /><span className="text-sky-700">Thinking</span></>
             ) : isListening ? (
               <><Mic2 className="h-3.5 w-3.5 text-emerald-600" /><span className="text-emerald-700">Listening</span></>
+            ) : isStopped ? (
+              <><Square className="h-3.5 w-3.5 text-slate-600" /><span className="text-slate-700">Stopped</span></>
             ) : isFailed ? (
               <><AlertCircle className="h-3.5 w-3.5 text-rose-600" /><span className="text-rose-700">Needs attention</span></>
             ) : isCompleted ? (
-              <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /><span className="text-emerald-700">{isHandoff ? 'Request sent' : 'Done'}</span></>
+              <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /><span className="text-emerald-700">{isHandoff ? 'Handoff reported' : 'Verified'}</span></>
             ) : state === 'sleeping' ? (
               <><Moon className="h-3.5 w-3.5 text-slate-400" /><span className="text-slate-600">Resting</span></>
             ) : <span className="text-slate-500">Companio</span>}
