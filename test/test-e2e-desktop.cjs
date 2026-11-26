@@ -171,6 +171,9 @@ async function run() {
     await dashboard.locator('text=Paused').first().waitFor({ state: 'visible', timeout: 5000 });
     await dashboard.getByRole('button', { name: 'Delete memory' }).click();
     await dashboard.locator('text=Prefers concise engineering summaries without filler').waitFor({ state: 'hidden', timeout: 5000 });
+    await memInput.fill('Workspace OS is Windows 11 ARM64');
+    await dashboard.getByRole('button', { name: 'Save', exact: true }).click();
+    await dashboard.locator('text=Workspace OS is Windows 11 ARM64').waitFor({ state: 'visible', timeout: 5000 });
     report.steps.push('memory_persistence_verified');
 
     // 5. Voice Settings: Offline Whisper ARM64 setup card & engine switching
@@ -197,7 +200,33 @@ async function run() {
     await dashboard.locator('[role="status"]').filter({ hasText: 'Desktop runtime' }).waitFor({ state: 'visible', timeout: 8000 });
     report.steps.push('diagnostics_verified');
 
-    // 8. Overlay interactive commands: math, clarification, cancellation & multi-step approval
+    // 7b. Control Center teardown releases window & preserves state on reopen
+    await dashboard.getByRole('button', { name: 'Show companion' }).click();
+    const waitClosedDeadline = Date.now() + 8000;
+    while (Date.now() < waitClosedDeadline) {
+      const stillOpen = browser.contexts().some((ctx) => ctx.pages().some((p) => p.url().includes('view=dashboard')));
+      if (!stillOpen) break;
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    assert.equal(
+      browser.contexts().some((ctx) => ctx.pages().some((p) => p.url().includes('view=dashboard'))),
+      false,
+      'Control Center window must close on Show companion instead of remaining hidden'
+    );
+    await overlay.evaluate(() => window.companioDesktop.toggleDashboard(true));
+    const dashboardReopened = await findPageByView(browser, 'dashboard', 10000);
+    await dashboardReopened.waitForLoadState('domcontentloaded');
+    await dashboardReopened.getByRole('button', { name: 'Character Studio' }).click();
+    const kikoBtn = dashboardReopened.getByRole('button', { name: /Kiko/i });
+    await kikoBtn.waitFor({ state: 'visible', timeout: 5000 });
+    assert.equal(await kikoBtn.getAttribute('aria-pressed'), 'true');
+    await dashboardReopened.getByRole('button', { name: 'History & Logs' }).click();
+    await dashboardReopened.getByRole('button', { name: /Saved Memory/i }).click();
+    await dashboardReopened.locator('text=Workspace OS is Windows 11 ARM64').waitFor({ state: 'visible', timeout: 5000 });
+    await dashboardReopened.getByRole('button', { name: 'Show companion' }).click();
+    report.steps.push('dashboard_teardown_and_restore_verified');
+
+    // 8. Overlay interactive commands: bare math, model-independent clarification, cancellation & multi-step approval
     const ensureInputOpen = async () => {
       const input = overlay.locator('input[placeholder="Ask Companio..."]');
       if (await input.isVisible().catch(() => false)) return input;
@@ -211,15 +240,15 @@ async function run() {
       return input;
     };
 
-    // (a) Arithmetic calculation stays conversational and closes input
+    // (a) Bare arithmetic expression stays conversational and evaluates without prefix
     let cmdInput = await ensureInputOpen();
-    await cmdInput.fill('calculate 12 * 15');
+    await cmdInput.fill('12 * 15');
     await cmdInput.press('Enter');
     await overlay.locator('.companio-speech').filter({ hasText: '180' }).waitFor({ state: 'visible', timeout: 8000 });
 
-    // (b) Ambiguous command asks clarification and keeps input open
+    // (b) Ambiguous command enforces clarification and keeps input open
     cmdInput = await ensureInputOpen();
-    await cmdInput.fill('set brightness');
+    await cmdInput.fill('Adjust the computer');
     await cmdInput.press('Enter');
     await overlay.locator('.companio-speech').filter({ hasText: 'Clarification' }).waitFor({ state: 'visible', timeout: 8000 });
     assert.equal(await cmdInput.isVisible(), true);
