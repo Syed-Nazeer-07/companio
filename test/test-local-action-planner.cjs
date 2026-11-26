@@ -157,3 +157,34 @@ test('site-search workflows never partially execute unsafe or oversized requests
   assert.deepEqual(plan.steps,[]);
  }
 });
+
+test('model plans cannot omit, reorder or change explicit workflow clauses', async()=>{
+ const query='Open Notepad and set volume to 45';
+ const a={tool:'win.notepad.launch',params:{}},b={tool:'win.volume.set',params:{level:45}};
+ for (const steps of [[a],[b,a],[a,{...b,params:{level:90}}],[a,b,a]]) {
+   const result=await proposeActions({query,model:'x'},async()=>({success:true,reply:json(steps)}));
+   assert.equal(result.success,false);assert.deepEqual(result.steps,[]);
+ }
+});
+test('explicit chain cannot be absorbed into a search term or silently truncated',async()=>{
+ for(const query of ['Search Google for Python and then summarize the results','Search Google for Python and ask it to email me','Open Notepad followed by delete files']) {
+   const offline=planOfflineSequence({query});
+   assert.equal(offline.success,false,query);
+   assert.deepEqual(offline.steps,[]);
+   const modeled=await proposeActions({query,model:'x'},async()=>({success:true,reply:json([{tool:'win.notepad.launch',params:{}}])}));
+   assert.equal(modeled.success,false,query);
+ }
+});
+test('offline workflows support explicit brightness, relative volume and media commands',()=>{
+ const r=planOfflineSequence({query:'Set brightness to 40% and increase volume by 15% and pause music'});
+ assert.equal(r.success,true,r.error);
+ assert.deepEqual(r.steps.map(({tool,params})=>({tool,params})),[
+  {tool:'win.brightness.set',params:{level:40}},
+  {tool:'win.volume.change',params:{delta:15}},
+  {tool:'win.media.control',params:{action:'pause'}}
+ ]);
+});
+test('model cannot append an unrelated step to a known single command',async()=>{
+ const r=await proposeActions({query:'Open Notepad',model:'x'},async()=>({success:true,reply:json([{tool:'win.notepad.launch',params:{}},{tool:'win.volume.set',params:{level:0}}])}));
+ assert.equal(r.success,false);
+});

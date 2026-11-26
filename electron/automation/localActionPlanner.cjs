@@ -12,6 +12,8 @@ const TOOL_SPECS = Object.freeze({
   'win.vscode.launch': [],
   'win.explorer.open': ['folder'],
   'win.volume.set': ['level'],
+  'win.volume.change': ['delta'],
+  'win.brightness.set': ['level'],
   'win.volume.mute': ['mute'],
   'win.media.control': ['action'],
   'browser.youtube.open': [],
@@ -30,7 +32,7 @@ const MODEL_INSTRUCTIONS = [
   'Use ONLY these tool names and parameter keys:',
   'win.calculator.launch {}, win.notepad.launch {}, win.spotify.launch {}, win.vscode.launch {},',
   'win.explorer.open {"folder":"Downloads|Documents|Desktop|Pictures|Music|Videos"},',
-  'win.volume.set {"level":0..100}, win.volume.mute {"mute":true|false},',
+  'win.volume.set {"level":0..100}, win.volume.change {"delta":-100..100}, win.volume.mute {"mute":true|false}, win.brightness.set {"level":0..100},',
   'win.media.control {"action":"play|pause|next|previous"},',
   'browser.youtube.open {}, browser.youtube.search_and_play {"creator":"name","topic":"optional","latest":true|false},',
   'browser.search_google {"query":"words"}, browser.open_url {"url":"https://example.com"},',
@@ -77,6 +79,8 @@ function descriptionFor(action) {
     'win.vscode.launch': 'Open Visual Studio Code',
     'win.explorer.open': 'Open File Explorer' + (params.folder ? ' — ' + params.folder : ''),
     'win.volume.set': 'Set system volume to ' + params.level + '%',
+    'win.volume.change': 'Change system volume by ' + params.delta + ' percentage points',
+    'win.brightness.set': 'Set display brightness to ' + params.level + '%',
     'win.volume.mute': params.mute ? 'Mute system sound' : 'Unmute system sound',
     'win.media.control': 'Media control: ' + params.action,
     'browser.youtube.open': 'Open YouTube',
@@ -128,7 +132,9 @@ async function proposeActions(options = {}, chatImpl = localAi.chat) {
       maxTokens: 650
     });
     if (!response?.success) throw new Error(response?.error || 'Could not reach the selected local model.');
-    return { success: true, steps: validateProposal(response.reply), requiresConfirmation: true };
+    const steps = validateProposal(response.reply);
+    validateRequestCoverage(options.query, steps);
+    return { success: true, steps, requiresConfirmation: true };
   } catch (error) {
     return { success: false, steps: [], error: error.message || 'Cannot create a safe action plan.' };
   }
@@ -137,7 +143,7 @@ async function proposeActions(options = {}, chatImpl = localAi.chat) {
 
 // Offline compound commands use fixed grammar and the exact same native
 // allowlist/parameter validator. They need neither Ollama nor any API key.
-const ACTION_CONNECTOR = /\s+(?:and\s+then|and\s+also|after\s+that|then|and)\s+(?=(?:please\s+)?(?:open|launch|start|search|find|look\s+up|play|pause|mute|unmute|set|change|go\s+to|visit|delete|remove|clear|close|send|email|install|shutdown|restart|run|copy|move|type|write)\b)/i;
+const ACTION_CONNECTOR = /\s+(?:(?:and\s+then|and\s+also|after\s+that|followed\s+by|then)\s+|and\s+(?=(?:please\s+)?(?:open|launch|start|search|find|look\s+up|play|pause|resume|mute|unmute|set|change|increase|decrease|raise|lower|go\s+to|visit|show|take|capture|save|read|check|get|delete|remove|clear|empty|close|send|email|install|shutdown|restart|run|copy|move|type|write|ask|summarize|click|navigate|lock|stop|skip)\b))/i;
 
 function offlineClause(raw) {
   const text = raw.trim()
@@ -162,6 +168,12 @@ function offlineClause(raw) {
     return { tool: 'win.explorer.open', params: { folder: m[1][0].toUpperCase() + m[1].slice(1).toLowerCase() } };
   if ((m = text.match(/^(?:set|change)\s+(?:(?:the|my)\s+)?(?:system\s+)?volume\s+(?:to\s+)?(\d{1,3})\s*%?$/i)))
     return { tool: 'win.volume.set', params: { level: Number(m[1]) } };
+  if ((m = text.match(/^(?:set|change)\s+(?:(?:the|my)\s+)?(?:screen\s+|display\s+)?brightness\s+(?:to\s+)?(\d{1,3})\s*%?$/i)))
+    return {tool:'win.brightness.set',params:{level:Number(m[1])}};
+  if ((m = text.match(/^(increase|raise|decrease|lower)\s+(?:(?:the|my)\s+)?(?:system\s+)?volume\s+by\s+(\d{1,3})\s*(?:%|percentage points?)?$/i)))
+    return {tool:'win.volume.change',params:{delta:Number(m[2]) * (/^(increase|raise)$/i.test(m[1])?1:-1)}};
+  if ((m = text.match(/^(play|pause|resume|skip|next|previous)\s+(?:the\s+)?(?:music|playback|song|track)$/i)))
+    return {tool:'win.media.control',params:{action:({resume:'play',skip:'next'})[m[1].toLowerCase()]||m[1].toLowerCase()}};
   if (/^mute\s+(?:the\s+)?(?:(?:system|my)\s+)?(?:audio|volume|sound)$/i.test(text))
     return { tool: 'win.volume.mute', params: { mute: true } };
   if (/^unmute\s+(?:the\s+)?(?:(?:system|my)\s+)?(?:audio|volume|sound)$/i.test(text))
@@ -223,6 +235,27 @@ function offlineClause(raw) {
   if ((m = text.match(/^search\s+(?:google\s+)?maps\s+(?:for\s+)?(.+)$/i)))
     return { tool: 'browser.maps.search', params: { query: m[1].trim() } };
   return null;
+}
+
+// For explicitly separable workflows, require one corresponding action per
+// clause. Known deterministic clauses must match the requested arguments.
+// Unknown clauses are not silently approximated with a different tool.
+function validateRequestCoverage(query, steps) {
+  const parts = query.trim().split(ACTION_CONNECTOR);
+  const known = parts.map(offlineClause);
+  if (parts.length > 1 && (parts.length !== steps.length || known.some(action => !action))) {
+    throw new Error('The full workflow could not be verified against supported actions. Split or rephrase the request.');
+  }
+  for (let i=0;i<known.length;i++) {
+    if (!known[i]) continue;
+    const expected = validatedAction(known[i]);
+    const actual = steps[i];
+    if (!actual || expected.tool !== actual.tool ||
+      JSON.stringify(Object.entries(expected.params).sort()) !== JSON.stringify(Object.entries(actual.params).sort())) {
+      throw new Error('The model changed a requested action or parameter. No actions were executed.');
+    }
+  }
+  if (parts.length === 1 && known[0] && steps.length !== 1) throw new Error('The model added unrequested actions.');
 }
 
 function planOfflineSequence(options = {}) {

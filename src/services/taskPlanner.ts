@@ -47,7 +47,7 @@ export class TaskPlanner {
     const explicitAction = /^(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:open|launch|start|search|find|look\s+up|play|pause|mute|unmute|set|change|go\s+to|visit|show|take|capture|save|add|read|check|get|clear|delete|empty|close|quit|lock|skip|stop|increase|decrease|raise|lower|dim)\b/i.test(command);
     // "Tom and Jerry" is not a two-step instruction, but "open YouTube
     // and play ..." is. Never run only the first half of an unsupported chain.
-    const multiAction = /\b(?:and\s+then|then|and\s+also|after\s+that|followed\s+by|and\s+(?=(?:please\s+)?(?:open|launch|start|search|find|look\s+up|play|pause|mute|unmute|set|change|go\s+to|visit|show|ask|send|write|type|click|navigate|delete|clear)\b))/i.test(command);
+    const multiAction = /\b(?:and\s+then|then|and\s+also|after\s+that|followed\s+by|and\s+(?=(?:please\s+)?(?:open|launch|start|search|find|look\s+up|play|pause|mute|unmute|set|change|go\s+to|visit|show|ask|send|write|type|click|navigate|delete|clear|remove|empty|close|take|capture|save|read|check|get|install|shutdown|restart|run|copy|move|summarize|lock|stop|skip|increase|decrease|raise|lower|resume)\b))/i.test(command);
     if (explicitAction && multiAction) {
       const offline = await desktopBridge.planOfflineSequence({ query: command });
       if (offline.success && offline.steps?.length && offline.requiresConfirmation === true) {
@@ -71,6 +71,12 @@ export class TaskPlanner {
         }],
         currentStepIndex: 0, status: 'planning', createdAt: Date.now()
       };
+    }
+
+    // Requests to write, read or modify content must not fall through to a
+    // keyword-based app launch just because a known app name was mentioned.
+    if (/^(?:write|type|send|email|summarize|install|run|copy|move|click|navigate|delete|remove)\b/i.test(command)) {
+      throw new Error('That operation is not supported directly. No actions were executed.');
     }
 
     // 1. Named websites. Exact Google Home intent is handled here so an
