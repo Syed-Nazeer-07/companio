@@ -310,10 +310,13 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       if (requestId !== requestIdRef.current) return;
       setActivePlan(plan);
 
-      // If purely conversational
+      // If purely conversational or needs clarification
       if (plan.steps.length === 0) {
         const reply = plan.finalMessage || 'Understood!';
         setBubbleText(reply);
+        if (plan.clarificationNeeded) {
+          setIsInputOpen(true);
+        }
         const canSpeak = !settings.voice.muted && typeof window !== 'undefined' && 'speechSynthesis' in window;
         if (canSpeak) {
           setCharacterState('talking');
@@ -535,6 +538,9 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         state={characterState}
         activePlan={activePlan}
         onCancel={handleCancelTask}
+        onRetry={activePlan?.status === 'failed' && activePlan.retryable && activePlan.steps.length === 1
+          ? () => { void handleExecuteQuery(activePlan.query); }
+          : undefined}
         audioLevel={audioLevel}
       />
 

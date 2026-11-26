@@ -2,6 +2,7 @@ import { TaskPlan } from '../types';
 import { desktopBridge } from './desktopBridge';
 import { dbService } from './dbService';
 import { getDelightfulSuccessMessage, verifiedOutcome } from './taskVerification';
+import { classifyFailureRecovery } from './failureRecovery';
 
 // Never let a slow external process freeze Companio indefinitely. A timed-out
 // Windows action may still complete, so the caller must NOT retry it silently.
@@ -86,6 +87,9 @@ export class TaskExecutor {
       const handedOff = plan.steps.slice(0, index).filter(step => step.status === 'success' && step.result?.handoffOnly).length;
       const remaining = plan.steps.length - index - 1;
       plan.error = `${reason}${verified ? ` ${verified} earlier step(s) verified.` : ''}${handedOff ? ` ${handedOff} earlier request(s) handed off to Windows.` : ''}${remaining ? ` ${remaining} remaining step(s) were not run.` : ''}`;
+      const recovery = classifyFailureRecovery(plan.steps[index]?.tool || '', reason);
+      plan.recoveryHint = recovery.hint;
+      plan.retryable = recovery.retryable;
     };
 
     // Release the active controller on every outcome, including early failure

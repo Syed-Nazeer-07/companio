@@ -1,23 +1,25 @@
 import React from 'react';
 import { TaskPlan, CharacterState } from '../../types';
 import { AudioVisualizer } from './AudioVisualizer';
-import { CheckCircle2, AlertCircle, Square, LoaderCircle, Mic2, Moon } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Square, LoaderCircle, Mic2, Moon, HelpCircle, RotateCcw } from 'lucide-react';
 
 interface Props {
   text: string;
   state: CharacterState;
   activePlan?: TaskPlan | null;
   onCancel?: () => void;
+  onRetry?: () => void;
   audioLevel?: number;
 }
 
-export const SpeechBubble: React.FC<Props> = ({ text, state, activePlan, onCancel }) => {
+export const SpeechBubble: React.FC<Props> = ({ text, state, activePlan, onCancel, onRetry }) => {
   if (!text && (!activePlan || activePlan.steps.length === 0) && state === 'idle') return null;
 
+  const isClarification = activePlan?.clarificationNeeded === true;
   const isExecuting = activePlan?.status === 'executing';
   const isStopped = activePlan?.status === 'cancelled';
-  const isFailed = activePlan?.status === 'failed' || state === 'confused';
-  const isCompleted = !!(activePlan && activePlan.steps.length > 0 && activePlan.status === 'completed');
+  const isFailed = !isClarification && (activePlan?.status === 'failed' || state === 'confused');
+  const isCompleted = !isClarification && !!(activePlan && activePlan.steps.length > 0 && activePlan.status === 'completed');
   const isHandoff = !!(isCompleted && activePlan?.steps.length && activePlan.steps.some(step => step.result?.handoffOnly === true));
   const isListening = state === 'listening';
   const isThinking = state === 'thinking';
@@ -31,6 +33,8 @@ export const SpeechBubble: React.FC<Props> = ({ text, state, activePlan, onCance
               <><LoaderCircle className="h-3.5 w-3.5 animate-spin text-sky-600" /><span className="text-sky-700">Working</span></>
             ) : isThinking ? (
               <><LoaderCircle className="h-3.5 w-3.5 animate-spin text-sky-600" /><span className="text-sky-700">Thinking</span></>
+            ) : isClarification ? (
+              <><HelpCircle className="h-3.5 w-3.5 text-amber-600" /><span className="text-amber-700">Clarification</span></>
             ) : isListening ? (
               <><Mic2 className="h-3.5 w-3.5 text-emerald-600" /><span className="text-emerald-700">Listening</span></>
             ) : isStopped ? (
@@ -51,11 +55,22 @@ export const SpeechBubble: React.FC<Props> = ({ text, state, activePlan, onCance
                 <Square className="h-2.5 w-2.5 fill-current" /> Stop
               </button>
             )}
+            {isFailed && onRetry && (
+              <button type="button" onClick={onRetry} title="Retry this command"
+                className="app-no-drag inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100">
+                <RotateCcw className="h-2.5 w-2.5" /> Retry
+              </button>
+            )}
           </div>
         </div>
         <p className="max-h-[150px] overflow-y-auto whitespace-pre-wrap break-words text-[13px] font-normal leading-[1.55] text-slate-800 select-text">
           {text || (isExecuting ? activePlan?.steps[activePlan?.currentStepIndex ?? 0]?.description : '')}
         </p>
+        {isFailed && activePlan?.recoveryHint && (
+          <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50/70 px-2.5 py-1.5 text-[11px] leading-snug text-amber-900">
+            {activePlan.recoveryHint}
+          </p>
+        )}
         {activePlan && activePlan.steps.length > 1 && (isExecuting || activePlan.status === 'planning' || activePlan.status === 'failed' || activePlan.status === 'cancelled' || isCompleted) && (
           <div className="mt-2.5 space-y-1 border-t border-slate-100 pt-2">
             {activePlan.steps.map((step, idx) => (

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, globalShortcut, ipcMain, screen, Tray, Menu, nativeImage, session, dialog, shell, desktopCapturer } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, screen, Tray, Menu, nativeImage, session, dialog, shell, desktopCapturer, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { fileURLToPath } = require('url');
@@ -17,6 +17,8 @@ const { WhisperModelInstaller } = require('./automation/whisperModelInstaller.cj
 const { WhisperBinaryInstaller } = require('./automation/whisperBinaryInstaller.cjs');
 const localAiController = require('./automation/localAiController.cjs');
 const localActionPlanner = require('./automation/localActionPlanner.cjs');
+const { SecretStore } = require('./automation/secretStore.cjs');
+const cloudAiController = require('./automation/cloudAiController.cjs');
 const historyBackupController = require('./automation/historyBackupController.cjs');
 const { NativeHistoryStore } = require('./automation/nativeHistoryStore.cjs');
 const { MemoryStore } = require('./automation/memoryStore.cjs');
@@ -45,6 +47,7 @@ if (SMOKE_TEST) app.disableHardwareAcceleration();
 const CONFIG_PATH = path.join(app.getPath('userData'), 'companio_window_config.json');
 const nativeHistoryStore = new NativeHistoryStore(path.join(app.getPath('userData'), 'companio_history_v1.json'));
 const memoryStore = new MemoryStore(path.join(app.getPath('userData'), 'companio_memory_v1.json'));
+const secretStore = new SecretStore({ filePath: path.join(app.getPath('userData'), 'companio_secrets_v1.json'), safeStorageImpl: safeStorage });
 browserController.configureProfileDirectory(path.join(app.getPath('userData'), 'controlled_edge_profile'));
 const defaultBrowser = new DefaultBrowserController(shell);
 const youtubeFeed = new YoutubeFeedController({ browser: defaultBrowser });
@@ -554,7 +557,12 @@ secureHandle('set-startup-enabled', (_event, enabled) => startupController.setEn
 secureHandle('local-ai-models', async (_, options) => localAiController.listModels(options));
 secureHandle('local-ai-discover', async (_, options) => localAiController.discoverLocalAi(options));
 secureHandle('local-ai-chat', async (_, options) => localAiController.chat(options));
-secureHandle('local-ai-plan', async (_, options) => localActionPlanner.proposeActions(options));
+secureHandle('local-ai-plan', async (_, options) => localActionPlanner.proposeActions({ ...(options || {}), jsonMode: true, allowRepair: true }));
+secureHandle('cloud-ai-status', async () => secretStore.status());
+secureHandle('cloud-ai-set-key', async (_, payload) => secretStore.setKey(payload?.provider, payload?.apiKey));
+secureHandle('cloud-ai-clear-key', async (_, provider) => secretStore.clearKey(provider));
+secureHandle('cloud-ai-chat', async (_, options) => cloudAiController.chatCloud(options, { secretStore }));
+secureHandle('cloud-ai-plan', async (_, options) => cloudAiController.proposeCloudActions(options, { secretStore }));
 secureHandle('offline-sequence', async (_, options) => localActionPlanner.planOfflineSequence(options));
 secureHandle('history-validate-import', async (_, content) => historyBackupController.validateHistoryBackup(content));
 secureHandle('history-store-load', async () => nativeHistoryStore.load());

@@ -116,6 +116,21 @@ export async function generateConversationalResponse(query: string, aiConfig?: A
       return result.reply;
     }
 
+    if (aiConfig?.provider && ['openai', 'gemini', 'anthropic'].includes(aiConfig.provider)) {
+      const result = await desktopBridge.chatCloudAi({
+        provider: aiConfig.provider as 'openai' | 'gemini' | 'anthropic',
+        model: aiConfig.model,
+        prompt: query,
+        history: aiConfig.useConversationContext === true ? recentConversation(dbService.getMessages(), query) : undefined,
+        systemPrompt: systemWithMemory,
+        temperature: aiConfig.temperature
+      });
+      if (!result.success || !result.reply) {
+        throw new Error((result.error || 'The cloud AI provider did not reply.') + ' Check your encrypted API key in AI Intelligence or switch to Built-in mode.');
+      }
+      return result.reply;
+    }
+
     if (/^what\s+do\s+you\s+remember(?:\s+about\b|\s*$)/i.test(q)) {
       if (aiConfig?.useLongTermMemory === false) {
         return 'Long-term memory retrieval is paused in History & Logs settings.';

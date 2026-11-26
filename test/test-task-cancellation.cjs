@@ -14,7 +14,7 @@ function createEngine(executeTool) {
   vm.runInNewContext(output,{
     exports,Date,Math,Array,Number,Error,AbortController,console,setTimeout,clearTimeout,
     require: function load(name) {
-    if (['./taskPlanner','./taskExecutor','./taskVerification','./conversationContext','./memoryRetrieval'].includes(name)) {
+    if (['./taskPlanner','./taskExecutor','./taskVerification','./conversationContext','./memoryRetrieval','./failureRecovery'].includes(name)) {
       const moduleExports={};
       const moduleSource=fs.readFileSync(path.join(__dirname,'../src/services',name.slice(2)+'.ts'),'utf8');
       const compiled=ts.transpileModule(moduleSource,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
@@ -176,6 +176,10 @@ test('pomodoro requests notification permission when default and tracks timer ha
   }).outputText;
   const verificationExports = {};
   vm.runInNewContext(compiledVerification, { exports: verificationExports, Date, Math, Array, Number, Error, Promise });
+  const recoverySource = fs.readFileSync(path.join(__dirname, '../src/services/failureRecovery.ts'), 'utf8');
+  const compiledRecovery = ts.transpileModule(recoverySource, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const recoveryExports = {};
+  vm.runInNewContext(compiledRecovery, { exports: recoveryExports, String });
 
   vm.runInNewContext(compiledExecutor, {
     exports: executorExports,
@@ -187,6 +191,7 @@ test('pomodoro requests notification permission when default and tracks timer ha
       if (name === './desktopBridge') return { desktopBridge: { executeTool: async () => ({}) } };
       if (name === './dbService') return { dbService: { addLog: () => {} } };
       if (name === './taskVerification') return verificationExports;
+      if (name === './failureRecovery') return recoveryExports;
       throw Error('Unexpected import ' + name);
     }
   });

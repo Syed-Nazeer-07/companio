@@ -42,7 +42,12 @@ interface CompanioDesktopAPI {
     success: boolean; endpoint?: string; models: string[]; checkedEndpoints: number; error?: string;
   }>;
   chatLocalAi?: (options: { endpoint?: string; model: string; prompt: string; history?: Array<{ role: 'user' | 'assistant'; content: string }>; systemPrompt?: string; temperature?: number }) => Promise<{ success: boolean; reply?: string; error?: string }>;
-  planLocalActions?: (options: { endpoint?: string; model: string; query: string }) => Promise<{ success: boolean; steps?: Array<{tool: string; params: Record<string, any>; description: string}>; requiresConfirmation?: boolean; error?: string }>;
+  planLocalActions?: (options: { endpoint?: string; model: string; query: string }) => Promise<{ success: boolean; needsClarification?: boolean; clarification?: string; steps?: Array<{tool: string; params: Record<string, any>; description: string}>; requiresConfirmation?: boolean; error?: string }>;
+  getCloudAiStatus?: () => Promise<{ success: boolean; encryptionAvailable: boolean; providers: Record<'openai' | 'gemini' | 'anthropic', { configured: boolean; hint: string | null }>; error?: string }>;
+  setCloudAiKey?: (provider: 'openai' | 'gemini' | 'anthropic', apiKey: string) => Promise<{ success: boolean; configured?: boolean; hint?: string; error?: string }>;
+  clearCloudAiKey?: (provider: 'openai' | 'gemini' | 'anthropic') => Promise<{ success: boolean; configured?: boolean; error?: string }>;
+  chatCloudAi?: (options: { provider: 'openai' | 'gemini' | 'anthropic'; model?: string; prompt: string; history?: Array<{ role: 'user' | 'assistant'; content: string }>; systemPrompt?: string; temperature?: number }) => Promise<{ success: boolean; reply?: string; model?: string; error?: string }>;
+  planCloudActions?: (options: { provider: 'openai' | 'gemini' | 'anthropic'; model?: string; query: string }) => Promise<{ success: boolean; needsClarification?: boolean; clarification?: string; steps?: Array<{tool: string; params: Record<string, any>; description: string}>; requiresConfirmation?: boolean; error?: string }>;
   planOfflineSequence?: (options: {query: string}) => Promise<{success: boolean; recognized: boolean; steps?: Array<{tool: string; params: Record<string, any>; description: string}>; requiresConfirmation?: boolean; error?: string}>;
   validateHistoryImport?: (content: string) => Promise<{
     success: boolean;
@@ -356,6 +361,8 @@ export const desktopBridge = {
 
   async planLocalActions(options: { endpoint?: string; model: string; query: string }): Promise<{
     success: boolean;
+    needsClarification?: boolean;
+    clarification?: string;
     steps?: Array<{ tool: string; params: Record<string, any>; description: string }>;
     requiresConfirmation?: boolean;
     error?: string;
@@ -364,6 +371,62 @@ export const desktopBridge = {
     return api?.planLocalActions
       ? api.planLocalActions(options)
       : { success: false, steps: [], error: 'AI action planning requires the Companio desktop app.' };
+  },
+
+  async getCloudAiStatus(): Promise<{
+    success: boolean;
+    encryptionAvailable: boolean;
+    providers: Record<'openai' | 'gemini' | 'anthropic', { configured: boolean; hint: string | null }>;
+    error?: string;
+  }> {
+    const api = getDesktopAPI();
+    return api?.getCloudAiStatus
+      ? api.getCloudAiStatus()
+      : {
+        success: false,
+        encryptionAvailable: false,
+        providers: {
+          openai: { configured: false, hint: null },
+          gemini: { configured: false, hint: null },
+          anthropic: { configured: false, hint: null }
+        },
+        error: 'Encrypted API key storage requires the Windows desktop app.'
+      };
+  },
+
+  async setCloudAiKey(provider: 'openai' | 'gemini' | 'anthropic', apiKey: string): Promise<{ success: boolean; configured?: boolean; hint?: string; error?: string }> {
+    const api = getDesktopAPI();
+    return api?.setCloudAiKey
+      ? api.setCloudAiKey(provider, apiKey)
+      : { success: false, error: 'Encrypted API key storage requires the Windows desktop app.' };
+  },
+
+  async clearCloudAiKey(provider: 'openai' | 'gemini' | 'anthropic'): Promise<{ success: boolean; configured?: boolean; error?: string }> {
+    const api = getDesktopAPI();
+    return api?.clearCloudAiKey
+      ? api.clearCloudAiKey(provider)
+      : { success: false, error: 'Encrypted API key storage requires the Windows desktop app.' };
+  },
+
+  async chatCloudAi(options: { provider: 'openai' | 'gemini' | 'anthropic'; model?: string; prompt: string; history?: Array<{ role: 'user' | 'assistant'; content: string }>; systemPrompt?: string; temperature?: number }): Promise<{ success: boolean; reply?: string; model?: string; error?: string }> {
+    const api = getDesktopAPI();
+    return api?.chatCloudAi
+      ? api.chatCloudAi(options)
+      : { success: false, error: 'Cloud AI requires the Companio desktop app.' };
+  },
+
+  async planCloudActions(options: { provider: 'openai' | 'gemini' | 'anthropic'; model?: string; query: string }): Promise<{
+    success: boolean;
+    needsClarification?: boolean;
+    clarification?: string;
+    steps?: Array<{ tool: string; params: Record<string, any>; description: string }>;
+    requiresConfirmation?: boolean;
+    error?: string;
+  }> {
+    const api = getDesktopAPI();
+    return api?.planCloudActions
+      ? api.planCloudActions(options)
+      : { success: false, steps: [], error: 'Cloud AI action planning requires the Companio desktop app.' };
   },
 
   async planOfflineSequence(options: { query: string }): Promise<{

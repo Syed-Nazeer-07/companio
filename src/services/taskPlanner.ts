@@ -96,7 +96,33 @@ export class TaskPlanner {
         return this.buildApprovedActionPlan(query, planId, 'builtin_sequence', offline.steps);
       }
       if (aiConfig?.provider === 'local') return this.planSafeLocalActions(query, aiConfig, planId);
+      if (aiConfig?.provider && ['openai', 'gemini', 'anthropic'].includes(aiConfig.provider)) {
+        return this.planSafeCloudActions(query, aiConfig, planId);
+      }
       throw new Error(offline.error || 'This multi-step command is not fully supported. No actions were executed.');
+    }
+
+    // Clarify ambiguous under-specified commands rather than guessing silently.
+    if (/^(?:open|show)\s+(?:my|the|a)\s+folder[.!?]?$/i.test(command)) {
+      return {
+        id: planId, query, intent: 'clarification', steps: [], currentStepIndex: 0,
+        status: 'completed', createdAt: Date.now(), clarificationNeeded: true,
+        finalMessage: 'Which folder would you like me to open — Downloads, Documents, Desktop, Pictures, Music, or Videos?'
+      };
+    }
+    if (/^(?:open|launch|start|close|mute|unmute)\s+(?:it|that|this|something)[.!?]?$/i.test(command)) {
+      return {
+        id: planId, query, intent: 'clarification', steps: [], currentStepIndex: 0,
+        status: 'completed', createdAt: Date.now(), clarificationNeeded: true,
+        finalMessage: 'Which app, website, or Windows setting would you like me to act on?'
+      };
+    }
+    if (/^(?:set|change)\s+(?:the\s+|my\s+)?(?:screen\s+|display\s+)?brightness[.!?]?$/i.test(command)) {
+      return {
+        id: planId, query, intent: 'clarification', steps: [], currentStepIndex: 0,
+        status: 'completed', createdAt: Date.now(), clarificationNeeded: true,
+        finalMessage: 'What brightness level (0–100%) would you like? Try "set brightness to 60%".'
+      };
     }
 
     // Explicit arithmetic calculations belong to the instant math solver rather
@@ -967,6 +993,9 @@ export class TaskPlanner {
     if (aiConfig?.provider === 'local' && explicitAction && steps.length === 0) {
       return this.planSafeLocalActions(query, aiConfig, planId);
     }
+    if (aiConfig?.provider && ['openai', 'gemini', 'anthropic'].includes(aiConfig.provider) && explicitAction && steps.length === 0) {
+      return this.planSafeCloudActions(query, aiConfig, planId);
+    }
 
     const conversationalReply = steps.length === 0
       ? await this.generateConversationalResponse(query, aiConfig)
@@ -1018,8 +1047,34 @@ export class TaskPlanner {
       model: aiConfig.model || 'llama3.2:1b',
       query
     });
+    if (proposal.needsClarification && proposal.clarification) {
+      return {
+        id: planId, query, intent: 'clarification', steps: [], currentStepIndex: 0,
+        status: 'completed', createdAt: Date.now(), clarificationNeeded: true,
+        finalMessage: proposal.clarification
+      };
+    }
     if (!proposal.success || !proposal.steps?.length || proposal.requiresConfirmation !== true) {
       throw new Error(proposal.error || 'No safe actions could be planned. Try a simpler request.');
+    }
+    return this.buildApprovedActionPlan(query, planId, 'local_ai_actions', proposal.steps);
+  }
+
+  private async planSafeCloudActions(query: string, aiConfig: AiConfig, planId: string): Promise<TaskPlan> {
+    const proposal = await desktopBridge.planCloudActions({
+      provider: aiConfig.provider as 'openai' | 'gemini' | 'anthropic',
+      model: aiConfig.model,
+      query
+    });
+    if (proposal.needsClarification && proposal.clarification) {
+      return {
+        id: planId, query, intent: 'clarification', steps: [], currentStepIndex: 0,
+        status: 'completed', createdAt: Date.now(), clarificationNeeded: true,
+        finalMessage: proposal.clarification
+      };
+    }
+    if (!proposal.success || !proposal.steps?.length || proposal.requiresConfirmation !== true) {
+      throw new Error(proposal.error || 'No safe actions could be planned with cloud AI. Try a simpler request.');
     }
     return this.buildApprovedActionPlan(query, planId, 'local_ai_actions', proposal.steps);
   }

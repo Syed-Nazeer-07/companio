@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { validateProposal, proposeActions, planOfflineSequence } = require('../electron/automation/localActionPlanner.cjs');
+const { validateProposal, parseClarification, proposeActions, planOfflineSequence } = require('../electron/automation/localActionPlanner.cjs');
 
 const json = steps => JSON.stringify({steps});
 test('proposes 1 to 3 verified, allowlisted actions with trustworthy descriptions', async () => {
@@ -187,4 +187,39 @@ test('offline workflows support explicit brightness, relative volume and media c
 test('model cannot append an unrelated step to a known single command',async()=>{
  const r=await proposeActions({query:'Open Notepad',model:'x'},async()=>({success:true,reply:json([{tool:'win.notepad.launch',params:{}},{tool:'win.volume.set',params:{level:0}}])}));
  assert.equal(r.success,false);
+});
+
+test('supports clarification JSON, case-insensitive folders, stringified numbers, and single-pass JSON repair', async () => {
+  const c = parseClarification('{"steps":[],"clarification":"Which folder would you like to open?"}');
+  assert.equal(c, 'Which folder would you like to open?');
+
+  const clarPlan = await proposeActions(
+    { query: 'open something', model: 'x' },
+    async () => ({ success: true, reply: '{"steps":[],"clarification":"Which app should I open?"}' })
+  );
+  assert.equal(clarPlan.success, false);
+  assert.equal(clarPlan.needsClarification, true);
+  assert.equal(clarPlan.clarification, 'Which app should I open?');
+
+  const coerced = validateProposal(JSON.stringify({
+    steps: [
+      { tool: 'win.explorer.open', params: { folder: 'downloads' } },
+      { tool: 'win.volume.set', params: { level: '45' } }
+    ]
+  }));
+  assert.equal(coerced[0].params.folder, 'Downloads');
+  assert.equal(coerced[1].params.level, 45);
+
+  let calls = 0;
+  const repaired = await proposeActions(
+    { query: 'Check battery and get system specs', model: 'x', allowRepair: true, jsonMode: true },
+    async () => {
+      calls++;
+      if (calls === 1) return { success: true, reply: 'Here is the plan: invalid prose' };
+      return { success: true, reply: JSON.stringify({ steps: [{ tool: 'win.battery.get', params: {} }, { tool: 'win.system.specs', params: {} }] }) };
+    }
+  );
+  assert.equal(calls, 2);
+  assert.equal(repaired.success, true);
+  assert.deepEqual(repaired.steps.map(s => s.tool), ['win.battery.get', 'win.system.specs']);
 });

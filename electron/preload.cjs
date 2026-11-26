@@ -72,6 +72,11 @@ const desktopAPI = {
   discoverLocalAi: (options) => ipcRenderer.invoke('local-ai-discover', options),
   chatLocalAi: (options) => ipcRenderer.invoke('local-ai-chat', options),
   planLocalActions: (options) => ipcRenderer.invoke('local-ai-plan', options),
+  getCloudAiStatus: () => ipcRenderer.invoke('cloud-ai-status'),
+  setCloudAiKey: (provider, apiKey) => ipcRenderer.invoke('cloud-ai-set-key', { provider, apiKey }),
+  clearCloudAiKey: (provider) => ipcRenderer.invoke('cloud-ai-clear-key', provider),
+  chatCloudAi: (options) => ipcRenderer.invoke('cloud-ai-chat', options),
+  planCloudActions: (options) => ipcRenderer.invoke('cloud-ai-plan', options),
   planOfflineSequence: (options) => ipcRenderer.invoke('offline-sequence', options),
 
   // Local history backup import is validated by the trusted main process.

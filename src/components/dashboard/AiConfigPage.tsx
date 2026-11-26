@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { AppSettings } from '../../types';
-import { Cpu, CheckCircle2, AlertCircle, RefreshCw, Zap, Server, Send } from 'lucide-react';
-import { desktopBridge } from '../../services/desktopBridge';
+import { Cpu, CheckCircle2, AlertCircle, RefreshCw, Zap, Server, Send, ShieldCheck, KeyRound, Trash2 } from 'lucide-react';
+import { desktopBridge, isNativeDesktop } from '../../services/desktopBridge';
 
 const DEFAULT_LOCAL_ENDPOINT = 'http://127.0.0.1:11434/v1';
+const CLOUD_DEFAULT_MODELS: Record<'openai' | 'gemini' | 'anthropic', string> = {
+  openai: 'gpt-4o-mini',
+  gemini: 'gemini-2.0-flash',
+  anthropic: 'claude-3-5-haiku-latest'
+};
 
 interface Props {
   settings: AppSettings;
@@ -20,10 +25,27 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
   const [testReply, setTestReply] = useState<string | null>(null);
   const [isTestingPrompt, setIsTestingPrompt] = useState<boolean>(false);
 
+  // Cloud DPAPI credentials (write-only; decrypted strictly in Electron main process)
+  const [cloudStatus, setCloudStatus] = useState<Awaited<ReturnType<typeof desktopBridge.getCloudAiStatus>> | null>(null);
+  const [cloudKeyDraft, setCloudKeyDraft] = useState('');
+  const [cloudKeyFeedback, setCloudKeyFeedback] = useState('');
+  const [savingCloudKey, setSavingCloudKey] = useState(false);
+
+  const isCloudProvider = ['openai', 'gemini', 'anthropic'].includes(settings.ai.provider);
+  const activeCloudProvider = (isCloudProvider ? settings.ai.provider : 'openai') as 'openai' | 'gemini' | 'anthropic';
+
+  const refreshCloudStatus = async () => {
+    try {
+      const status = await desktopBridge.getCloudAiStatus();
+      setCloudStatus(status);
+    } catch {}
+  };
+
   useEffect(() => {
     if (settings.ai.provider === 'local') {
       void autoDetectOllama();
     }
+    void refreshCloudStatus();
   }, []);
 
   const autoDetectOllama = async () => {
@@ -90,27 +112,65 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
 
   const handleRunLiveTest = async () => {
     if (!testPrompt.trim()) return;
-    if (!settings.ai.model || settings.ai.model === 'companio-deterministic-v1') {
+    if (settings.ai.provider === 'local' && (!settings.ai.model || settings.ai.model === 'companio-deterministic-v1')) {
       setTestReply('Choose a loaded local model before testing. Use Find Local AI to discover one.');
       return;
     }
     setIsTestingPrompt(true);
     setTestReply(null);
     try {
-      const result = await desktopBridge.chatLocalAi({
-        endpoint: settings.ai.localEndpoint || DEFAULT_LOCAL_ENDPOINT,
-        model: settings.ai.model || detectedLocalModels[0] || 'llama3.2:1b',
-        prompt: testPrompt,
-        temperature: settings.ai.temperature,
-        systemPrompt: settings.ai.systemPrompt
-      });
+      const result = isCloudProvider
+        ? await desktopBridge.chatCloudAi({
+            provider: activeCloudProvider,
+            model: settings.ai.model || CLOUD_DEFAULT_MODELS[activeCloudProvider],
+            prompt: testPrompt,
+            temperature: settings.ai.temperature,
+            systemPrompt: settings.ai.systemPrompt
+          })
+        : await desktopBridge.chatLocalAi({
+            endpoint: settings.ai.localEndpoint || DEFAULT_LOCAL_ENDPOINT,
+            model: settings.ai.model || detectedLocalModels[0] || 'llama3.2:1b',
+            prompt: testPrompt,
+            temperature: settings.ai.temperature,
+            systemPrompt: settings.ai.systemPrompt
+          });
       setTestReply(result.success && result.reply
         ? result.reply
-        : 'Local AI unavailable: ' + (result.error || 'No reply received.'));
+        : 'AI provider unavailable: ' + (result.error || 'No reply received.'));
     } catch (error) {
-      setTestReply('Local AI request failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      setTestReply('AI test request failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setIsTestingPrompt(false);
+    }
+  };
+
+  const handleSaveCloudKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cloudKeyDraft.trim() || savingCloudKey) return;
+    setSavingCloudKey(true);
+    setCloudKeyFeedback('');
+    try {
+      const res = await desktopBridge.setCloudAiKey(activeCloudProvider, cloudKeyDraft.trim());
+      if (res.success) {
+        setCloudKeyDraft('');
+        setCloudKeyFeedback(`API key encrypted and stored via Windows DPAPI (${res.hint || '••••'}).`);
+        await refreshCloudStatus();
+      } else {
+        setCloudKeyFeedback(res.error || 'Could not save encrypted API key.');
+      }
+    } finally {
+      setSavingCloudKey(false);
+    }
+  };
+
+  const handleClearCloudKey = async () => {
+    setCloudKeyFeedback('');
+    const res = await desktopBridge.clearCloudAiKey(activeCloudProvider);
+    if (res.success) {
+      setCloudKeyFeedback('Stored API key removed.');
+      await refreshCloudStatus();
+    } else {
+      setCloudKeyFeedback(res.error || 'Could not remove stored API key.');
     }
   };
 
@@ -178,21 +238,36 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
           </p>
         </div>
 
-        {/* Cloud reasoning is not available yet; don't invite users to store API keys. */}
-        <div aria-disabled="true" className="p-4 rounded-2xl border border-slate-200 bg-slate-50 opacity-75">
+        {/* Option 3: Optional Cloud API (DPAPI Protected) */}
+        <button
+          type="button"
+          onClick={() => onUpdateSettings({
+            ai: {
+              ...settings.ai,
+              provider: isCloudProvider ? activeCloudProvider : 'openai',
+              model: isCloudProvider ? settings.ai.model : CLOUD_DEFAULT_MODELS.openai,
+              apiKey: ''
+            }
+          })}
+          className={`p-4 rounded-2xl border cursor-pointer transition-all text-left ${
+            isCloudProvider
+              ? 'bg-sky-50/70 border-sky-500 ring-2 ring-sky-500/20 shadow-sm'
+              : 'bg-white border-slate-200 hover:border-slate-300'
+          }`}
+        >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <Cpu className="w-4 h-4 text-slate-500" />
-              <span className="text-xs font-bold text-slate-800">Cloud API</span>
+              <Cpu className="w-4 h-4 text-sky-600" />
+              <span className="text-xs font-bold text-slate-900">Cloud API</span>
             </div>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">
-              Not available
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+              {isCloudProvider ? 'Selected' : 'DPAPI Vault'}
             </span>
           </div>
           <p className="text-[11px] text-slate-500 leading-relaxed">
-            Cloud model integration is unfinished. Built-in commands and local AI do not require a paid API key.
+            Optional OpenAI, Gemini, or Anthropic BYOK mode. Keys are encrypted with Windows DPAPI and never written to plain settings.
           </p>
-        </div>
+        </button>
       </div>
 
       {/* Local LLM Active Status & Live Test */}
@@ -311,30 +386,158 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
         </div>
       )}
 
-      {/* Legacy keys are never needed while cloud mode is unsupported. */}
-      {settings.ai.provider === 'local' && (
-        <section className="acrylic-card rounded-xl p-5 border border-slate-200">
+      {/* Cloud API Config + DPAPI Vault */}
+      {isCloudProvider && (
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span className="text-xs font-bold text-slate-900">
+                Cloud Provider & Windows DPAPI Credential Vault
+              </span>
+            </div>
+            <span className="text-[11px] font-semibold text-slate-600">
+              {cloudStatus?.encryptionAvailable
+                ? 'OS DPAPI encryption active'
+                : isNativeDesktop()
+                  ? 'DPAPI unavailable'
+                  : 'Requires installed Windows app'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="text-[11px] font-bold text-slate-600 space-y-1.5">
+              <span className="block">Provider</span>
+              <select
+                aria-label="Cloud AI provider"
+                value={activeCloudProvider}
+                onChange={(e) => {
+                  const nextProvider = e.target.value as 'openai' | 'gemini' | 'anthropic';
+                  setCloudKeyFeedback('');
+                  onUpdateSettings({
+                    ai: { ...settings.ai, provider: nextProvider, model: CLOUD_DEFAULT_MODELS[nextProvider], apiKey: '' }
+                  });
+                }}
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold"
+              >
+                <option value="openai">OpenAI (api.openai.com)</option>
+                <option value="gemini">Google Gemini (generativelanguage.googleapis.com)</option>
+                <option value="anthropic">Anthropic Claude (api.anthropic.com)</option>
+              </select>
+            </label>
+            <label className="text-[11px] font-bold text-slate-600 space-y-1.5">
+              <span className="block">Cloud model ID</span>
+              <input
+                type="text"
+                aria-label="Cloud model ID"
+                value={settings.ai.model || CLOUD_DEFAULT_MODELS[activeCloudProvider]}
+                onChange={(e) => onUpdateSettings({ ai: { ...settings.ai, model: e.target.value } })}
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono"
+              />
+            </label>
+          </div>
+
+          <form onSubmit={(e) => void handleSaveCloudKey(e)} className="space-y-2 pt-2 border-t border-slate-100">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                <KeyRound className="w-3.5 h-3.5 text-sky-600" />
+                <span>
+                  {cloudStatus?.providers?.[activeCloudProvider]?.configured
+                    ? `Encrypted key stored (${cloudStatus.providers[activeCloudProvider].hint || '••••'})`
+                    : `No encrypted ${activeCloudProvider} key stored`}
+                </span>
+              </span>
+              {cloudStatus?.providers?.[activeCloudProvider]?.configured && (
+                <button
+                  type="button"
+                  onClick={() => void handleClearCloudKey()}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-rose-700 hover:underline"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  <span>Clear stored key</span>
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="password"
+                value={cloudKeyDraft}
+                onChange={(e) => setCloudKeyDraft(e.target.value)}
+                placeholder={`Paste ${activeCloudProvider} API key (write-only DPAPI storage)...`}
+                aria-label="Cloud API key"
+                autoComplete="off"
+                className="flex-1 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono"
+              />
+              <button
+                type="submit"
+                disabled={savingCloudKey || !cloudKeyDraft.trim() || !isNativeDesktop()}
+                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold disabled:opacity-50"
+              >
+                {savingCloudKey ? 'Encrypting...' : 'Save Key'}
+              </button>
+            </div>
+            {cloudKeyFeedback && <p role="status" className="text-xs text-slate-700">{cloudKeyFeedback}</p>}
+          </form>
+
+          <div className="pt-2 border-t border-slate-100 space-y-2">
+            <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+              Live Cloud Model Test Prompt:
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={testPrompt}
+                onChange={(e) => setTestPrompt(e.target.value)}
+                placeholder="Ask your configured cloud model..."
+                className="flex-1 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-medium"
+                onKeyDown={(e) => e.key === 'Enter' && handleRunLiveTest()}
+              />
+              <button
+                type="button"
+                onClick={handleRunLiveTest}
+                disabled={isTestingPrompt || !testPrompt.trim()}
+                className="flex items-center gap-1 px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold disabled:opacity-50"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>{isTestingPrompt ? 'Thinking...' : 'Test'}</span>
+              </button>
+            </div>
+            {testReply && (
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800">
+                <span className="font-bold text-sky-700 block mb-1">Companio ({activeCloudProvider}):</span>
+                <p className="leading-relaxed">{testReply}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Conversation continuity & memory toggle */}
+      {(settings.ai.provider === 'local' || isCloudProvider) && (
+        <section className="acrylic-card rounded-xl p-5 border border-slate-200 space-y-4">
           <label className="flex items-start justify-between gap-4">
-            <span><strong className="text-sm text-slate-900">Conversation continuity</strong><span className="block mt-1 text-xs text-slate-600">Opt in to sending up to eight recent chat messages to your configured local model. Notes and action results are excluded. Turn off at any time; existing history can be cleared in History.</span></span>
+            <span><strong className="text-sm text-slate-900">Conversation continuity</strong><span className="block mt-1 text-xs text-slate-600">Opt in to sending up to eight recent chat messages to your configured model. Notes and action results are excluded. Turn off at any time; existing history can be cleared in History.</span></span>
             <input type="checkbox" className="mt-1 h-5 w-5 accent-sky-600" checked={settings.ai.useConversationContext === true} onChange={e => onUpdateSettings({ai:{...settings.ai,useConversationContext:e.target.checked}})} />
+          </label>
+          <label className="flex items-start justify-between gap-4 pt-3 border-t border-slate-100">
+            <span><strong className="text-sm text-slate-900">Relevant long-term memory</strong><span className="block mt-1 text-xs text-slate-600">Include relevant, non-expired saved memories as background context in AI chat. Manage or clear memories anytime in History & Logs.</span></span>
+            <input type="checkbox" className="mt-1 h-5 w-5 accent-sky-600" checked={settings.ai.useLongTermMemory !== false} onChange={e => onUpdateSettings({ai:{...settings.ai,useLongTermMemory:e.target.checked}})} />
           </label>
         </section>
       )}
-      {(settings.ai.apiKey || settings.ai.provider === 'gemini' || settings.ai.provider === 'openai' || settings.ai.provider === 'anthropic') && (
+      {!!settings.ai.apiKey && (
         <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-2">
           <p className="text-xs text-amber-800">
-            Cloud reasoning is not implemented. For a working assistant, choose Built-in Engine or Local Offline LLM.
-            Existing provider keys are stored in local application settings, not a secure vault.
+            A legacy plaintext API key was found in local browser settings. Remove it and use the encrypted DPAPI vault above instead.
           </p>
-          {!!settings.ai.apiKey && (
-            <button
-              type="button"
-              onClick={() => onUpdateSettings({ ai: { ...settings.ai, apiKey: '' } })}
-              className="text-xs font-semibold text-rose-700 underline underline-offset-2"
-            >
-              Remove saved API key from settings
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => onUpdateSettings({ ai: { ...settings.ai, apiKey: '' } })}
+            className="text-xs font-semibold text-rose-700 underline underline-offset-2"
+          >
+            Remove legacy plaintext key from settings
+          </button>
         </div>
       )}
     </div>
