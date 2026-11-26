@@ -58,3 +58,39 @@ test('failure or normal completion releases the request controller',async()=>{
   assert.equal((await ok.engine.executePlan(plan(),()=>{})).status,'completed');
   assert.equal(ok.engine.cancelActiveTask(),false);
 });
+
+test('overlapping execution is rejected and cannot replace the active controller',async()=>{
+  let release;
+  const calls=[];
+  const {engine}=createEngine(tool=>{calls.push(tool);return new Promise(resolve=>{release=resolve;});});
+  const first=engine.executePlan(plan(),()=>{});
+  await assert.rejects(engine.executePlan(plan(),()=>{}),/Another task/);
+  assert.equal(engine.cancelActiveTask(),true);
+  release({success:true,verified:true});
+  assert.equal((await first).status,'cancelled');
+  assert.equal(calls.length,1);
+});
+test('an unverified action stops later steps and retains its actual outcome',async()=>{
+  const {engine}=createEngine(async()=>({success:true,verified:false,message:'Requested'}));
+  const snapshots=[];
+  const result=await engine.executePlan(plan(),p=>snapshots.push(p));
+  assert.equal(result.status,'failed');
+  assert.equal(result.steps[0].result.verified,false);
+  assert.equal(result.steps[1].status,'cancelled');
+  assert.match(result.error,/1 remaining step/);
+  assert.equal(snapshots[0].steps[0].status,'pending');
+});
+test('a completed plan cannot be replayed',async()=>{
+  let calls=0;
+  const {engine}=createEngine(async()=>{calls++;return {success:true,verified:true};});
+  const p=await engine.executePlan(plan(),()=>{});
+  await assert.rejects(engine.executePlan(p,()=>{}),/already started/);
+  assert.equal(calls,2);
+});
+test('partial completion reports verified steps before a later failure',async()=>{
+  let calls=0;
+  const {engine}=createEngine(async()=>++calls===1?{success:true,verified:true}:{success:false,error:'Unavailable'});
+  const result=await engine.executePlan(plan(),()=>{});
+  assert.equal(result.status,'failed');
+  assert.match(result.error,/1 earlier step\(s\) verified/);
+});

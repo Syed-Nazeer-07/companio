@@ -50,9 +50,8 @@ export class AgentEngine {
 
   // Emergency Cancel
   cancelActiveTask() {
-    if (this.activeAbortController) {
+    if (this.activeAbortController && !this.activeAbortController.signal.aborted) {
       this.activeAbortController.abort();
-      this.activeAbortController = null;
       return true;
     }
     return false;
@@ -1289,6 +1288,10 @@ export class AgentEngine {
     plan: TaskPlan, 
     onProgress: (updatedPlan: TaskPlan) => void
   ): Promise<TaskPlan> {
+    if (this.activeAbortController) throw new Error('Another task is still settling. Wait before starting a new action.');
+    if (plan.steps.length > 0 && (plan.status !== 'planning' || plan.steps.some(step => step.status !== 'pending'))) {
+      throw new Error('This task was already started. Request a fresh plan rather than replaying it.');
+    }
     if (plan.steps.length === 0) {
       plan.status = 'completed';
       onProgress({ ...plan });
@@ -1298,12 +1301,24 @@ export class AgentEngine {
     const controller = new AbortController();
     this.activeAbortController = controller;
     const { signal } = controller;
+    const publish = () => onProgress({ ...plan, steps: plan.steps.map(step => ({ ...step })) });
+    const stopRemaining = (index: number) => {
+      for (const step of plan.steps.slice(index)) if (step.status === 'pending') step.status = 'cancelled';
+    };
+    const fail = (index: number, reason: string) => {
+      stopRemaining(index + 1);
+      plan.status = 'failed';
+      const verified = plan.steps.slice(0, index).filter(step => step.status === 'success' && !step.result?.handoffOnly).length;
+      const handedOff = plan.steps.slice(0, index).filter(step => step.status === 'success' && step.result?.handoffOnly).length;
+      const remaining = plan.steps.length - index - 1;
+      plan.error = `${reason}${verified ? ` ${verified} earlier step(s) verified.` : ''}${handedOff ? ` ${handedOff} earlier request(s) handed off to Windows.` : ''}${remaining ? ` ${remaining} remaining step(s) were not run.` : ''}`;
+    };
 
     // Release the active controller on every outcome, including early failure
     // and cancellation; otherwise old requests look live after completion.
     try {
     plan.status = 'executing';
-    onProgress({ ...plan });
+    publish();
 
     for (let i = 0; i < plan.steps.length; i++) {
       if (signal.aborted) {
@@ -1312,21 +1327,27 @@ export class AgentEngine {
         for (let j = i; j < plan.steps.length; j++) {
           plan.steps[j].status = 'cancelled';
         }
-        onProgress({ ...plan });
+        publish();
         return plan;
       }
 
       const step = plan.steps[i];
       plan.currentStepIndex = i;
       step.status = 'running';
-      onProgress({ ...plan });
+      publish();
 
       const startTime = Date.now();
       try {
         let result: any;
         if (step.tool === 'utility.pomodoro.start') {
           const mins = step.params?.minutes || 25;
-          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          if (!Number.isInteger(mins) || mins < 1 || mins > 180) {
+            throw new Error('Choose a focus duration of 1–180 minutes.');
+          }
+          if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+            throw new Error('Focus reminder requires notification permission. Enable notifications and try again.');
+          }
+          {
             setTimeout(() => {
               new Notification('Companio Focus Mode Completed! 🍅', {
                 body: `Great job! Your ${mins}-minute focus session has ended. Time for a well-deserved stretch break!`
@@ -1383,7 +1404,7 @@ export class AgentEngine {
             plan.status='cancelled';
             plan.error='Stopped by user. An already-started Windows action may still finish.';
             for(let j=i+1;j<plan.steps.length;j++)plan.steps[j].status='cancelled';
-            onProgress({...plan});
+            publish();
             return plan;
           } else if(outcome.kind==='timeout') {
             result={success:false,verified:false,error:
@@ -1401,7 +1422,7 @@ export class AgentEngine {
           plan.status = 'cancelled';
           plan.error = 'Stopped by user. An already-started Windows action may still finish.';
           for(let j=i+1;j<plan.steps.length;j++)plan.steps[j].status='cancelled';
-          onProgress({ ...plan });
+          publish();
           return plan;
         }
 
@@ -1412,28 +1433,27 @@ export class AgentEngine {
           dbService.addLog(step.tool, step.params, result, result.verified !== false, duration);
         } else {
           step.status = 'failed';
+          step.result = result;
           step.error = result?.error || (result?.success ? 'Action attempted but outcome not verified.' : 'Execution failed.');
-          plan.status = 'failed';
-          plan.error = `Step failed: ${step.description}. ${step.error}`;
+          fail(i, `Step stopped: ${step.description}. ${step.error}`);
           dbService.addLog(step.tool, step.params, result, false, duration);
-          onProgress({ ...plan });
+          publish();
           return plan;
         }
       } catch (err: any) {
         step.status = 'failed';
-        step.error = err.message;
-        plan.status = 'failed';
-        plan.error = `Error executing ${step.tool}: ${err.message}`;
-        onProgress({ ...plan });
+        step.error = err instanceof Error ? err.message : String(err);
+        fail(i, `Error executing ${step.tool}: ${step.error}`);
+        publish();
         return plan;
       }
 
-      onProgress({ ...plan });
+      publish();
     }
 
     plan.status = 'completed';
     plan.finalMessage = this.getDelightfulSuccessMessage(plan);
-    onProgress({ ...plan });
+    publish();
     return plan;
     } finally {
       if (this.activeAbortController === controller) this.activeAbortController = null;

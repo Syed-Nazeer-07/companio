@@ -53,13 +53,13 @@ export const SpeechBubble: React.FC<Props> = ({ text, state, activePlan, onCance
         <p className="max-h-[150px] overflow-y-auto whitespace-pre-wrap break-words text-[13px] font-normal leading-[1.55] text-slate-800 select-text">
           {text || (isExecuting ? activePlan?.steps[activePlan?.currentStepIndex ?? 0]?.description : '')}
         </p>
-        {activePlan && activePlan.steps.length > 1 && (isExecuting || activePlan.status === 'planning') && (
+        {activePlan && activePlan.steps.length > 1 && (isExecuting || activePlan.status === 'planning' || activePlan.status === 'failed' || activePlan.status === 'cancelled' || isCompleted) && (
           <div className="mt-2.5 space-y-1 border-t border-slate-100 pt-2">
             {activePlan.steps.map((step, idx) => (
               <div key={step.id} className="flex items-center justify-between gap-3 text-[11px]">
                 <span className="min-w-0 truncate text-slate-600">{idx + 1}. {step.description}</span>
                 <span className="shrink-0 font-medium text-slate-500">
-                  {step.status === 'success' ? 'Done' : step.status === 'running' ? 'Working' : step.status === 'failed' ? 'Failed' : 'Queued'}
+                  {step.status === 'success' ? (step.result?.handoffOnly ? 'Sent' : 'Verified') : step.status === 'running' ? 'Working' : step.status === 'failed' ? (step.result?.success ? 'Unverified' : 'Failed') : step.status === 'cancelled' ? 'Not continued' : 'Queued'}
                 </span>
               </div>
             ))}
