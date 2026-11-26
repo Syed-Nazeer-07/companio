@@ -12,7 +12,16 @@ test('all six selectable character assets are used by a stateful renderer',()=>{
  for(const id of ['sparky','pixel','mochi','cloudie','kiko','boba']){
   const asset=fs.readFileSync(path.join(root,'public/characters',id+'.svg'),'utf8');
   assert.match(asset,/<svg /);assert.match(asset,/viewBox="0 0 160 180"/);
+  const siteAsset=fs.readFileSync(path.join(root,'website/assets',id+'.svg'),'utf8');
+  assert.match(siteAsset,/<svg /);assert.match(siteAsset,/viewBox="0 0 160 180"/);
  }
+ assert.match(studio,/data-optics=\{model\.opticsStyle\}/);
+ for(const id of ['pixel','mochi','cloudie','kiko','boba','sparky']){
+  assert.match(studio,new RegExp(`case '${id}':`));
+ }
+ const css=fs.readFileSync(path.join(root,'src/index.css'),'utf8');
+ assert.match(css,/\.companio-blink\s*\{/);
+ assert.match(css,/\.companio-paused\s+\.studio-character/);
 });
 test('sleep toggle, stable native drag handle, and fade-out remain available in overlay',()=>{
  const source=fs.readFileSync(path.join(root,'src/components/overlay/DesktopCompanionOverlay.tsx'),'utf8');

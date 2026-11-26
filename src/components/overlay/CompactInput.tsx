@@ -91,7 +91,7 @@ export const CompactInput: React.FC<Props> = ({
           type="submit"
           disabled={!text.trim() || isListening}
           title="Send command (Enter)"
-          className="shrink-0 p-2 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-30 disabled:hover:bg-sky-600 text-white transition-colors shadow-sm"
+          className="shrink-0 p-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-30 disabled:hover:bg-emerald-700 text-white transition-colors shadow-sm"
         >
           <Send className="w-3.5 h-3.5" />
         </button>
@@ -113,7 +113,7 @@ export const CompactInput: React.FC<Props> = ({
           title={isSleeping ? "Wake Up" : "Sleep Mode"}
           className="shrink-0 p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
         >
-          {isSleeping ? <Sun className="w-3.5 h-3.5 text-amber-500" /> : <Moon className="w-3.5 h-3.5 text-sky-500" />}
+          {isSleeping ? <Sun className="w-3.5 h-3.5 text-amber-500" /> : <Moon className="w-3.5 h-3.5 text-emerald-700" />}
         </button>
 
         {/* Close Button on Right Side (Clearly Visible Circle) */}
@@ -143,7 +143,7 @@ export const CompactInput: React.FC<Props> = ({
                   inputRef.current?.focus();
                   inputRef.current?.select();
                 }}
-                className="app-no-drag max-w-full truncate rounded-lg border border-sky-200 bg-sky-50 px-2 py-1 text-[11px] text-sky-800 hover:bg-sky-100"
+                className="app-no-drag max-w-full truncate rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] text-emerald-800 hover:bg-emerald-100"
                 title={alternative}
               >
                 {alternative}
@@ -159,7 +159,7 @@ export const CompactInput: React.FC<Props> = ({
             key={idx}
             type="button"
             onClick={() => onSend(s)}
-            className="text-[11px] whitespace-nowrap px-2.5 py-1 rounded-lg bg-slate-100/90 hover:bg-sky-50 hover:text-sky-700 text-slate-600 border border-slate-200/80 transition-all font-medium"
+            className="text-[11px] whitespace-nowrap px-2.5 py-1 rounded-lg bg-slate-100/90 hover:bg-emerald-50 hover:text-emerald-800 text-slate-600 border border-slate-200/80 transition-all font-medium"
           >
             {s}
           </button>

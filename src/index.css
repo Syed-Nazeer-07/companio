@@ -124,6 +124,10 @@ body {
 .studio-character[data-state=sleeping] {opacity:.75;transform:translateY(5px);}
 .studio-character[data-state=confused] {transform:rotate(-5deg);}
 .studio-character[data-state=talking] {animation:companioListen 1.4s ease-in-out infinite;}
-.companio-paused .studio-character, .companio-paused .studio-character *, .studio-character[data-state=sleeping], .studio-character[data-state=sleeping] * {animation-play-state:paused!important;}
+@keyframes companioBlink { 0%, 92%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.12); } }
+@keyframes companioThinkScan { 0%, 100% { transform: translateX(-14px); opacity: .45; } 50% { transform: translateX(14px); opacity: .95; } }
+.companio-blink { transform-box: fill-box; transform-origin: center; animation: companioBlink 5.8s ease-in-out infinite; }
+.companio-think-scan { animation: companioThinkScan 1.5s ease-in-out infinite; }
+.companio-paused .studio-character, .companio-paused .studio-character *, .companio-paused .companio-blink, .companio-paused .companio-think-scan, .studio-character[data-state=sleeping], .studio-character[data-state=sleeping] * {animation-play-state:paused!important;}
 @media(max-width:760px){.control-sidebar{width:178px;padding:15px 9px}.control-header{padding:0 15px}.control-content{padding:17px}.control-key>span{display:none}}
-@media(prefers-reduced-motion:reduce){.studio-character,.control-center *{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+@media(prefers-reduced-motion:reduce){.studio-character,.studio-character *,.companio-blink,.companio-think-scan,.control-center *{animation-duration:.01ms!important;transition-duration:.01ms!important}}

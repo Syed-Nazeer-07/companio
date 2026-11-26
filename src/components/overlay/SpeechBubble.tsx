@@ -30,9 +30,9 @@ export const SpeechBubble: React.FC<Props> = ({ text, state, activePlan, onCance
         <div className="mb-2 flex items-center justify-between gap-2 text-[11px] font-semibold tracking-wide">
           <div className="flex items-center gap-1.5">
             {isExecuting ? (
-              <><LoaderCircle className="h-3.5 w-3.5 animate-spin text-sky-600" /><span className="text-sky-700">Working</span></>
+              <><LoaderCircle className="h-3.5 w-3.5 animate-spin text-emerald-700" /><span className="text-emerald-800">Working</span></>
             ) : isThinking ? (
-              <><LoaderCircle className="h-3.5 w-3.5 animate-spin text-sky-600" /><span className="text-sky-700">Thinking</span></>
+              <><LoaderCircle className="h-3.5 w-3.5 animate-spin text-emerald-700" /><span className="text-emerald-800">Thinking</span></>
             ) : isClarification ? (
               <><HelpCircle className="h-3.5 w-3.5 text-amber-600" /><span className="text-amber-700">Clarification</span></>
             ) : isListening ? (
@@ -48,7 +48,7 @@ export const SpeechBubble: React.FC<Props> = ({ text, state, activePlan, onCance
             ) : <span className="text-slate-500">Companio</span>}
           </div>
           <div className="flex items-center gap-2">
-            {(state === 'talking' || isListening) && <AudioVisualizer active={true} color={isListening ? 'bg-emerald-500' : 'bg-sky-500'} />}
+            {(state === 'talking' || isListening) && <AudioVisualizer active={true} color={isListening ? 'bg-emerald-500' : 'bg-emerald-700'} />}
             {isExecuting && onCancel && (
               <button type="button" onClick={onCancel} title="Stop the current task"
                 className="app-no-drag inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100">

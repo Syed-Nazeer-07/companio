@@ -62,7 +62,7 @@ export const ActionApprovalDialog: React.FC<ActionApprovalDialogProps> = ({
             </div>
             <details className="mt-2 rounded-lg border border-slate-100 bg-white px-2.5 py-1.5 text-slate-600">
               <summary className="cursor-pointer text-[10px] font-semibold">Technical details</summary>
-              <code className="mt-2 block break-all text-[10px] font-semibold text-sky-800">{step.tool}</code>
+              <code className="mt-2 block break-all text-[10px] font-semibold text-emerald-800">{step.tool}</code>
               <pre className="mt-1 whitespace-pre-wrap break-all text-[10px] leading-snug">
                 {JSON.stringify(step.params, null, 2)}
               </pre>

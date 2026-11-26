@@ -586,7 +586,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
           tabIndex={0}
           aria-label={isSleeping ? 'Wake Companio' : 'Open Companio command bar'}
           key={settings.characterId}
-          className={`companio-character relative cursor-pointer app-no-drag focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-500 rounded-full ${
+          className={`companio-character relative cursor-pointer app-no-drag focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-700 rounded-full ${
             isPetted ? 'scale-[1.035]' : ''
           }`}
           data-state={isSleeping ? 'sleeping' : characterState}
@@ -606,7 +606,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
         {!isInputOpen && <button type="button" onClick={handleToggleSleep}
           aria-label={isSleeping ? 'Wake Companio' : 'Put Companio to sleep'}
           title={isSleeping ? 'Wake Companio' : 'Sleep mode'}
-          className="app-no-drag absolute -left-9 bottom-8 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-500 shadow-[0_4px_14px_rgba(15,23,42,0.12)] transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-sky-400">
+          className="app-no-drag absolute -left-9 bottom-8 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-600 shadow-[0_4px_14px_rgba(15,23,42,0.12)] transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-emerald-700">
           {isSleeping ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4" />}
         </button>}
         {/* Visible Floating Circle Action Button on the Right Side */}
@@ -617,7 +617,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
             else setIsInputOpen(false);
           }}
           title={isInputOpen ? "Close command bar" : `Ask Companio (${settings.activationShortcut})`}
-          className="app-no-drag absolute -right-9 bottom-8 z-20 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-sky-200 bg-white/95 text-sky-600 shadow-[0_4px_14px_rgba(15,23,42,0.12)] transition-colors hover:bg-sky-50 focus-visible:ring-2 focus-visible:ring-sky-400"
+          className="app-no-drag absolute -right-9 bottom-8 z-20 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-emerald-200 bg-white/95 text-emerald-700 shadow-[0_4px_14px_rgba(15,23,42,0.12)] transition-colors hover:bg-emerald-50 focus-visible:ring-2 focus-visible:ring-emerald-700"
         >
           {isInputOpen ? (
             <X className="w-4 h-4 stroke-[2.5]" />

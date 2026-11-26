@@ -34,17 +34,17 @@ function New-CompanioImage([int]$size) {
     try {
       $stroke.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
       $stroke.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
-      $graphics.DrawArc($stroke, 24, 29, 73, 70, 40, 280)
+      $graphics.DrawArc($stroke, 24, 29, 73, 70, 54, 234)
     } finally {
       $stroke.Dispose()
     }
 
     $dot = [System.Drawing.SolidBrush]::new($ink)
-    try { $graphics.FillEllipse($dot, [float]84.5, [float]27.0, [float]18.0, [float]18.0) }
+    try { $graphics.FillEllipse($dot, [float]86.5, [float]27.5, [float]17.0, [float]17.0) }
     finally { $dot.Dispose() }
 
     $highlight = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(217, 241, 142))
-    try { $graphics.FillEllipse($highlight, [float]92.4, [float]31.4, [float]4.2, [float]4.2) }
+    try { $graphics.FillEllipse($highlight, [float]93.8, [float]31.6, [float]4.0, [float]4.0) }
     finally { $highlight.Dispose() }
   } finally {
     $graphics.Dispose()
