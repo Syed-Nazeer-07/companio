@@ -306,10 +306,18 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
 
       // If purely conversational
       if (plan.steps.length === 0) {
-        setCharacterState('talking');
         const reply = plan.finalMessage || 'Understood!';
         setBubbleText(reply);
-        speakReply(reply);
+        const canSpeak = !settings.voice.muted && typeof window !== 'undefined' && 'speechSynthesis' in window;
+        if (canSpeak) {
+          setCharacterState('talking');
+          speakReply(reply, 8000);
+        } else {
+          setCharacterState('idle');
+          resetTimerRef.current = setTimeout(() => {
+            setBubbleText('');
+          }, 10000);
+        }
         dbService.addMessage({
           id: 'msg_' + crypto.randomUUID(),
           sender: 'companio',
@@ -441,7 +449,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     }
   };
 
-  const speakReply = (text: string) => {
+  const speakReply = (text: string, autoClearBubbleMs?: number) => {
     if (settings.voice.muted) return;
     speechService.speak(text, {
       voiceName: settings.voice.ttsVoice,
@@ -450,7 +458,15 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       volume: settings.voice.ttsVolume,
       characterId: settings.characterId, // Passes character profile for matching voice!
       onStart: () => setCharacterState(previous => previous === 'sleeping' ? previous : 'talking'),
-      onEnd: () => setCharacterState(previous => previous === 'sleeping' ? previous : 'idle'),
+      onEnd: () => {
+        setCharacterState(previous => previous === 'sleeping' ? previous : 'idle');
+        if (typeof autoClearBubbleMs === 'number' && autoClearBubbleMs > 0) {
+          clearTimeout(resetTimerRef.current);
+          resetTimerRef.current = setTimeout(() => {
+            setBubbleText('');
+          }, autoClearBubbleMs);
+        }
+      },
       onAudioLevel: (lvl) => setAudioLevel(lvl)
     });
   };
@@ -498,6 +514,12 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     dismiss: handleDismiss,
     wake: () => { if (approvalResolverRef.current) handleDismiss(); else handleWakeAndActivate(); }
   };
+
+  const overlayScale = (isInputOpen && bubbleText)
+    ? Math.min(settings.overlay.scale, 0.82)
+    : (isInputOpen || bubbleText)
+      ? Math.min(settings.overlay.scale, 0.96)
+      : Math.min(settings.overlay.scale, 1.25);
 
   return (
     <div className={`companio-overlay relative w-full h-full flex flex-col items-center justify-end p-4 select-none overflow-hidden box-border ${isClosing ? 'companio-overlay--closing' : ''}`}>
@@ -561,7 +583,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
           <CharacterRenderer
             characterId={settings.characterId}
             state={isSleeping ? 'sleeping' : characterState}
-            scale={settings.overlay.scale}
+            scale={overlayScale}
             audioLevel={audioLevel}
           />
 

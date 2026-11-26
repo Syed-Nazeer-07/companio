@@ -67,7 +67,7 @@ export const HelpPage: React.FC<Props> = ({ onStartOnboarding }) => {
 
         <button
           onClick={onStartOnboarding}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold shadow-md shadow-sky-500/20 transition-all active:scale-95"
+          className="shrink-0 whitespace-nowrap flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold shadow-md shadow-sky-500/20 transition-all active:scale-95"
         >
           <BookOpen className="w-3.5 h-3.5" />
           <span>Rerun Setup Wizard</span>

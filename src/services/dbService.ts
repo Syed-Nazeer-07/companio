@@ -1,5 +1,3 @@
-import initSqlJs, { Database } from 'sql.js';
-import sqliteWasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
 import { AppSettings, ChatMessage } from '../types';
 import { desktopBridge, isNativeDesktop } from './desktopBridge';
 
@@ -14,7 +12,6 @@ export interface AutomationLogRecord {
 }
 
 class DbService {
-  private db: Database | null = null;
   private initialized: boolean = false;
   private initializationPromise: Promise<void> | null = null;
   private pendingNativeWrite: Promise<void> = Promise.resolve();
@@ -127,33 +124,6 @@ class DbService {
   }
 
   private async initializeOnce(): Promise<void> {
-    try {
-      const SQL = await initSqlJs({
-        locateFile: () => sqliteWasmUrl
-      });
-      this.db = new SQL.Database();
-      this.db.run(`
-        CREATE TABLE IF NOT EXISTS conversation_history (
-          id TEXT PRIMARY KEY,
-          sender TEXT NOT NULL,
-          content TEXT NOT NULL,
-          timestamp INTEGER NOT NULL,
-          status TEXT
-        );
-        CREATE TABLE IF NOT EXISTS automation_logs (
-          id TEXT PRIMARY KEY,
-          timestamp INTEGER NOT NULL,
-          tool TEXT NOT NULL,
-          params TEXT,
-          result TEXT,
-          verified INTEGER NOT NULL,
-          durationMs INTEGER NOT NULL
-        );
-      `);
-      console.log('[SQLite] In-memory SQL cache initialized; native history is hydrated separately.');
-    } catch (e) {
-      console.warn('[SQLite] Fallback to in-memory/localStorage:', e);
-    }
     await this.hydrateNativeHistory();
     this.initialized = true;
   }
@@ -199,13 +169,6 @@ class DbService {
       if (history.length > 100) history.shift();
       localStorage.setItem('companio_chat_history', JSON.stringify(history));
       this.enqueueNativeChange({ kind: 'add-message', record: msg });
-
-      if (this.db) {
-        this.db.run(
-          'INSERT INTO conversation_history (id, sender, content, timestamp, status) VALUES (?, ?, ?, ?, ?)',
-          [msg.id, msg.sender, msg.content, msg.timestamp, msg.status || 'info']
-        );
-      }
     } catch (e) {}
   }
 
@@ -233,7 +196,6 @@ class DbService {
       localStorage.removeItem('companio_chat_history');
       localStorage.removeItem('aura_chat_history');
       this.enqueueNativeChange({ kind: 'clear-messages' });
-      if (this.db) this.db.run('DELETE FROM conversation_history');
     } catch (e) {}
   }
 
@@ -255,13 +217,6 @@ class DbService {
       if (logs.length > 150) logs.pop();
       localStorage.setItem('companio_automation_logs', JSON.stringify(logs));
       this.enqueueNativeChange({ kind: 'add-log', record });
-
-      if (this.db) {
-        this.db.run(
-          'INSERT INTO automation_logs (id, timestamp, tool, params, result, verified, durationMs) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [record.id, record.timestamp, record.tool, record.params, record.result, record.verified ? 1 : 0, record.durationMs]
-        );
-      }
     } catch (e) {}
   }
 
@@ -292,7 +247,6 @@ class DbService {
       localStorage.removeItem('companio_automation_logs');
       localStorage.removeItem('aura_automation_logs');
       this.enqueueNativeChange({ kind: 'clear-logs' });
-      if (this.db) this.db.run('DELETE FROM automation_logs');
     } catch (e) {}
   }
 
@@ -369,27 +323,6 @@ class DbService {
       }
     }
 
-    // SQL.js is currently an in-memory cache. Local storage is authoritative.
-    // Rebuilding this cache is best-effort and never overrides a valid restore.
-    if (this.db) {
-      try {
-        this.db.run('DELETE FROM conversation_history; DELETE FROM automation_logs;');
-        for (const msg of backup.conversations) {
-          this.db.run(
-            'INSERT INTO conversation_history (id, sender, content, timestamp, status) VALUES (?, ?, ?, ?, ?)',
-            [msg.id, msg.sender, msg.content, msg.timestamp, msg.status || 'info']
-          );
-        }
-        for (const log of backup.automationLogs) {
-          this.db.run(
-            'INSERT INTO automation_logs (id, timestamp, tool, params, result, verified, durationMs) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [log.id, log.timestamp, log.tool, log.params, log.result, log.verified ? 1 : 0, log.durationMs]
-          );
-        }
-      } catch (error) {
-        console.warn('[Companio] In-memory SQL history cache could not be refreshed:', error);
-      }
-    }
     return { success: true };
   }
 

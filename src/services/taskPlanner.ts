@@ -45,9 +45,9 @@ export class TaskPlanner {
     // Explicit chains must be recognized before a search parser can absorb the
     // second operation into a search term. Plain conjunctions remain valid text.
     const explicitAction = /^(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:open|launch|start|search|find|look\s+up|play|pause|mute|unmute|set|change|go\s+to|visit|show|take|capture|save|add|read|check|get|clear|delete|empty|close|quit|lock|skip|stop|increase|decrease|raise|lower|dim)\b/i.test(command);
-    // "Tom and Jerry" is not a two-step instruction, but "open YouTube
-    // and play ..." is. Never run only the first half of an unsupported chain.
-    const multiAction = /\b(?:and\s+then|then|and\s+also|after\s+that|followed\s+by|and\s+(?=(?:please\s+)?(?:open|launch|start|search|find|look\s+up|play|pause|mute|unmute|set|change|go\s+to|visit|show|ask|send|write|type|click|navigate|delete|clear|remove|empty|close|take|capture|save|read|check|get|install|shutdown|restart|run|copy|move|summarize|lock|stop|skip|increase|decrease|raise|lower|resume)\b))/i.test(command);
+    // "Tom and Jerry" or "back then" is not a two-step instruction, but
+    // "open YouTube and play ..." or "open Notepad then close ..." is.
+    const multiAction = /\b(?:and\s+then|and\s+also|after\s+that|followed\s+by|(?:and|then)\s+(?=(?:please\s+)?(?:open|launch|start|search|find|look\s+up|play|pause|mute|unmute|set|change|go\s+to|visit|show|ask|send|write|type|click|navigate|delete|clear|remove|empty|close|take|capture|save|read|check|get|install|shutdown|restart|run|copy|move|summarize|lock|stop|skip|increase|decrease|raise|lower|resume|execute)\b))/i.test(command);
     if (explicitAction && multiAction) {
       const offline = await desktopBridge.planOfflineSequence({ query: command });
       if (offline.success && offline.steps?.length && offline.requiresConfirmation === true) {
@@ -55,6 +55,18 @@ export class TaskPlanner {
       }
       if (aiConfig?.provider === 'local') return this.planSafeLocalActions(query, aiConfig, planId);
       throw new Error(offline.error || 'This multi-step command is not fully supported. No actions were executed.');
+    }
+
+    // Explicit arithmetic calculations belong to the instant math solver rather
+    // than matching "calc" inside "calculate" and launching Calculator.exe.
+    const cleanMath = command.replace(/[.!?]+$/, '').trim();
+    if (/^(?:calculate|solve)\s+(?:(?:the\s+)?(?:square\s+root|sqrt)\s+of\s+\d+(?:\.\d+)?|\d+(?:\.\d+)?\s*%\s*of\s*\d+(?:\.\d+)?|[\d\s+\-*/().]+(?:\s+(?:plus|minus|times|multiplied\s+by|divided\s+by)\s+[\d\s+\-*/().]+)*)$/i.test(cleanMath) &&
+        /(?:\d\s*%\s*of\s*\d|(?:square\s+root|sqrt)\s+of\s*\d|[+\-*/]|\b(?:plus|minus|times|multiplied\s+by|divided\s+by)\b)/i.test(cleanMath)) {
+      return {
+        id: planId, query, intent: 'conversation', steps: [],
+        currentStepIndex: 0, status: 'completed', createdAt: Date.now(),
+        finalMessage: await this.generateConversationalResponse(query, aiConfig)
+      };
     }
 
     // Direct navigation needs no model, no guesswork, and no separate
@@ -176,7 +188,7 @@ export class TaskPlanner {
     // 2. YouTube specific commands. Exact CarryMinati "latest" requests
     // use a verified channel feed and open in the user's default browser.
     // This is a handoff only: do not claim that playback has started.
-    else if (/^(?:please\s+)?(?:play|watch|find|open)\s+(?:(?:the\s+)?(?:latest|newest|new)\s+(?:youtube\s+)?video\s+(?:from|by|of)\s+carryminati|carryminati(?:'s)?\s+(?:latest|newest|new)\s+(?:youtube\s+)?video|(?:the\s+)?(?:latest|newest|new)\s+carryminati\s+(?:youtube\s+)?video)[.!?]*$/i.test(query.trim())) {
+    else if (/^(?:please\s+)?(?:play|watch|find|open)\s+(?:(?:the\s+)?(?:latest|newest|new)\s+(?:youtube\s+)?video\s+(?:from|by|of)\s+carryminati|carryminati(?:'s)?\s+(?:latest|newest|new)\s+(?:youtube\s+)?video|(?:the\s+)?(?:latest|newest|new)\s+carryminati\s+(?:youtube\s+)?video)[.!?]*$/i.test(command)) {
       intent = 'browser.youtube.latest_known';
       steps.push({
         id:'step_1',tool:'browser.youtube.latest_known',
@@ -185,8 +197,8 @@ export class TaskPlanner {
         verification:'YouTube channel feed identity and Windows handoff only; playback not verified'
       });
     }
-    else if (/^(?:please\s+)?(?:play|watch|find|open)\s+(?:the\s+)?(?:latest|newest|new)\s+(?:youtube\s+)?video\s+(?:from|by|of)\s+.{2,100}$/i.test(query.trim())) {
-      const creator = query.trim().replace(/^(?:please\s+)?(?:play|watch|find|open)\s+(?:the\s+)?(?:latest|newest|new)\s+(?:youtube\s+)?video\s+(?:from|by|of)\s+/i, '').trim();
+    else if (/^(?:please\s+)?(?:play|watch|find|open)\s+(?:the\s+)?(?:latest|newest|new)\s+(?:youtube\s+)?video\s+(?:from|by|of)\s+.{2,100}$/i.test(command)) {
+      const creator = command.replace(/^(?:please\s+)?(?:play|watch|find|open)\s+(?:the\s+)?(?:latest|newest|new)\s+(?:youtube\s+)?video\s+(?:from|by|of)\s+/i, '').replace(/[.!?]+$/, '').trim();
       intent = 'browser.youtube.creator_latest';
       steps.push({
         id: 'step_1',
@@ -369,14 +381,28 @@ export class TaskPlanner {
     }
 
     // 5. Volume & Audio Control
-    else if (/\b(?:volume\s+up|increase\s+(?:the\s+)?volume|raise\s+(?:the\s+)?volume|louder)\b/.test(q)) {
+    else if (/\b(increase|raise|turn\s+up|decrease|lower|turn\s+down)\s+(?:(?:the|my)\s+)?(?:system\s+)?volume\s+by\s+(\d{1,3})\s*(?:%|percentage\s+points?)?\b/.test(q)) {
+      const m = q.match(/\b(increase|raise|turn\s+up|decrease|lower|turn\s+down)\s+(?:(?:the|my)\s+)?(?:system\s+)?volume\s+by\s+(\d{1,3})\s*(?:%|percentage\s+points?)?\b/)!;
+      const amount = Number(m[2]);
+      if (!Number.isFinite(amount) || amount < 1 || amount > 100) {
+        throw new Error('Volume adjustment must be between 1 and 100%. No change was made.');
+      }
+      const up = /^(?:increase|raise|turn\s+up)$/.test(m[1]);
+      const delta = up ? amount : -amount;
+      intent = 'win.volume.change';
+      steps.push({
+        id: 'step_1', tool: 'win.volume.change',
+        description: `${up ? 'Increase' : 'Decrease'} Windows master volume by ${amount}%`,
+        params: { delta }, status: 'pending'
+      });
+    } else if (/\b(?:volume\s+up|turn\s+(?:the\s+)?volume\s+up|turn\s+up\s+(?:the\s+)?volume|increase\s+(?:the\s+)?volume|raise\s+(?:the\s+)?volume|louder)\b/.test(q)) {
       intent = 'win.volume.change';
       steps.push({
         id: 'step_1', tool: 'win.volume.change',
         description: 'Increase Windows master volume by 10%',
         params: { delta: 10 }, status: 'pending'
       });
-    } else if (/\b(?:volume\s+down|decrease\s+(?:the\s+)?volume|lower\s+(?:the\s+)?volume|softer)\b/.test(q)) {
+    } else if (/\b(?:volume\s+down|turn\s+(?:the\s+)?volume\s+down|turn\s+down\s+(?:the\s+)?volume|decrease\s+(?:the\s+)?volume|lower\s+(?:the\s+)?volume|softer)\b/.test(q)) {
       intent = 'win.volume.change';
       steps.push({
         id: 'step_1', tool: 'win.volume.change',
@@ -432,7 +458,7 @@ export class TaskPlanner {
         status: 'pending',
         verification: 'Calculator process terminated'
       });
-    } else if (q.includes('calculator') || q.includes('calc')) {
+    } else if (/\b(?:calculator|calc)\b/.test(q)) {
       intent = 'win.calculator.launch';
       steps.push({
         id: 'step_1',
@@ -482,7 +508,27 @@ export class TaskPlanner {
         status: 'pending',
         verification: 'Snipping Tool process running'
       });
-    } else if (q.includes('terminal') || q.includes('powershell') || q.includes('command prompt')) {
+    } else if (q.includes('command prompt') || /\bcmd\b/.test(q)) {
+      intent = 'win.cmd.launch';
+      steps.push({
+        id: 'step_1',
+        tool: 'win.cmd.launch',
+        description: 'Launch Command Prompt',
+        params: {},
+        status: 'pending',
+        verification: 'Command Prompt process running'
+      });
+    } else if (q.includes('powershell')) {
+      intent = 'win.powershell.launch';
+      steps.push({
+        id: 'step_1',
+        tool: 'win.powershell.launch',
+        description: 'Launch Windows PowerShell',
+        params: {},
+        status: 'pending',
+        verification: 'PowerShell process running'
+      });
+    } else if (q.includes('terminal')) {
       intent = 'win.terminal.launch';
       steps.push({
         id: 'step_1',
@@ -512,9 +558,19 @@ export class TaskPlanner {
         status: 'pending',
         verification: 'Lock command dispatched'
       });
-    } else if (q.includes('file explorer') || q.includes('downloads folder') || q.includes('downloads')) {
+    } else if (q.includes('show desktop') || q.includes('minimize all') || q.includes('go to desktop')) {
+      intent = 'win.desktop.show';
+      steps.push({
+        id: 'step_1',
+        tool: 'win.desktop.show',
+        description: 'Show Desktop and minimize all windows',
+        params: {},
+        status: 'pending'
+      });
+    } else if (q.includes('file explorer') || /\b(?:downloads|documents|pictures|music|videos|desktop)\b/.test(q)) {
       intent = 'win.explorer.open';
-      const folder = q.includes('downloads') ? 'downloads' : q.includes('documents') ? 'documents' : '';
+      const folderMatch = q.match(/\b(downloads|documents|desktop|pictures|music|videos)\b/);
+      const folder = folderMatch ? folderMatch[1] : '';
       steps.push({
         id: 'step_1',
         tool: 'win.explorer.open',
@@ -553,39 +609,12 @@ export class TaskPlanner {
     }
 
     // 6.5 Expanded Native Windows Tools
-    else if (q.includes('volume up') || q.includes('louder') || q.includes('increase volume') || q.includes('raise volume')) {
-      intent = 'win.volume.change';
-      steps.push({
-        id: 'step_1',
-        tool: 'win.volume.change',
-        description: 'Increase system volume by +10%',
-        params: { delta: 10 },
-        status: 'pending'
-      });
-    } else if (q.includes('volume down') || q.includes('softer') || q.includes('decrease volume') || q.includes('lower volume')) {
-      intent = 'win.volume.change';
-      steps.push({
-        id: 'step_1',
-        tool: 'win.volume.change',
-        description: 'Decrease system volume by -10%',
-        params: { delta: -10 },
-        status: 'pending'
-      });
-    } else if (/^(?:empty|clear)\s+(?:(?:the|my|windows)\s+)*(?:recycle bin|trash)[.!?]?$/i.test(command)) {
+    else if (/^(?:empty|clear)\s+(?:(?:the|my|windows)\s+)*(?:recycle bin|trash)[.!?]?$/i.test(command)) {
       intent = 'win.recyclebin.empty';
       steps.push({
         id: 'step_1',
         tool: 'win.recyclebin.empty',
         description: 'Empty Windows Recycle Bin',
-        params: {},
-        status: 'pending'
-      });
-    } else if (q.includes('show desktop') || q.includes('minimize all') || q.includes('go to desktop')) {
-      intent = 'win.desktop.show';
-      steps.push({
-        id: 'step_1',
-        tool: 'win.desktop.show',
-        description: 'Show Desktop and minimize all windows',
         params: {},
         status: 'pending'
       });
@@ -604,15 +633,6 @@ export class TaskPlanner {
         id: 'step_1',
         tool: 'win.system.specs',
         description: 'Check CPU, RAM, and OS system specs',
-        params: {},
-        status: 'pending'
-      });
-    } else if (q.includes('command prompt') || q.includes('open cmd')) {
-      intent = 'win.cmd.launch';
-      steps.push({
-        id: 'step_1',
-        tool: 'win.cmd.launch',
-        description: 'Launch Command Prompt',
         params: {},
         status: 'pending'
       });
@@ -696,9 +716,28 @@ export class TaskPlanner {
 
     // 6.6 Brightness, Clipboard, Network & Productivity Tools
     else if (q.includes('brightness') || q.includes('dim screen') || q.includes('screen dimmer') || q.includes('screen brighter')) {
-      const pctMatch = q.match(/(\d{1,3})\s*%/);
-      if (pctMatch) {
-        const level = parseInt(pctMatch[1], 10);
+      const relMatch = q.match(/\b(increase|raise|turn\s+up|brighter|decrease|lower|dim|darker|turn\s+down)\b[\s\S]*?\bby\s+(\d{1,3})\s*%?/);
+      const setMatch = q.match(/(?:set|change)\s+(?:(?:the|my)\s+)?(?:screen\s+|display\s+)?brightness\s+(?:to|at)\s+(\d{1,3})\s*%?/i) || q.match(/(\d{1,3})\s*%/);
+      if (relMatch) {
+        const amount = parseInt(relMatch[2], 10);
+        if (!Number.isFinite(amount) || amount < 1 || amount > 100) {
+          throw new Error('Brightness adjustment must be between 1 and 100%. No change was made.');
+        }
+        const up = /^(?:increase|raise|turn\s+up|brighter)$/.test(relMatch[1]);
+        const delta = up ? amount : -amount;
+        intent = 'win.brightness.change';
+        steps.push({
+          id: 'step_1',
+          tool: 'win.brightness.change',
+          description: `${up ? 'Increase' : 'Decrease'} display brightness by ${amount}%`,
+          params: { delta },
+          status: 'pending'
+        });
+      } else if (setMatch) {
+        const level = parseInt(setMatch[1], 10);
+        if (!Number.isFinite(level) || level < 0 || level > 100) {
+          throw new Error('Brightness must be between 0 and 100%. No change was made.');
+        }
         intent = 'win.brightness.set';
         steps.push({
           id: 'step_1',

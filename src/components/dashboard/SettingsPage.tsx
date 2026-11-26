@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AppSettings } from '../../types';
 import { Keyboard, Bell, Monitor, RotateCcw, Activity, RefreshCw, Power } from 'lucide-react';
 import { desktopBridge, isNativeDesktop } from '../../services/desktopBridge';
+import { DEFAULT_SETTINGS } from '../../services/defaultSettings';
 
 interface Props {
   settings: AppSettings;
@@ -98,13 +99,14 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings, onNa
       const shortcut = await desktopBridge.setActivationShortcut('Ctrl+Shift+Space');
       const overlay = await desktopBridge.setOverlayPreferences({ alwaysOnTop: true, snapToEdge: true });
       const startup = await desktopBridge.setStartupEnabled(false);
-      if (!shortcut.success || !overlay.success || !startup.success) {
+      if (!shortcut.success || !overlay.success || (startup.supported !== false && !startup.success)) {
         setStatus(shortcut.error || overlay.error || startup.error || 'Could not reset native settings.');
         return;
       }
     }
     localStorage.removeItem('companio_settings');
     localStorage.removeItem('aura_settings');
+    desktopBridge.sendStateUpdate(DEFAULT_SETTINGS);
     window.location.reload();
   };
 

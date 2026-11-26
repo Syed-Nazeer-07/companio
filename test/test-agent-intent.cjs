@@ -222,3 +222,91 @@ test('context contains complete chat pairs, not commands or tool outcomes',()=>{
  ],'What did I say?');
  assert.deepEqual(JSON.parse(JSON.stringify(history)),[{role:'user',content:'I study computer science'},{role:'assistant',content:'Understood'}]);
 });
+
+test('math calculations stay conversational rather than launching Calculator and polite prefixes preserve creator names', async () => {
+  const ctxExports = {};
+  vm.runInNewContext(transpile('src/services/conversationContext.ts'), {
+    exports: ctxExports,
+    require(name) {
+      if (name === './intentSafety') return safe;
+      if (name === './arithmetic') return arithmetic;
+      if (name === './desktopBridge') return { desktopBridge: {} };
+      if (name === './dbService') return { dbService: {} };
+      throw Error(name);
+    }
+  });
+
+  const mathPlan = await engine.planTask('calculate 25 * 4');
+  assert.equal(mathPlan.intent, 'conversation');
+  assert.equal(mathPlan.steps.length, 0);
+  const pctPlan = await engine.planTask('calculate 15% of 800');
+  assert.equal(pctPlan.intent, 'conversation');
+  assert.equal(pctPlan.steps.length, 0);
+  assert.match(await ctxExports.generateConversationalResponse('calculate 25 * 4'), /100/);
+  assert.match(await ctxExports.generateConversationalResponse('calculate 15% of 800'), /120/);
+
+  const veritasium = await engine.planTask('Can you play the latest video from Veritasium?');
+  assert.equal(veritasium.intent, 'browser.youtube.creator_latest');
+  assert.equal(veritasium.steps[0].tool, 'browser.youtube.search_and_play');
+  assert.deepEqual(JSON.parse(JSON.stringify(veritasium.steps[0].params)), { creator: 'Veritasium', latest: true });
+
+  const carry = await engine.planTask('Hey Companio, play the latest video from CarryMinati');
+  assert.equal(carry.intent, 'browser.youtube.latest_known');
+  assert.equal(carry.steps[0].tool, 'browser.youtube.latest_known');
+});
+
+test('volume, brightness, folders, shell routing, and harmless conjunction searches parse accurately', async () => {
+  const turnUp = await engine.planTask('turn up the volume');
+  assert.equal(turnUp.steps[0].tool, 'win.volume.change');
+  assert.equal(turnUp.steps[0].params.delta, 10);
+
+  const turnDown = await engine.planTask('turn down the volume');
+  assert.equal(turnDown.steps[0].tool, 'win.volume.change');
+  assert.equal(turnDown.steps[0].params.delta, -10);
+
+  const inc20 = await engine.planTask('increase volume by 20%');
+  assert.equal(inc20.steps[0].tool, 'win.volume.change');
+  assert.equal(inc20.steps[0].params.delta, 20);
+
+  const dec15 = await engine.planTask('decrease volume by 15%');
+  assert.equal(dec15.steps[0].tool, 'win.volume.change');
+  assert.equal(dec15.steps[0].params.delta, -15);
+
+  const bright50 = await engine.planTask('set brightness to 50');
+  assert.equal(bright50.steps[0].tool, 'win.brightness.set');
+  assert.equal(bright50.steps[0].params.level, 50);
+
+  const brightUp20 = await engine.planTask('increase brightness by 20%');
+  assert.equal(brightUp20.steps[0].tool, 'win.brightness.change');
+  assert.equal(brightUp20.steps[0].params.delta, 20);
+
+  await assert.rejects(engine.planTask('set brightness to 150%'), /0 and 100%/i);
+
+  const docs = await engine.planTask('open my documents folder');
+  assert.equal(docs.steps[0].tool, 'win.explorer.open');
+  assert.equal(docs.steps[0].params.folder, 'documents');
+
+  const deskFolder = await engine.planTask('open desktop folder');
+  assert.equal(deskFolder.steps[0].tool, 'win.explorer.open');
+  assert.equal(deskFolder.steps[0].params.folder, 'desktop');
+
+  const pics = await engine.planTask('open pictures folder');
+  assert.equal(pics.steps[0].tool, 'win.explorer.open');
+  assert.equal(pics.steps[0].params.folder, 'pictures');
+
+  const showDesk = await engine.planTask('show desktop');
+  assert.equal(showDesk.steps[0].tool, 'win.desktop.show');
+
+  const cmdPlan = await engine.planTask('open command prompt');
+  assert.equal(cmdPlan.steps[0].tool, 'win.cmd.launch');
+
+  const psPlan = await engine.planTask('open powershell');
+  assert.equal(psPlan.steps[0].tool, 'win.powershell.launch');
+
+  const termPlan = await engine.planTask('open windows terminal');
+  assert.equal(termPlan.steps[0].tool, 'win.terminal.launch');
+
+  const searchBackThen = await engine.planTask('Search Google for back then');
+  assert.equal(searchBackThen.steps[0].tool, 'browser.search_google');
+  assert.equal(searchBackThen.steps[0].params.query, 'back then');
+});

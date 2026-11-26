@@ -143,3 +143,72 @@ test('mixed verified actions and launch handoffs are distinguished in the report
  assert.match(result.finalMessage,/destination unverified/);
  assert.match(result.finalMessage,/Volume is 45%/);
 });
+
+test('pomodoro requests notification permission when default and tracks timer handle safely', async () => {
+  const executorSource = fs.readFileSync(path.join(__dirname, '../src/services/taskExecutor.ts'), 'utf8');
+  const compiledExecutor = ts.transpileModule(executorSource, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+  }).outputText;
+
+  let requestedPermission = false;
+  let scheduledMs = null;
+  let clearedTimer = false;
+  const fakeNotification = function () {};
+  fakeNotification.permission = 'default';
+  fakeNotification.requestPermission = async () => {
+    requestedPermission = true;
+    return 'granted';
+  };
+
+  const fakeHandle = { id: 'pomodoro-handle' };
+  const fakeSetTimeout = (fn, ms) => {
+    scheduledMs = ms;
+    return fakeHandle;
+  };
+  const fakeClearTimeout = handle => {
+    if (handle === fakeHandle) clearedTimer = true;
+  };
+
+  const executorExports = {};
+  const verificationSource = fs.readFileSync(path.join(__dirname, '../src/services/taskVerification.ts'), 'utf8');
+  const compiledVerification = ts.transpileModule(verificationSource, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+  }).outputText;
+  const verificationExports = {};
+  vm.runInNewContext(compiledVerification, { exports: verificationExports, Date, Math, Array, Number, Error, Promise });
+
+  vm.runInNewContext(compiledExecutor, {
+    exports: executorExports,
+    Date, Math, Array, Number, Error, AbortController, Promise, Set, console,
+    setTimeout: fakeSetTimeout,
+    clearTimeout: fakeClearTimeout,
+    Notification: fakeNotification,
+    require: name => {
+      if (name === './desktopBridge') return { desktopBridge: { executeTool: async () => ({}) } };
+      if (name === './dbService') return { dbService: { addLog: () => {} } };
+      if (name === './taskVerification') return verificationExports;
+      throw Error('Unexpected import ' + name);
+    }
+  });
+
+  const executor = new executorExports.TaskExecutor();
+  const pomodoroPlan = {
+    id: 'pom-1',
+    query: 'start a 10 minute focus session',
+    intent: 'utility.pomodoro.start',
+    steps: [{ id: '1', tool: 'utility.pomodoro.start', description: 'Focus', params: { minutes: 10 }, status: 'pending' }],
+    status: 'planning',
+    currentStepIndex: 0,
+    createdAt: Date.now()
+  };
+
+  const res = await executor.executePlan(pomodoroPlan, () => {});
+  assert.equal(requestedPermission, true);
+  assert.equal(res.status, 'completed');
+  assert.equal(scheduledMs, 10 * 60 * 1000);
+  assert.equal(executor.activePomodoroTimers.has(fakeHandle), true);
+
+  for (const h of executor.activePomodoroTimers) fakeClearTimeout(h);
+  executor.activePomodoroTimers.clear();
+  assert.equal(clearedTimer, true);
+});

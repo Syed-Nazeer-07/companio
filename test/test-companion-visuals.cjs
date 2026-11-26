@@ -40,3 +40,35 @@ test('settings writes and broadcasts occur outside a replayable React state upda
  assert.match(segment,/dbService\.saveSettings\(updated\)/);
  assert.match(segment,/desktopBridge\.sendStateUpdate\(updated\)/);
 });
+
+test('muted conversational reply resets character state, SVGs scale proportionally, wizard syncs live/Escape, and production CSP is configured',()=>{
+ const overlay=fs.readFileSync(path.join(root,'src/components/overlay/DesktopCompanionOverlay.tsx'),'utf8');
+ assert.match(overlay,/canSpeak\s*=\s*!settings\.voice\.muted/);
+ assert.match(overlay,/setCharacterState\('idle'\)/);
+ assert.match(overlay,/const overlayScale\s*=/);
+
+ const studio=fs.readFileSync(path.join(root,'src/components/characters/StudioCharacter.tsx'),'utf8');
+ assert.match(studio,/width\s*=\s*Math\.round\(160\s*\*\s*safeScale\)/);
+ assert.match(studio,/height\s*=\s*Math\.round\(180\s*\*\s*safeScale\)/);
+ assert.match(studio,/width=\{width\} height=\{height\}/);
+ assert.doesNotMatch(studio,/transform:\s*`scale\(/);
+
+ const wizard=fs.readFileSync(path.join(root,'src/components/onboarding/SetupWizardModal.tsx'),'utf8');
+ assert.match(wizard,/onUpdateLive\?\.\(\{characterId:c\.id\}\)/);
+ assert.match(wizard,/e\.key==='Escape'/);
+ const resetEffect=wizard.slice(wizard.indexOf('setStep(0)'),wizard.indexOf('setStep(0)')+450);
+ assert.match(resetEffect,/\},\[isOpen\]\);/);
+
+ const overlayGuard=fs.readFileSync(path.join(root,'src/components/overlay/DesktopCompanionOverlay.tsx'),'utf8');
+ assert.match(overlayGuard,/speakReply\(reply,\s*8000\)/);
+ assert.match(overlayGuard,/typeof autoClearBubbleMs === 'number' && autoClearBubbleMs > 0/);
+
+ const settingsSrc=fs.readFileSync(path.join(root,'src/components/dashboard/SettingsPage.tsx'),'utf8');
+ assert.match(settingsSrc,/import \{ DEFAULT_SETTINGS \} from '\.\.\/\.\.\/services\/defaultSettings'/);
+ assert.match(settingsSrc,/desktopBridge\.sendStateUpdate\(DEFAULT_SETTINGS\)/);
+
+ const viteConfig=fs.readFileSync(path.join(root,'vite.config.ts'),'utf8');
+ assert.match(viteConfig,/companio-csp/);
+ assert.match(viteConfig,/Content-Security-Policy/);
+ assert.match(viteConfig,/if \(!ctx\.bundle\) return html/);
+});

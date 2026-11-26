@@ -46,6 +46,7 @@ export function actionTimeoutMs(tool:string):number {
 export class TaskExecutor {
   private activeAbortController: AbortController | null = null;
   private nativeInFlight: Promise<unknown> | null = null;
+  private activePomodoroTimers = new Set<ReturnType<typeof setTimeout>>();
 
   // Emergency Cancel
   cancelActiveTask() {
@@ -117,16 +118,23 @@ export class TaskExecutor {
           if (!Number.isInteger(mins) || mins < 1 || mins > 180) {
             throw new Error('Choose a focus duration of 1–180 minutes.');
           }
-          if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+          if (typeof Notification === 'undefined') {
+            throw new Error('Focus reminder requires notification support.');
+          }
+          let permission = Notification.permission;
+          if (permission === 'default' && typeof Notification.requestPermission === 'function') {
+            permission = await Notification.requestPermission();
+          }
+          if (permission !== 'granted') {
             throw new Error('Focus reminder requires notification permission. Enable notifications and try again.');
           }
-          {
-            setTimeout(() => {
-              new Notification('Companio Focus Mode Completed! 🍅', {
-                body: `Great job! Your ${mins}-minute focus session has ended. Time for a well-deserved stretch break!`
-              });
-            }, mins * 60 * 1000);
-          }
+          const timerHandle = setTimeout(() => {
+            this.activePomodoroTimers.delete(timerHandle);
+            new Notification('Companio Focus Mode Completed! 🍅', {
+              body: `Great job! Your ${mins}-minute focus session has ended. Time for a well-deserved stretch break!`
+            });
+          }, mins * 60 * 1000);
+          this.activePomodoroTimers.add(timerHandle);
           result = {
             success: true,
             message: `Focus session started for ${mins} minutes! Time to shine 🍅`,
@@ -153,17 +161,13 @@ export class TaskExecutor {
             verified: true
           };
         } else if (step.tool === 'utility.notes.clear') {
-          if (!window.confirm('Delete all saved Companio notes? This cannot be undone.')) {
-            result = { success: false, verified: false, error: 'Note deletion cancelled.' };
-          } else {
-            const cleared = await dbService.clearNotes();
-            result = {
-              success: cleared.success,
-              message: cleared.success ? 'All notes cleared! 🧹' : 'Notes could not be cleared.',
-              error: cleared.error,
-              verified: cleared.success
-            };
-          }
+          const cleared = await dbService.clearNotes();
+          result = {
+            success: cleared.success,
+            message: cleared.success ? 'All notes cleared! 🧹' : 'Notes could not be cleared.',
+            error: cleared.error,
+            verified: cleared.success
+          };
         } else {
           const timeout=actionTimeoutMs(step.tool);
           const outcome=await runWithActionDeadline(

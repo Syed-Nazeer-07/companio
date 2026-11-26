@@ -534,7 +534,9 @@ secureHandle('set-overlay-preferences', async (_, options) => {
     { ...overlayPreferences },
     preferences => saveConfig(preferences),
     preferences => {
-      if (overlayWindow) overlayWindow.setAlwaysOnTop(preferences.alwaysOnTop);
+      if (overlayWindow && !overlayWindow.isDestroyed()) {
+        overlayWindow.setAlwaysOnTop(preferences.alwaysOnTop, preferences.alwaysOnTop ? 'screen-saver' : 'normal');
+      }
       overlayPreferences = { ...preferences };
     }
   );
@@ -673,7 +675,9 @@ secureHandle('quit-app', () => {
 // State synchronization between overlay and dashboard windows
 ipcMain.on('sync-state-broadcast', (event, state) => {
   if (!isTrustedSender(event) || !state || typeof state !== 'object' || Array.isArray(state)) return;
-  if (JSON.stringify(state).length > 65536) return;
+  try {
+    if (JSON.stringify(state).length > 65536) return;
+  } catch { return; }
   if (overlayWindow && event.sender !== overlayWindow.webContents) {
     overlayWindow.webContents.send('sync-state', state);
   }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   Play, 
   Volume2, 
@@ -31,8 +31,21 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
     message: string;
     kind: 'running' | 'success' | 'unverified' | 'error';
   } | null>(null);
+  const statusTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (statusTimerRef.current !== null) {
+        window.clearTimeout(statusTimerRef.current);
+      }
+    };
+  }, []);
 
   const runQuickAction = async (tool: string, params: any = {}, label: string) => {
+    if (statusTimerRef.current !== null) {
+      window.clearTimeout(statusTimerRef.current);
+      statusTimerRef.current = null;
+    }
     setActionStatus({ message: `Executing: ${label}...`, kind: 'running' });
     try {
       const res = await desktopBridge.executeTool(tool, params);
@@ -57,7 +70,10 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
         kind: 'error'
       });
     }
-    setTimeout(() => setActionStatus(null), 5000);
+    statusTimerRef.current = window.setTimeout(() => {
+      setActionStatus(null);
+      statusTimerRef.current = null;
+    }, 5000);
   };
 
   return (

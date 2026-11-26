@@ -111,8 +111,10 @@ body {
 .control-content .acrylic-card:hover {transform:none;box-shadow:none;border-color:#bccbc4;}
 .control-content h2 {letter-spacing:-.7px;}
 .control-center :is(button,input,select,textarea):focus-visible {outline:2px solid #18826b;outline-offset:3px;}
+.control-center input {accent-color:#146a59;}
 .control-content :is(p,pre,textarea,input) {user-select:text;}
 .control-content :is(.bg-sky-500,.bg-sky-600) {background-color:#146a59;}
+.control-content :is(.hover\:bg-sky-600,.hover\:bg-sky-700):hover {background-color:#0f5446;}
 .control-content :is(.text-sky-500,.text-sky-600,.text-sky-700) {color:#146a59;}
 .control-content .bg-sky-50 {background:#e4f2eb;}
 .control-content .border-sky-200 {border-color:#b3d6c7;}
@@ -121,6 +123,6 @@ body {
 .studio-character {filter:drop-shadow(0 8px 9px rgba(8,21,19,.20));}
 .studio-character[data-state=sleeping] {opacity:.75;transform:translateY(5px);}
 .studio-character[data-state=confused] {transform:rotate(-5deg);}
-.studio-character[data-state=talking] {animation:none;}
+.studio-character[data-state=talking] {animation:companioListen 1.4s ease-in-out infinite;}
 @media(max-width:760px){.control-sidebar{width:178px;padding:15px 9px}.control-header{padding:0 15px}.control-content{padding:17px}.control-key>span{display:none}}
 @media(prefers-reduced-motion:reduce){.studio-character,.control-center *{animation-duration:.01ms!important;transition-duration:.01ms!important}}

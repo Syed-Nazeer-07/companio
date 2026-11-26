@@ -31,15 +31,25 @@ class WinAppsController {
   async launchCalculator() {
     try {
       const script = `
-Start-Process "calc.exe"
-Start-Sleep -Milliseconds 800
-Get-Process -Name "CalculatorApp","Calculator","calc" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id
+$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+Start-Process "calc.exe" -ErrorAction Stop
+$found = $false
+for ($i = 0; $i -lt 16; $i++) {
+  Start-Sleep -Milliseconds 250
+  if (Get-Process -Name "CalculatorApp","Calculator","calc" -ErrorAction SilentlyContinue | Select-Object -First 1) {
+    $found = $true
+    break
+  }
+}
+if ($found) { Write-Output 'COMPANIO_CALC_RUNNING' } else { Write-Output 'COMPANIO_CALC_NOT_FOUND' }
 `;
       const { stdout } = await this.runPowerShell(script);
-      const isRunning = stdout.trim().length > 0;
+      const isRunning = stdout.trim() === 'COMPANIO_CALC_RUNNING';
       return {
         success: isRunning,
-        message: isRunning ? 'Calculator launched successfully' : 'Calculator process started',
+        message: isRunning ? 'Calculator launched successfully' : 'Calculator launch attempted, but process was not confirmed',
+        error: isRunning ? undefined : 'Calculator process could not be confirmed.',
         verified: isRunning
       };
     } catch (err) {
@@ -51,6 +61,7 @@ Get-Process -Name "CalculatorApp","Calculator","calc" -ErrorAction SilentlyConti
   async closeCalculator() {
     try {
       const script = `
+$ProgressPreference = 'SilentlyContinue'
 Get-Process -Name "CalculatorApp","Calculator","calc" -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Milliseconds 600
 $rem = Get-Process -Name "CalculatorApp","Calculator","calc" -ErrorAction SilentlyContinue
@@ -488,10 +499,11 @@ if ($b) {
   async getSystemSpecs() {
     try {
       const script = `
-$cpu = (Get-CimInstance Win32_Processor).Name.Trim()
+$ProgressPreference = 'SilentlyContinue'
+$cpu = (@(Get-CimInstance Win32_Processor)[0].Name).Trim()
 $ram = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
 $os = (Get-CimInstance Win32_OperatingSystem).Caption.Trim()
-"$os | $cpu | ${ram}GB RAM"
+"$os | $cpu | $($ram)GB RAM"
 `;
       const { stdout } = await this.runPowerShell(script);
       const specs = stdout.trim();
@@ -546,14 +558,23 @@ $os = (Get-CimInstance Win32_OperatingSystem).Caption.Trim()
       if (typeof level !== 'number' || !Number.isFinite(level)) throw new Error('Invalid brightness level');
       const clamped = Math.max(10, Math.min(100, Math.round(level)));
       const script = `
-$m = Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods -ErrorAction SilentlyContinue
+$ProgressPreference = 'SilentlyContinue'
+$m = Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightnessMethods -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($m) {
-  $m.WmiSetBrightness(1, ${clamped}) | Out-Null
-  $after = Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightness -ErrorAction SilentlyContinue
+  Invoke-CimMethod -InputObject $m -MethodName WmiSetBrightness -Arguments @{ Timeout = [uint32]1; Brightness = [byte]${clamped} } -ErrorAction Stop | Out-Null
+  $after = Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($after -and [int]$after.CurrentBrightness -eq ${clamped}) { Write-Output "ok" }
   else { Write-Output "unverified" }
 } else {
-  Write-Output "unsupported"
+  $w = Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($w) {
+    $w.WmiSetBrightness(1, ${clamped}) | Out-Null
+    $after = Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightness -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($after -and [int]$after.CurrentBrightness -eq ${clamped}) { Write-Output "ok" }
+    else { Write-Output "unverified" }
+  } else {
+    Write-Output "unsupported"
+  }
 }
 `;
       const { stdout } = await this.runPowerShell(script);
@@ -574,16 +595,25 @@ if ($m) {
     try {
       if (typeof delta !== 'number' || !Number.isFinite(delta) || Math.abs(delta) > 100) throw new Error('Invalid brightness adjustment');
       const script = `
-$cur = Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightness -ErrorAction SilentlyContinue
-$lvl = if ($cur) { $cur.CurrentBrightness } else { 70 }
-$target = [math]::Max(10, [math]::Min(100, $lvl + ${delta}))
-$m = Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods -ErrorAction SilentlyContinue
+$ProgressPreference = 'SilentlyContinue'
+$cur = Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $cur) { $cur = Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightness -ErrorAction SilentlyContinue | Select-Object -First 1 }
+$lvl = if ($cur) { [int]$cur.CurrentBrightness } else { 70 }
+$target = [math]::Max(10, [math]::Min(100, $lvl + ${Math.round(delta)}))
+$m = Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightnessMethods -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($m) {
-  $m.WmiSetBrightness(1, $target) | Out-Null
-  $after = Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightness -ErrorAction SilentlyContinue
+  Invoke-CimMethod -InputObject $m -MethodName WmiSetBrightness -Arguments @{ Timeout = [uint32]1; Brightness = [byte]$target } -ErrorAction Stop | Out-Null
+  $after = Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($after -and [int]$after.CurrentBrightness -eq [int]$target) { "$target" } else { "unverified" }
 } else {
-  "unsupported"
+  $w = Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($w) {
+    $w.WmiSetBrightness(1, $target) | Out-Null
+    $after = Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightness -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($after -and [int]$after.CurrentBrightness -eq [int]$target) { "$target" } else { "unverified" }
+  } else {
+    "unsupported"
+  }
 }
 `;
       const { stdout } = await this.runPowerShell(script);
@@ -639,8 +669,17 @@ if ($m) {
   async getNetworkIp() {
     try {
       const script = `
-$ip = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias "Wi-Fi*","Ethernet*" -ErrorAction SilentlyContinue | Select-Object -First 1).IPAddress
-$conn = (Get-NetConnectionProfile -ErrorAction SilentlyContinue | Select-Object -First 1).Name
+$ProgressPreference = 'SilentlyContinue'
+$addr = Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias "Wi-Fi*","Ethernet*" -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -notlike '169.254.*' -and $_.IPAddress -ne '127.0.0.1' } | Select-Object -First 1
+if (-not $addr) {
+  $addr = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -notlike '169.254.*' -and $_.IPAddress -ne '127.0.0.1' } | Select-Object -First 1
+}
+if (-not $addr) {
+  $addr = Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias "Wi-Fi*","Ethernet*" -ErrorAction SilentlyContinue | Select-Object -First 1
+}
+$ip = $addr.IPAddress
+$conn = (Get-NetConnectionProfile -InterfaceIndex $addr.InterfaceIndex -ErrorAction SilentlyContinue | Select-Object -First 1).Name
+if (-not $conn) { $conn = (Get-NetConnectionProfile -ErrorAction SilentlyContinue | Select-Object -First 1).Name }
 "$ip on $conn"
 `;
       const { stdout } = await this.runPowerShell(script);

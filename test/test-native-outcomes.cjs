@@ -213,3 +213,54 @@ test('a fake PNG never counts as a successful screenshot or leaves a broken imag
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('getSystemSpecs handles multi-CPU arrays and expands RAM variable cleanly', async () => {
+  let sentScript = '';
+  const win = new WinAppsController(async script => {
+    sentScript = script;
+    return { stdout: 'Microsoft Windows 11 Home | Snapdragon(R) X Plus | 16GB RAM' };
+  });
+  const result = await win.getSystemSpecs();
+  assert.match(sentScript, /@\(Get-CimInstance Win32_Processor\)\[0\]/);
+  assert.match(sentScript, /\$\(\$ram\)GB RAM/);
+  assert.equal(result.success, true);
+  assert.equal(result.verified, true);
+  assert.match(result.specs, /16GB RAM/);
+
+  const bad = new WinAppsController(async () => ({ stdout: 'Windows 11 | CPU | GB RAM' }));
+  const failed = await bad.getSystemSpecs();
+  assert.equal(failed.success, false);
+  assert.equal(failed.verified, false);
+});
+
+test('launchCalculator polls for Calculator process and reports verification accurately', async () => {
+  let sentScript = '';
+  const win = new WinAppsController(async script => {
+    sentScript = script;
+    return { stdout: 'COMPANIO_CALC_RUNNING' };
+  });
+  const ok = await win.launchCalculator();
+  assert.match(sentScript, /\$ProgressPreference = 'SilentlyContinue'/);
+  assert.match(sentScript, /\$i -lt 16/);
+  assert.match(sentScript, /COMPANIO_CALC_RUNNING/);
+  assert.equal(ok.success, true);
+  assert.equal(ok.verified, true);
+
+  const missing = new WinAppsController(async () => ({ stdout: 'COMPANIO_CALC_NOT_FOUND' }));
+  const err = await missing.launchCalculator();
+  assert.equal(err.success, false);
+  assert.equal(err.verified, false);
+});
+
+test('getNetworkIp script excludes APIPA 169.254.* and loopback addresses before falling back', async () => {
+  let sentScript = '';
+  const win = new WinAppsController(async script => {
+    sentScript = script;
+    return { stdout: '192.168.1.42 on HomeWiFi' };
+  });
+  const result = await win.getNetworkIp();
+  assert.match(sentScript, /169\.254\.\*/);
+  assert.match(sentScript, /127\.0\.0\.1/);
+  assert.equal(result.success, true);
+  assert.equal(result.verified, true);
+});

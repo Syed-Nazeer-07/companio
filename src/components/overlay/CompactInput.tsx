@@ -53,7 +53,7 @@ export const CompactInput: React.FC<Props> = ({
     }
   };
 
-  const suggestions = ['Open YouTube', 'Search for Python tutorials', 'Open Notepad'];
+  const suggestions = ['Open YouTube', 'Open Notepad', 'Volume 50%'];
 
   return (
     <div className="companio-input w-full max-w-[328px] mx-auto rounded-2xl border border-slate-200 bg-white/95 p-2.5 text-slate-800 shadow-[0_8px_28px_rgba(15,23,42,0.12)] box-border">
@@ -153,7 +153,7 @@ export const CompactInput: React.FC<Props> = ({
         </div>
       )}
       {/* Suggestions are quiet while composing or dictating. */}
-      {!text.trim() && !isListening && <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-100 overflow-x-auto no-scrollbar">
+      {!text.trim() && !isListening && <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-slate-100">
         {suggestions.map((s, idx) => (
           <button
             key={idx}

@@ -29,7 +29,9 @@ function runPowerShell(script, timeoutMs = 30000, spawnCommand = spawn) {
     });
 
     ps.stderr.on('data', (data) => {
-      stderr += data.toString();
+      if (stderr.length < 64 * 1024) {
+        stderr = (stderr + data.toString()).slice(0, 64 * 1024);
+      }
     });
 
     ps.on('close', (code) => {
@@ -37,7 +39,11 @@ function runPowerShell(script, timeoutMs = 30000, spawnCommand = spawn) {
       finished = true;
       clearTimeout(timer);
       if (stdout.length > 1024 * 1024) return reject(new Error('PowerShell output exceeded safe limit'));
-      if (code !== 0) return reject(new Error(stderr || `PowerShell exited with code ${code}`));
+      if (code !== 0) {
+        const trimmedErr = stderr.trim();
+        const isOnlyProgressClixml = trimmedErr.startsWith('#< CLIXML') && !/<S S="Error">/i.test(trimmedErr);
+        return reject(new Error((!trimmedErr || isOnlyProgressClixml) ? `PowerShell exited with code ${code}` : trimmedErr));
+      }
       resolve({ stdout: stdout.trim(), stderr: stderr.trim() });
     });
 
