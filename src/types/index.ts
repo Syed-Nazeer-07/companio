@@ -32,6 +32,22 @@ export interface AiConfig {
   localEndpoint?: string;
   /** Explicit opt-in to sending recent local conversation to the loopback model. */
   useConversationContext?: boolean;
+  /** Controls whether curated long-term memories are retrieved for conversational context. */
+  useLongTermMemory?: boolean;
+}
+
+export type MemoryCategory = 'preference' | 'fact' | 'project' | 'workflow';
+
+export interface MemoryItem {
+  id: string;
+  content: string;
+  category: MemoryCategory;
+  pinned: boolean;
+  enabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+  lastUsedAt: number | null;
+  expiresAt: number | null;
 }
 
 export interface VoiceConfig {
@@ -98,6 +114,9 @@ export interface TaskPlan {
   status: 'planning' | 'executing' | 'verifying' | 'completed' | 'failed' | 'cancelled';
   error?: string;
   finalMessage?: string;
+  clarificationNeeded?: boolean;
+  recoveryHint?: string;
+  retryable?: boolean;
   createdAt: number;
 }
 

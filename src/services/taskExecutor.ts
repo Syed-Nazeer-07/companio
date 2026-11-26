@@ -168,6 +168,48 @@ export class TaskExecutor {
             error: cleared.error,
             verified: cleared.success
           };
+        } else if (step.tool === 'utility.memory.add') {
+          const content = step.params?.content || '';
+          const category = step.params?.category || 'fact';
+          const saved = await dbService.addMemory({ content, category });
+          result = {
+            success: saved.success,
+            message: saved.success ? `Saved to memory [${category}]: "${saved.item?.content || content}".` : 'Memory could not be saved.',
+            error: saved.error,
+            verified: saved.success
+          };
+        } else if (step.tool === 'utility.memory.list') {
+          const items = await dbService.getMemories();
+          const msg = items.length > 0
+            ? `Saved long-term memory (${items.length}):\n` + items.slice(0, 8).map((m, idx) => `${idx + 1}. [${m.category}${m.pinned ? ', pinned' : ''}${m.enabled ? '' : ', paused'}] ${m.content}`).join('\n')
+            : 'No long-term memories are saved yet. Tell me "save to memory: ..." or manage them in History & Logs.';
+          result = { success: true, message: msg, verified: true };
+        } else if (step.tool === 'utility.memory.forget') {
+          const topic = String(step.params?.topic || '').trim().toLowerCase();
+          const items = await dbService.getMemories();
+          const matches = items.filter(m => m.content.toLowerCase().includes(topic));
+          if (!matches.length) {
+            result = { success: false, verified: false, error: `No saved memory matched "${step.params?.topic || ''}".` };
+          } else {
+            let deletedCount = 0;
+            for (const item of matches) {
+              const del = await dbService.deleteMemory(item.id);
+              if (del.success && del.removed) deletedCount++;
+            }
+            result = {
+              success: deletedCount > 0,
+              verified: deletedCount > 0,
+              message: `Forgot ${deletedCount} saved ${deletedCount === 1 ? 'memory' : 'memories'} matching "${step.params?.topic || ''}".`
+            };
+          }
+        } else if (step.tool === 'utility.memory.clear') {
+          const cleared = await dbService.clearMemories();
+          result = {
+            success: cleared.success,
+            verified: cleared.success,
+            message: cleared.success ? 'All saved memories cleared.' : 'Could not clear saved memory.',
+            error: cleared.error
+          };
         } else {
           const timeout=actionTimeoutMs(step.tool);
           const outcome=await runWithActionDeadline(

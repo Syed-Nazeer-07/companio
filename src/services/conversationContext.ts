@@ -3,6 +3,7 @@ import { desktopBridge } from './desktopBridge';
 import { dbService } from './dbService';
 import { evaluateArithmetic } from './arithmetic';
 import { isCommandRequest } from './intentSafety';
+import { selectRelevantMemories, formatMemoryContext } from './memoryRetrieval';
 
 // Only recent plain conversation is eligible; never feed action logs or notes into planning.
 export function recentConversation(messages: ChatMessage[], currentQuery: string) {
@@ -88,6 +89,16 @@ export async function generateConversationalResponse(query: string, aiConfig?: A
       return `Today is ${dateStr}! 📅 Ready for an awesome day!`;
     }
 
+    // Memory recall & contextual injection (conversational path only — never triggers automation).
+    const cachedMemories = aiConfig?.useLongTermMemory === false || typeof dbService?.getCachedMemories !== 'function'
+      ? []
+      : dbService.getCachedMemories();
+    const relevantMemories = selectRelevantMemories(cachedMemories, query);
+    const memoryBlock = formatMemoryContext(relevantMemories);
+    const systemWithMemory = memoryBlock
+      ? [aiConfig?.systemPrompt || 'You are Companio, a helpful Windows desktop companion.', memoryBlock].join('\n\n').slice(0, 2400)
+      : aiConfig?.systemPrompt;
+
     // Local mode must use the selected model or report a real error.
     // Never silently fall back to a canned reply when the server is offline.
     if (aiConfig?.provider === 'local') {
@@ -96,13 +107,23 @@ export async function generateConversationalResponse(query: string, aiConfig?: A
         model: aiConfig.model || 'llama3.2:1b',
         prompt: query,
         history: aiConfig.useConversationContext === true ? recentConversation(dbService.getMessages(), query) : undefined,
-        systemPrompt: aiConfig.systemPrompt,
+        systemPrompt: systemWithMemory,
         temperature: aiConfig.temperature
       });
       if (!result.success || !result.reply) {
         throw new Error((result.error || 'The local model did not reply.') + ' Local AI is optional. Start Ollama / LM Studio or switch AI Settings to Built-in for offline commands.');
       }
       return result.reply;
+    }
+
+    if (/^what\s+do\s+you\s+remember(?:\s+about\b|\s*$)/i.test(q)) {
+      if (aiConfig?.useLongTermMemory === false) {
+        return 'Long-term memory retrieval is paused in History & Logs settings.';
+      }
+      if (relevantMemories.length > 0) {
+        return 'Here is what I remember:\n' + relevantMemories.map((m, idx) => `${idx + 1}. [${m.item.category}] ${m.item.content}`).join('\n');
+      }
+      return 'I do not have any relevant saved memory matching that yet. You can add memories in History & Logs or say "save to memory: ...".';
     }
 
     if (/^(?:give me |tell me |share )?(?:a )?(?:motivational|inspirational) quote[.!?]?$/i.test(q)) {

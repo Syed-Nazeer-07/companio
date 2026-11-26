@@ -23,7 +23,7 @@ const engineExports={};
 vm.runInNewContext(transpile('src/services/agentEngine.ts'),{
   exports:engineExports,
   require: function load(name) {
-    if (['./taskPlanner','./taskExecutor','./taskVerification','./conversationContext'].includes(name)) {
+    if (['./taskPlanner','./taskExecutor','./taskVerification','./conversationContext','./memoryRetrieval'].includes(name)) {
       const moduleExports={};
       const moduleSource=fs.readFileSync(path.join(__dirname,'../src/services',name.slice(2)+'.ts'),'utf8');
       const compiled=ts.transpileModule(moduleSource,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
@@ -207,6 +207,7 @@ test('context contains complete chat pairs, not commands or tool outcomes',()=>{
  vm.runInNewContext(transpile('src/services/conversationContext.ts'),{exports,require(name){
   if(name==='./intentSafety')return safe;
   if(name==='./arithmetic')return arithmetic;
+  if(name==='./memoryRetrieval'){const m={};vm.runInNewContext(transpile('src/services/memoryRetrieval.ts'),{exports:m});return m;}
   if(name==='./desktopBridge')return {desktopBridge:{}};
   if(name==='./dbService')return {dbService:{}};
   throw Error(name);
@@ -230,6 +231,7 @@ test('math calculations stay conversational rather than launching Calculator and
     require(name) {
       if (name === './intentSafety') return safe;
       if (name === './arithmetic') return arithmetic;
+      if (name === './memoryRetrieval') { const m = {}; vm.runInNewContext(transpile('src/services/memoryRetrieval.ts'), { exports: m }); return m; }
       if (name === './desktopBridge') return { desktopBridge: {} };
       if (name === './dbService') return { dbService: {} };
       throw Error(name);

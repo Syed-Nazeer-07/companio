@@ -1,4 +1,4 @@
-import { AppSettings, ChatMessage } from '../types';
+import { AppSettings, ChatMessage, MemoryCategory, MemoryItem } from '../types';
 import { desktopBridge, isNativeDesktop } from './desktopBridge';
 
 export interface AutomationLogRecord {
@@ -16,6 +16,7 @@ class DbService {
   private initializationPromise: Promise<void> | null = null;
   private pendingNativeWrite: Promise<void> = Promise.resolve();
   private nativeHistoryError: string | null = null;
+  private memoryCache: MemoryItem[] = [];
 
   getHistoryPersistenceError(): string | null {
     return this.nativeHistoryError;
@@ -125,6 +126,7 @@ class DbService {
 
   private async initializeOnce(): Promise<void> {
     await this.hydrateNativeHistory();
+    await this.getMemories().catch(() => []);
     this.initialized = true;
   }
 
@@ -359,6 +361,58 @@ class DbService {
       automationLogs: this.getLogs().slice(0,150),
       notes: []
     });
+  }
+
+  getCachedMemories(): MemoryItem[] {
+    if (this.memoryCache.length > 0) return this.memoryCache;
+    try {
+      const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('companio_memory_v1') : null;
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(parsed)) {
+        this.memoryCache = parsed;
+      }
+    } catch {}
+    return this.memoryCache;
+  }
+
+  async getMemories(): Promise<MemoryItem[]> {
+    const res = await desktopBridge.listMemories();
+    if (res.success && Array.isArray(res.items)) {
+      this.memoryCache = res.items;
+    }
+    return this.memoryCache;
+  }
+
+  async addMemory(input: { content: string; category?: MemoryCategory; pinned?: boolean; expiresAt?: number | null }): Promise<{ success: boolean; item?: MemoryItem; error?: string }> {
+    const res = await desktopBridge.addMemory(input);
+    if (res.success && Array.isArray(res.items)) {
+      this.memoryCache = res.items;
+    }
+    return { success: res.success, item: res.item, error: res.error };
+  }
+
+  async updateMemory(id: string, patch: { content?: string; category?: MemoryCategory; pinned?: boolean; enabled?: boolean; expiresAt?: number | null }): Promise<{ success: boolean; item?: MemoryItem; error?: string }> {
+    const res = await desktopBridge.updateMemory(id, patch);
+    if (res.success && Array.isArray(res.items)) {
+      this.memoryCache = res.items;
+    }
+    return { success: res.success, item: res.item, error: res.error };
+  }
+
+  async deleteMemory(id: string): Promise<{ success: boolean; removed?: boolean; error?: string }> {
+    const res = await desktopBridge.deleteMemory(id);
+    if (res.success && Array.isArray(res.items)) {
+      this.memoryCache = res.items;
+    }
+    return { success: res.success, removed: res.removed, error: res.error };
+  }
+
+  async clearMemories(): Promise<{ success: boolean; error?: string }> {
+    const res = await desktopBridge.clearMemories();
+    if (res.success) {
+      this.memoryCache = [];
+    }
+    return { success: res.success, error: res.error };
   }
 }
 

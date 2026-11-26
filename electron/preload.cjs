@@ -80,6 +80,13 @@ const desktopAPI = {
   getDesktopDiagnostics: () => ipcRenderer.invoke('desktop-diagnostics'),
   mutateHistoryStore: (operation) => ipcRenderer.invoke('history-store-mutate', operation),
 
+  // Long-term memory (structured, secret-filtered, locally stored)
+  listMemories: () => ipcRenderer.invoke('memory-list'),
+  addMemory: (input) => ipcRenderer.invoke('memory-add', input),
+  updateMemory: (id, patch) => ipcRenderer.invoke('memory-update', { id, patch }),
+  deleteMemory: (id) => ipcRenderer.invoke('memory-delete', id),
+  clearMemories: () => ipcRenderer.invoke('memory-clear'),
+
   // Model Downloader
   getModelsStatus: () => ipcRenderer.invoke('get-models-status'),
   downloadModel: (modelId) => ipcRenderer.invoke('download-model', { modelId }),

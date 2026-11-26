@@ -5,7 +5,7 @@ const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.Common
 const exportsObject={};
 vm.runInNewContext(js,{exports:exportsObject,AbortController,Error,Number,Math,Date,Array,Promise,setTimeout,clearTimeout,
  require: function load(name) {
-    if (['./taskPlanner','./taskExecutor','./taskVerification','./conversationContext'].includes(name)) {
+    if (['./taskPlanner','./taskExecutor','./taskVerification','./conversationContext','./memoryRetrieval'].includes(name)) {
       const moduleExports={};
       const moduleSource=fs.readFileSync(path.join(__dirname,'../src/services',name.slice(2)+'.ts'),'utf8');
       const compiled=ts.transpileModule(moduleSource,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;

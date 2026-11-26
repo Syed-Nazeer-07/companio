@@ -195,7 +195,12 @@ export const App: React.FC = () => {
           onUpdateSettings={handleUpdateSettings}
         />
       )}
-      {currentTab === 'history' && <HistoryPage />}
+      {currentTab === 'history' && (
+        <HistoryPage
+          settings={settings}
+          onUpdateSettings={handleUpdateSettings}
+        />
+      )}
       {currentTab === 'settings' && (
         <SettingsPage
           onNavigate={setCurrentTab}

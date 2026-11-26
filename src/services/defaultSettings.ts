@@ -21,7 +21,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     model: 'companio-deterministic-v1',
     temperature: 0.7,
     personality: 'friendly',
-    systemPrompt: 'You are Companio, an intelligent personal AI desktop companion for Windows 11.'
+    systemPrompt: 'You are Companio, an intelligent personal AI desktop companion for Windows 11.',
+    useLongTermMemory: true
   },
   voice: {
     wakePhraseEnabled: false,

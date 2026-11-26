@@ -69,6 +69,11 @@ interface CompanioDesktopAPI {
     record?: unknown;
     backup?: unknown;
   }) => Promise<{success: boolean; error?: string}>;
+  listMemories?: () => Promise<{ success: boolean; exists?: boolean; items: any[]; error?: string }>;
+  addMemory?: (input: { content: string; category?: string; pinned?: boolean; expiresAt?: number | null }) => Promise<{ success: boolean; item?: any; items?: any[]; error?: string }>;
+  updateMemory?: (id: string, patch: { content?: string; category?: string; pinned?: boolean; enabled?: boolean; expiresAt?: number | null }) => Promise<{ success: boolean; item?: any; items?: any[]; error?: string }>;
+  deleteMemory?: (id: string) => Promise<{ success: boolean; removed?: boolean; items?: any[]; error?: string }>;
+  clearMemories?: () => Promise<{ success: boolean; items?: any[]; error?: string }>;
   getDesktopDiagnostics?: () => Promise<{
     success: boolean;
     platform?: string;
@@ -415,6 +420,74 @@ export const desktopBridge = {
     return api?.mutateHistoryStore
       ? api.mutateHistoryStore(operation)
       : { success: false, error: 'Native disk history requires the installed desktop app.' };
+  },
+
+  async listMemories(): Promise<{ success: boolean; exists?: boolean; items: any[]; error?: string }> {
+    const api = getDesktopAPI();
+    if (api?.listMemories) return api.listMemories();
+    try {
+      const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('companio_memory_v1') : null;
+      const items = raw ? JSON.parse(raw) : [];
+      return { success: true, exists: Array.isArray(items) && items.length > 0, items: Array.isArray(items) ? items : [] };
+    } catch {
+      return { success: false, items: [], error: 'Could not read saved memory.' };
+    }
+  },
+
+  async addMemory(input: { content: string; category?: string; pinned?: boolean; expiresAt?: number | null }) {
+    const api = getDesktopAPI();
+    if (api?.addMemory) return api.addMemory(input);
+    const content = typeof input?.content === 'string' ? input.content.replace(/\s+/g, ' ').trim() : '';
+    if (content.length < 2 || content.length > 300) {
+      return { success: false, error: 'Memory must contain between 2 and 300 characters.' };
+    }
+    const existing = (await this.listMemories()).items;
+    const now = Date.now();
+    const item = {
+      id: 'mem_' + now + '_' + Math.random().toString(36).slice(2, 7),
+      content,
+      category: input.category || 'fact',
+      pinned: Boolean(input.pinned),
+      enabled: true,
+      createdAt: now,
+      updatedAt: now,
+      lastUsedAt: null,
+      expiresAt: input.expiresAt ?? null
+    };
+    const next = [item, ...existing.filter((x: any) => String(x?.content || '').toLowerCase() !== content.toLowerCase())].slice(0, 100);
+    try { localStorage.setItem('companio_memory_v1', JSON.stringify(next)); } catch {}
+    return { success: true, item, items: next };
+  },
+
+  async updateMemory(id: string, patch: { content?: string; category?: string; pinned?: boolean; enabled?: boolean; expiresAt?: number | null }) {
+    const api = getDesktopAPI();
+    if (api?.updateMemory) return api.updateMemory(id, patch);
+    const existing = (await this.listMemories()).items;
+    let updatedItem: any = null;
+    const next = existing.map((item: any) => {
+      if (item.id !== id) return item;
+      updatedItem = { ...item, ...patch, updatedAt: Date.now() };
+      return updatedItem;
+    });
+    if (!updatedItem) return { success: false, error: 'Memory entry was not found.' };
+    try { localStorage.setItem('companio_memory_v1', JSON.stringify(next)); } catch {}
+    return { success: true, item: updatedItem, items: next };
+  },
+
+  async deleteMemory(id: string) {
+    const api = getDesktopAPI();
+    if (api?.deleteMemory) return api.deleteMemory(id);
+    const existing = (await this.listMemories()).items;
+    const next = existing.filter((item: any) => item.id !== id);
+    try { localStorage.setItem('companio_memory_v1', JSON.stringify(next)); } catch {}
+    return { success: true, removed: next.length !== existing.length, items: next };
+  },
+
+  async clearMemories() {
+    const api = getDesktopAPI();
+    if (api?.clearMemories) return api.clearMemories();
+    try { localStorage.setItem('companio_memory_v1', '[]'); } catch {}
+    return { success: true, items: [] };
   },
 
   async getDesktopDiagnostics(): Promise<{

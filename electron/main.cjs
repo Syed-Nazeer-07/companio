@@ -19,6 +19,7 @@ const localAiController = require('./automation/localAiController.cjs');
 const localActionPlanner = require('./automation/localActionPlanner.cjs');
 const historyBackupController = require('./automation/historyBackupController.cjs');
 const { NativeHistoryStore } = require('./automation/nativeHistoryStore.cjs');
+const { MemoryStore } = require('./automation/memoryStore.cjs');
 const { updateShortcutWithRollback, updateOverlayWithRollback } = require('./automation/settingsTransaction.cjs');
 const { writeConfigAtomically } = require('./automation/atomicConfigStore.cjs');
 const { createStartupController } = require('./automation/startupController.cjs');
@@ -43,6 +44,7 @@ if (SMOKE_TEST) app.disableHardwareAcceleration();
 // Position storage file
 const CONFIG_PATH = path.join(app.getPath('userData'), 'companio_window_config.json');
 const nativeHistoryStore = new NativeHistoryStore(path.join(app.getPath('userData'), 'companio_history_v1.json'));
+const memoryStore = new MemoryStore(path.join(app.getPath('userData'), 'companio_memory_v1.json'));
 browserController.configureProfileDirectory(path.join(app.getPath('userData'), 'controlled_edge_profile'));
 const defaultBrowser = new DefaultBrowserController(shell);
 const youtubeFeed = new YoutubeFeedController({ browser: defaultBrowser });
@@ -578,6 +580,11 @@ secureHandle('desktop-diagnostics', async () => {
   };
 });
 secureHandle('history-store-mutate', async (_, operation) => nativeHistoryStore.mutate(operation));
+secureHandle('memory-list', async () => memoryStore.load());
+secureHandle('memory-add', async (_, input) => memoryStore.add(input));
+secureHandle('memory-update', async (_, payload) => memoryStore.update(payload?.id, payload?.patch));
+secureHandle('memory-delete', async (_, id) => memoryStore.remove(id));
+secureHandle('memory-clear', async () => memoryStore.clear());
 
 // Model Downloader IPC handlers
 secureHandle('get-models-status', async () => {

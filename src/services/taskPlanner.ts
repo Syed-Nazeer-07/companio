@@ -25,6 +25,48 @@ export class TaskPlanner {
       };
     }
 
+    // Explicit long-term memory management before note/keyword rules.
+    const memAdd = command.match(/^(?:save(?:\s+to)?\s+memory|remember\s+my\s+(preference|fact|project|workflow))(?:\s*:\s*|\s+)([\s\S]*)$/i);
+    if (memAdd) {
+      const content = (memAdd[2] || '').trim();
+      if (!content) {
+        return {
+          id: planId, query, intent: 'clarification', steps: [], currentStepIndex: 0,
+          status: 'completed', createdAt: Date.now(), clarificationNeeded: true,
+          finalMessage: 'What preference, project detail, or workflow should I save to memory?'
+        };
+      }
+      const category = (memAdd[1] ? memAdd[1].toLowerCase() : 'fact') as 'preference' | 'fact' | 'project' | 'workflow';
+      return {
+        id: planId, query, intent: 'utility.memory.add',
+        steps: [{ id: 'step_1', tool: 'utility.memory.add', params: { content, category }, description: 'Save item to long-term memory', status: 'pending' }],
+        currentStepIndex: 0, status: 'planning', createdAt: Date.now()
+      };
+    }
+    if (/^(?:(?:show|list|read)\s+(?:my\s+|all\s+)?memor(?:y|ies)|my\s+memor(?:y|ies))[.!?]?$/i.test(command)) {
+      return {
+        id: planId, query, intent: 'utility.memory.list',
+        steps: [{ id: 'step_1', tool: 'utility.memory.list', params: {}, description: 'List saved long-term memories', status: 'pending' }],
+        currentStepIndex: 0, status: 'planning', createdAt: Date.now()
+      };
+    }
+    const memForget = command.match(/^forget\s+(?:my\s+)?memor(?:y|ies)(?:\s+about)?(?:\s*:\s*|\s+)([\s\S]*)$/i);
+    if (memForget) {
+      const topic = (memForget[1] || '').trim();
+      if (!topic) {
+        return {
+          id: planId, query, intent: 'clarification', steps: [], currentStepIndex: 0,
+          status: 'completed', createdAt: Date.now(), clarificationNeeded: true,
+          finalMessage: 'Which saved memory topic would you like me to forget?'
+        };
+      }
+      return {
+        id: planId, query, intent: 'utility.memory.forget',
+        steps: [{ id: 'step_1', tool: 'utility.memory.forget', params: { topic }, description: `Forget memory matching "${topic}"`, status: 'pending' }],
+        currentStepIndex: 0, status: 'planning', createdAt: Date.now()
+      };
+    }
+
     // Note contents are data, never commands: handle before keyword matching.
     const note = command.match(/^(?:take a note|add (?:a )?note|remember that|save (?:a )?note|note:)(?:\s*:\s*|\s+|$)([\s\S]*)$/i) || command.match(/^note:\s*([\s\S]*)$/i);
     const noteTool = note ? 'utility.notes.add'
