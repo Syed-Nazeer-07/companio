@@ -91,6 +91,10 @@ test('selectRelevantMemories filters expired, paused, stale, and unrelated memor
   assert.equal(compMatches.length, 1);
   assert.equal(compMatches[0].item.id, 'm2');
 
+  const naturalProjectMatches = selectRelevantMemories(items, 'What project am I working on right now?', { now });
+  assert.equal(naturalProjectMatches[0]?.item.id, 'm2');
+  assert.equal(naturalProjectMatches.some(m => ['m3', 'm4', 'm5'].includes(m.item.id)), false);
+
   const rustMatches = selectRelevantMemories(items, 'Give me Rust architecture tips', { now });
   assert.equal(rustMatches.length, 1);
   assert.equal(rustMatches[0].item.id, 'm1');

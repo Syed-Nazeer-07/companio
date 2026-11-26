@@ -1,15 +1,15 @@
 import type { MemoryItem } from '../types';
 
 const STOP_WORDS = new Set([
-  'a', 'an', 'and', 'are', 'as', 'at', 'be', 'but', 'by', 'can', 'could', 'did',
+  'a', 'am', 'an', 'and', 'are', 'as', 'at', 'be', 'but', 'by', 'can', 'could', 'did',
   'do', 'does', 'for', 'from', 'had', 'has', 'have', 'he', 'her', 'here', 'how',
-  'i', 'in', 'is', 'it', 'its', 'me', 'my', 'of', 'on', 'or', 'our', 'please',
-  'she', 'should', 'so', 'some', 'that', 'the', 'their', 'them', 'then', 'there',
+  'i', 'in', 'is', 'it', 'its', 'me', 'my', 'now', 'of', 'on', 'or', 'our', 'please',
+  'right', 'she', 'should', 'so', 'some', 'that', 'the', 'their', 'them', 'then', 'there',
   'these', 'they', 'this', 'to', 'us', 'was', 'we', 'were', 'what', 'when',
   'where', 'which', 'who', 'why', 'will', 'with', 'would', 'you', 'your'
 ]);
 
-const PROFILE_RECALL_PATTERN = /\b(?:about me|my profile|my preferences?|what do you know about me|remember about me|what am i working on)\b/i;
+const PROFILE_RECALL_PATTERN = /\b(?:about me|my profile|my preferences?|what do you know about me|remember about me|what(?:\s+[a-z]+)?\s+am\s+i\s+working\s+on)\b/i;
 
 export function tokenizeMemoryText(input: string): string[] {
   const matches = input.toLowerCase().match(/[a-z0-9][a-z0-9_+#.-]{1,40}/g) || [];
@@ -48,7 +48,7 @@ export function selectRelevantMemories(
   for (const item of items) {
     if (!item || item.enabled === false) continue;
     if (typeof item.expiresAt === 'number' && item.expiresAt <= now) continue;
-    const itemTokens = tokenizeMemoryText(item.content);
+    const itemTokens = tokenizeMemoryText(`${item.category || ''} ${item.content}`);
     if (!itemTokens.length) continue;
 
     let overlap = 0;
