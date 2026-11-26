@@ -128,3 +128,18 @@ test('native exceptions leave a failed audit record',async()=>{
  assert.equal(logs[0][2].error,'IPC failure');
  assert.equal(logs[0][3],false);
 });
+
+test('completion report uses actual native result, not inferred values',async()=>{
+ const {engine}=createEngine(async()=>({success:true,verified:true,message:'Volume limited to 30% by Windows'}));
+ const p=plan();p.steps=[p.steps[1]];
+ const result=await engine.executePlan(p,()=>{});
+ assert.equal(result.finalMessage,'Volume limited to 30% by Windows');
+});
+test('mixed verified actions and launch handoffs are distinguished in the report',async()=>{
+ const {engine}=createEngine(async(tool)=>tool==='win.notepad.launch'?{success:true,verified:true,handoffOnly:true,message:'Request sent'}:{success:true,verified:true,message:'Volume is 45%'});
+ const result=await engine.executePlan(plan(),()=>{});
+ assert.equal(result.status,'completed');
+ assert.match(result.finalMessage,/1 verified; 1 handed off/);
+ assert.match(result.finalMessage,/destination unverified/);
+ assert.match(result.finalMessage,/Volume is 45%/);
+});
