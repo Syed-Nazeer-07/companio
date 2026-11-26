@@ -2,20 +2,29 @@ import { AiConfig, ChatMessage } from '../types';
 import { desktopBridge } from './desktopBridge';
 import { dbService } from './dbService';
 import { evaluateArithmetic } from './arithmetic';
+import { isCommandRequest } from './intentSafety';
 
 // Only recent plain conversation is eligible; never feed action logs or notes into planning.
 export function recentConversation(messages: ChatMessage[], currentQuery: string) {
+  // Keep only complete recent conversational pairs. A command, failed reply,
+  // cancelled action or unrelated system entry must never become model context.
   const turns = messages.slice(-24);
   if (turns.at(-1)?.sender === 'user' && turns.at(-1)?.content === currentQuery) turns.pop();
   const history: { role: 'user' | 'assistant'; content: string }[] = [];
   let budget = 2400;
-  for (const message of turns.reverse()) {
-    if (history.length >= 8 || budget <= 0) break;
-    if (message.taskPlan || message.status === 'error' || !['user', 'companio', 'aura'].includes(message.sender)) continue;
-    const content = message.content.trim().slice(0, Math.min(600, budget));
-    if (!content) continue;
-    history.unshift({ role: message.sender === 'user' ? 'user' : 'assistant', content });
-    budget -= content.length;
+  for (let index = turns.length - 1; index >= 1 && history.length < 8; index--) {
+    const answer = turns[index];
+    const question = turns[index - 1];
+    if (!['companio', 'aura'].includes(answer.sender) || question.sender !== 'user'
+      || answer.taskPlan || question.taskPlan || answer.status !== 'info'
+      || isCommandRequest(question.content)) continue;
+    const userText = question.content.trim().slice(0, 600);
+    const assistantText = answer.content.trim().slice(0, 600);
+    if (!userText || !assistantText || userText.length + assistantText.length > budget) continue;
+    if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(userText + assistantText)) continue;
+    history.unshift({role:'user',content:userText},{role:'assistant',content:assistantText});
+    budget -= userText.length + assistantText.length;
+    index--;
   }
   return history;
 }
@@ -70,25 +79,13 @@ export async function generateConversationalResponse(query: string, aiConfig?: A
     }
 
     // 3. Time & Date direct queries
-    if (q.includes('what time') || q.includes('current time') || q.includes('tell me the time')) {
+    if (/^(?:what time is it|what is the current time|current time|tell me the time)[.!?]*$/.test(q)) {
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       return `The current time is ${timeStr}! ⏰ Anything else you need?`;
     }
-    if (q.includes('what date') || q.includes('what is the date') || q.includes("today's date") || q.includes('what day is it')) {
+    if (/^(?:what date is it|what is the date|today's date|what day is it)[.!?]*$/.test(q)) {
       const dateStr = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
       return `Today is ${dateStr}! 📅 Ready for an awesome day!`;
-    }
-
-    // 2. Motivational Quotes
-    if (q.includes('quote') || q.includes('inspire') || q.includes('motivation')) {
-      const quotes = [
-        "\"The only way to do great work is to love what you do.\" — Steve Jobs ✨",
-        "\"Success is not final, failure is not fatal: it is the courage to continue that counts.\" — Winston Churchill 🚀",
-        "\"Believe you can and you're halfway there.\" — Theodore Roosevelt 🌟",
-        "\"Small daily improvements over time lead to stunning results.\" — Robin Sharma 💡",
-        "\"Your time is limited, don't waste it living someone else's life.\" — Steve Jobs 💖"
-      ];
-      return quotes[Math.floor(Math.random() * quotes.length)];
     }
 
     // Local mode must use the selected model or report a real error.
@@ -106,6 +103,10 @@ export async function generateConversationalResponse(query: string, aiConfig?: A
         throw new Error((result.error || 'The local model did not reply.') + ' Local AI is optional. Start Ollama / LM Studio or switch AI Settings to Built-in for offline commands.');
       }
       return result.reply;
+    }
+
+    if (/^(?:give me |tell me |share )?(?:a )?(?:motivational|inspirational) quote[.!?]?$/i.test(q)) {
+      return 'Small, consistent improvements matter more than perfect starts.';
     }
 
     // Built-in delightful companion personality

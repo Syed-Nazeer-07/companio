@@ -197,3 +197,28 @@ test('polite negative requests are conversational',async()=>{
  const p=await engine.planTask('Could you please not open Notepad?');
  assert.equal(p.steps.length,0);
 });
+
+test('search terms about the Recycle Bin remain harmless search queries',async()=>{
+ const p=await engine.planTask('Search Google for Recycle Bin recovery');
+ assert.equal(p.steps[0].tool,'browser.search_google');
+});
+test('context contains complete chat pairs, not commands or tool outcomes',()=>{
+ const exports={};
+ vm.runInNewContext(transpile('src/services/conversationContext.ts'),{exports,require(name){
+  if(name==='./intentSafety')return safe;
+  if(name==='./arithmetic')return arithmetic;
+  if(name==='./desktopBridge')return {desktopBridge:{}};
+  if(name==='./dbService')return {dbService:{}};
+  throw Error(name);
+ }});
+ const history=exports.recentConversation([
+  {sender:'user',content:'I study computer science'},
+  {sender:'companio',content:'Understood',status:'info'},
+  {sender:'user',content:'Open Notepad'},
+  {sender:'companio',content:'Opened',status:'success',taskPlan:{}},
+  {sender:'user',content:'Unknown question'},
+  {sender:'companio',content:'Unavailable',status:'error'},
+  {sender:'user',content:'What did I say?'}
+ ],'What did I say?');
+ assert.deepEqual(JSON.parse(JSON.stringify(history)),[{role:'user',content:'I study computer science'},{role:'assistant',content:'Understood'}]);
+});

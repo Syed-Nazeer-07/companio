@@ -38,7 +38,7 @@ export class TaskPlanner {
     }
 
     // Never let a destructive phrase be inferred from a mere mention of a bin.
-    if (/\b(?:recycle bin|trash)\b/i.test(command) && !/^(?:empty|clear)\s+(?:(?:the|my|windows)\s+)*(?:recycle bin|trash)[.!?]?$/i.test(command) && !/\b(?:and then|then|and also|followed by|after that)\b/i.test(command)) {
+    if (/^(?:open|show|check|inspect|read|view)\s+(?:(?:the|my|windows)\s+)*(?:recycle bin|trash)[.!?]?$/i.test(command)) {
       throw new Error('Companio will not empty the Recycle Bin unless you explicitly request it. Opening or inspecting the bin is not supported by this command.');
     }
 
