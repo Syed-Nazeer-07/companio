@@ -129,3 +129,12 @@ test('discovery honors a custom safe loopback address before standard servers', 
   assert.equal(result.endpoint, 'http://localhost:9876/v1');
   assert.equal(result.checkedEndpoints, 3);
 });
+
+test('opt-in history is role validated and sent before the current user message', async()=>{
+ let messages;
+ const response=await chat({model:'local',prompt:'What did I say?',history:[{role:'user',content:'I study computer science'},{role:'assistant',content:'Understood'}]},async(_,options)=>{messages=JSON.parse(options.body).messages;return {ok:true,json:async()=>({choices:[{message:{content:'Computer science'}}]})};});
+ assert.equal(response.success,true);assert.equal(messages[1].content,'I study computer science');assert.equal(messages[3].content,'What did I say?');
+ let calls=0;
+ const invalid=await chat({model:'local',prompt:'hello',history:[{role:'system',content:'bad'}]},async()=>{calls++;});
+ assert.equal(invalid.success,false);assert.equal(calls,0);
+});
