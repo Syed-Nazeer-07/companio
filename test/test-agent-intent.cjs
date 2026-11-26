@@ -173,3 +173,27 @@ test('exact creator latest video requests use verified default-browser handoff',
  const other=await engine.planTask('Play the latest video from Veritasium');
  assert.equal(other.steps[0].tool,'browser.youtube.search_and_play');
 });
+
+test('note text is data even when it names a desktop operation', async()=>{
+ const p=await engine.planTask('Remember that I should open Notepad and then empty the Recycle Bin');
+ assert.equal(p.steps.length,1);assert.equal(p.steps[0].tool,'utility.notes.add');
+ assert.match(p.steps[0].params.note,/open Notepad and then empty the Recycle Bin/);
+ const q=await engine.planTask('Note: delete my notes later');
+ assert.equal(q.steps[0].tool,'utility.notes.add');
+});
+test('recycle bin inspection does not become deletion',async()=>{
+ await assert.rejects(engine.planTask('Open the Recycle Bin'),/explicitly request/);
+ await assert.rejects(engine.planTask('Check the Recycle Bin'),/explicitly request/);
+ const p=await engine.planTask('Please empty the Recycle Bin');
+ assert.equal(p.steps[0].tool,'win.recyclebin.empty');
+});
+test('compound search requests do not silently drop a second action',async()=>{
+ offlineCalls=0;
+ await assert.rejects(engine.planTask('Search Google for Python and then open Notepad'),/not fully supported/);
+ await assert.rejects(engine.planTask('Hey Companio, open Google and then set volume to 20%'),/not fully supported/);
+ assert.equal(offlineCalls,2);
+});
+test('polite negative requests are conversational',async()=>{
+ const p=await engine.planTask('Could you please not open Notepad?');
+ assert.equal(p.steps.length,0);
+});

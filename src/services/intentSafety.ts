@@ -10,6 +10,7 @@ export function isCommandRequest(input: string): boolean {
   if (!request || request.length > 1200) return false;
 
   if (/^(?:please\s+)?(?:don't|do not|never|avoid|without)\b/.test(request)) return false;
+  if (/^(?:please\s+)?(?:can|could|would|will)\s+you\s+(?:please\s+)?(?:not|never|avoid)\b/.test(request)) return false;
   if (/^note:\s*\S/.test(request)) return true;
 
   // Explicit, intentional action verbs. The polite forms are still commands.

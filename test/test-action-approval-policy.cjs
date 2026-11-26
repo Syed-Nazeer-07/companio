@@ -53,3 +53,9 @@ test('multi-step plans always require review, even for benign operations', () =>
 test('ordinary deterministic commands retain their existing direct execution behavior', () => {
   assert.equal(requiresActionReview(plan('Open YouTube','browser.youtube.open','browser.youtube.open')),false);
 });
+
+test('destructive and sensitive built-in operations always require review',()=>{
+ for(const tool of ['win.recyclebin.empty','win.clipboard.clear','win.screenshot','utility.notes.clear','win.system.lock','browser.close_tab']){
+  assert.equal(requiresActionReview(plan('Explicit command',tool,tool)),true,tool);
+ }
+});

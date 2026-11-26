@@ -11,6 +11,10 @@ const SIMPLE_COMMANDS: Record<string, RegExp> = {
 };
 
 export function requiresActionReview(plan: Pick<TaskPlan, 'intent' | 'query' | 'steps'>): boolean {
+  // Explicitly destructive or privacy-sensitive native operations always get
+  // a preview, including plans produced by deterministic keyword rules.
+  const sensitive = new Set(['win.recyclebin.empty','win.clipboard.clear','win.system.lock','win.screenshot','win.clipboard.read','utility.notes.clear','browser.close_tab','win.calculator.close']);
+  if (plan.steps.length > 1 || plan.steps.some(step => sensitive.has(step.tool))) return true;
   if (plan.intent !== 'local_ai_actions' && plan.intent !== 'builtin_sequence') return false;
   if (plan.steps.length !== 1) return true;
   const action = plan.steps[0];

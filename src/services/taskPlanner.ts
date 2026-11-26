@@ -8,7 +8,8 @@ export class TaskPlanner {
   protected generateConversationalResponse = generateConversationalResponse;
   // Interpret natural user request and generate structured task plan
   async planTask(query: string, aiConfig?: AiConfig): Promise<TaskPlan> {
-    const q = query.trim().toLowerCase();
+    const command = query.trim().replace(/^(?:(?:hey|hi|ok|okay)\s+)?(?:companio|companion)(?:\s*[,:\-]\s*|\s+)(?=\S)/i, '').replace(/^(?:please\s+)?(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?/i, '').trim();
+    const q = command.toLowerCase();
     const planId = 'plan_' + Date.now() + '_' + Math.random().toString(36).slice(2);
     const steps: TaskStep[] = [];
     let intent = 'conversation';
@@ -22,6 +23,38 @@ export class TaskPlanner {
         currentStepIndex: 0, status: 'completed', createdAt: Date.now(),
         finalMessage: await this.generateConversationalResponse(query, aiConfig)
       };
+    }
+
+    // Note contents are data, never commands: handle before keyword matching.
+    const note = command.match(/^(?:take a note|add (?:a )?note|remember that|save (?:a )?note|note:)(?:\s*:\s*|\s+|$)([\s\S]*)$/i) || command.match(/^note:\s*([\s\S]*)$/i);
+    const noteTool = note ? 'utility.notes.add'
+      : /^(?:(?:read|show|get)\s+(?:my\s+|all\s+)?notes|my notes)[.!?]?$/i.test(command) ? 'utility.notes.read'
+      : /^(?:clear|delete|empty)\s+(?:all\s+|my\s+)?notes[.!?]?$/i.test(command) ? 'utility.notes.clear' : null;
+    if (noteTool) {
+      const content = note?.[1]?.trim() || '';
+      if (note && !content) throw new Error('What would you like me to save in the note?');
+      const description = noteTool === 'utility.notes.add' ? 'Save a quick note' : noteTool === 'utility.notes.read' ? 'Retrieve saved quick notes' : 'Clear all saved quick notes';
+      return {id:planId,query,intent:noteTool,steps:[{id:'step_1',tool:noteTool,params:note?{note:content}:{},description,status:'pending'}],currentStepIndex:0,status:'planning',createdAt:Date.now()};
+    }
+
+    // Never let a destructive phrase be inferred from a mere mention of a bin.
+    if (/\b(?:recycle bin|trash)\b/i.test(command) && !/^(?:empty|clear)\s+(?:(?:the|my|windows)\s+)*(?:recycle bin|trash)[.!?]?$/i.test(command) && !/\b(?:and then|then|and also|followed by|after that)\b/i.test(command)) {
+      throw new Error('Companio will not empty the Recycle Bin unless you explicitly request it. Opening or inspecting the bin is not supported by this command.');
+    }
+
+    // Explicit chains must be recognized before a search parser can absorb the
+    // second operation into a search term. Plain conjunctions remain valid text.
+    const explicitAction = /^(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:open|launch|start|search|find|look\s+up|play|pause|mute|unmute|set|change|go\s+to|visit|show|take|capture|save|add|read|check|get|clear|delete|empty|close|quit|lock|skip|stop|increase|decrease|raise|lower|dim)\b/i.test(command);
+    // "Tom and Jerry" is not a two-step instruction, but "open YouTube
+    // and play ..." is. Never run only the first half of an unsupported chain.
+    const multiAction = /\b(?:and\s+then|then|and\s+also|after\s+that|followed\s+by|and\s+(?=(?:please\s+)?(?:open|launch|start|search|find|look\s+up|play|pause|mute|unmute|set|change|go\s+to|visit|show|ask|send|write|type|click|navigate|delete|clear)\b))/i.test(command);
+    if (explicitAction && multiAction) {
+      const offline = await desktopBridge.planOfflineSequence({ query: command });
+      if (offline.success && offline.steps?.length && offline.requiresConfirmation === true) {
+        return this.buildApprovedActionPlan(query, planId, 'builtin_sequence', offline.steps);
+      }
+      if (aiConfig?.provider === 'local') return this.planSafeLocalActions(query, aiConfig, planId);
+      throw new Error(offline.error || 'This multi-step command is not fully supported. No actions were executed.');
     }
 
     // Direct navigation needs no model, no guesswork, and no separate
@@ -38,26 +71,6 @@ export class TaskPlanner {
         }],
         currentStepIndex: 0, status: 'planning', createdAt: Date.now()
       };
-    }
-
-    // Check explicit multi-action requests before the old single-command
-    // matcher; otherwise a request can silently execute only its first part.
-    // The built-in grammar works with no LLM; supported plans still need approval.
-    const explicitAction = /^(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:open|launch|start|search|find|look\s+up|play|pause|mute|unmute|set|change|go\s+to|visit|show)\b/i.test(query.trim());
-    // "Tom and Jerry" is not a two-step instruction, but "open YouTube
-    // and play ..." is. Never run only the first half of an unsupported chain.
-    const multiAction = /\b(?:and\s+then|then|and\s+also|after\s+that|followed\s+by|and\s+(?=(?:please\s+)?(?:open|launch|start|search|find|look\s+up|play|pause|mute|unmute|set|change|go\s+to|visit|show|ask|send|write|type|click|navigate|delete|clear)\b))/i.test(query);
-    if (explicitAction && multiAction) {
-      const offline = await desktopBridge.planOfflineSequence({ query });
-      if (offline.success && offline.steps?.length && offline.requiresConfirmation === true) {
-        return this.buildApprovedActionPlan(query, planId, 'builtin_sequence', offline.steps);
-      }
-      if (aiConfig?.provider === 'local') {
-        return this.planSafeLocalActions(query, aiConfig, planId);
-      }
-      // A compound command is all-or-nothing, even when the fixed grammar
-      // cannot split it into actions. Partial execution is misleading.
-      throw new Error(offline.error || 'This multi-step command is not fully supported. No actions were executed.');
     }
 
     // 1. Named websites. Exact Google Home intent is handled here so an
@@ -552,7 +565,7 @@ export class TaskPlanner {
         params: { delta: -10 },
         status: 'pending'
       });
-    } else if (q.includes('recycle bin') || q.includes('empty trash') || q.includes('clear trash')) {
+    } else if (/^(?:empty|clear)\s+(?:(?:the|my|windows)\s+)*(?:recycle bin|trash)[.!?]?$/i.test(command)) {
       intent = 'win.recyclebin.empty';
       steps.push({
         id: 'step_1',
@@ -745,34 +758,6 @@ export class TaskPlanner {
         tool: 'utility.pomodoro.start',
         description: `Start ${minutes}-minute Pomodoro focus session`,
         params: { minutes },
-        status: 'pending'
-      });
-    } else if (q.includes('take a note') || q.includes('add note') || q.includes('remember that') || q.startsWith('note:') || q.includes('save note')) {
-      intent = 'utility.notes.add';
-      const noteContent = query.replace(/^take a note:?|^add note:?|^remember that:?|^note:?|^save note:?/i, '').trim();
-      steps.push({
-        id: 'step_1',
-        tool: 'utility.notes.add',
-        description: `Save note: "${noteContent || 'Quick note'}"`,
-        params: { note: noteContent || 'Quick note' },
-        status: 'pending'
-      });
-    } else if (q.includes('my notes') || q.includes('read notes') || q.includes('show notes') || q.includes('get notes')) {
-      intent = 'utility.notes.read';
-      steps.push({
-        id: 'step_1',
-        tool: 'utility.notes.read',
-        description: 'Retrieve saved quick notes',
-        params: {},
-        status: 'pending'
-      });
-    } else if (q.includes('clear notes') || q.includes('delete notes') || q.includes('empty notes')) {
-      intent = 'utility.notes.clear';
-      steps.push({
-        id: 'step_1',
-        tool: 'utility.notes.clear',
-        description: 'Clear all saved quick notes',
-        params: {},
         status: 'pending'
       });
     }
