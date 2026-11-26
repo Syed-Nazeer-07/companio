@@ -64,6 +64,90 @@ const MODEL_INSTRUCTIONS = [
 
 const STANDARD_FOLDERS = Object.freeze(['Downloads', 'Documents', 'Desktop', 'Pictures', 'Music', 'Videos']);
 
+const TOOL_GROUNDING_PATTERNS = Object.freeze({
+  'win.calculator.launch': /\b(?:calculator|calc|math)\b/i,
+  'win.notepad.launch': /\b(?:notepad|text\s+editor)\b/i,
+  'win.spotify.launch': /\bspotify\b/i,
+  'win.vscode.launch': /\b(?:vs\s*code|vscode|visual\s+studio\s+code|code\s+editor)\b/i,
+  'win.paint.launch': /\b(?:ms\s*paint|paint|drawing)\b/i,
+  'win.clock.launch': /\b(?:clock|alarm|timer|stopwatch)\b/i,
+  'win.weather.launch': /\b(?:weather|forecast)\b/i,
+  'win.explorer.open': /\b(?:explorer|files?|folder|directory|downloads?|documents?|desktop|pictures?|music|videos?)\b/i,
+  'win.desktop.show': /\b(?:desktop|minimize\s+all|hide\s+(?:all\s+)?windows|clear\s+(?:the\s+)?screen)\b/i,
+  'win.window.minimize': /\b(?:minimize|shrink|hide\s+(?:the\s+)?window)\b/i,
+  'win.battery.get': /\b(?:battery|charge|charging|power)\b/i,
+  'win.system.specs': /\b(?:specs?|specifications?|hardware|cpu|processor|ram|memory|system\s+info|pc\s+info|device\s+info|computer\s+info)\b/i,
+  'win.network.ip': /\b(?:ip|network|wifi|wi-fi|internet|ethernet|adapter)\b/i,
+  'win.volume.set': /\b(?:volume|sound|audio|speaker|loudness)\b/i,
+  'win.volume.change': /\b(?:volume|sound|audio|louder|softer|quieter)\b/i,
+  'win.brightness.set': /\b(?:brightness|bright|dim|screen|display|backlight)\b/i,
+  'win.brightness.change': /\b(?:brightness|brighter|dimmer|dim|screen|display)\b/i,
+  'win.volume.mute': /\b(?:mute|unmute|silence|quiet|audio|sound|volume)\b/i,
+  'win.media.control': /\b(?:play|pause|resume|skip|next|previous|music|song|track|playback|media)\b/i,
+  'browser.youtube.open': /\byoutube\b/i,
+  'browser.youtube.search_and_play': /\b(?:youtube|video|watch|play)\b/i,
+  'browser.search_google': /\b(?:search|google|find|look\s+up|lookup|web)\b/i,
+  'browser.open_url': /\b(?:open|visit|go\s+to|browse|site|website|http|www\.|\.com|\.org|\.net|\.io|\.dev|\.edu|\.gov|github|gmail|reddit|wikipedia|chatgpt|netflix|coursera)\b/i,
+  'browser.maps.search': /\b(?:maps?|directions?|where|location|route|nearby)\b/i,
+  'browser.wikipedia.search': /\b(?:wikipedia|wiki|encyclopedia|search)\b/i,
+  'browser.chatgpt.open': /\b(?:chatgpt|chat\s+gpt|openai)\b/i,
+  'browser.claude.open': /\bclaude\b/i,
+  'browser.gemini.open': /\bgemini\b/i,
+  'browser.github.open': /\bgithub\b/i,
+  'browser.gmail.open': /\b(?:gmail|mail|email)\b/i,
+  'browser.reddit.open': /\breddit\b/i,
+  'browser.netflix.open': /\bnetflix\b/i,
+  'browser.translate.open': /\b(?:translate|translation)\b/i
+});
+
+function detectAmbiguousActionRequest(rawQuery) {
+  if (typeof rawQuery !== 'string') return null;
+  const cleaned = rawQuery
+    .trim()
+    .replace(/^(?:(?:hey|hi|ok|okay)\s+)?(?:companio|companion)(?:\s*[,:\-]\s*|\s+)(?=\S)/i, '')
+    .replace(/^(?:please\s+)?(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?/i, '')
+    .replace(/[.!?]+$/, '')
+    .trim()
+    .toLowerCase();
+  if (!cleaned) return null;
+
+  if (/^(?:adjust|change|configure|fix|optimize|tweak|update|manage)\s+(?:(?:the|my|this)\s+)?(?:computer|pc|laptop|system|windows|device|settings|preferences|stuff|things|it|that)$/.test(cleaned)) {
+    return 'Which specific setting or app would you like me to adjust — for example volume, brightness, battery, or opening an app?';
+  }
+  if (/^(?:open|launch|start|run)\s+(?:(?:a|an|the|my|some)\s+)?(?:app|application|program|tool|site|website|webpage|page|link|folder|directory|window|something|anything|it|that|this)$/.test(cleaned)) {
+    return 'Which specific app, website, or folder should I open?';
+  }
+  if (/^(?:play|watch|listen(?:\s+to)?)\s+(?:something|anything|a\s+video|some\s+video|video|some\s+music|a\s+song|music|song|it|that)$/.test(cleaned)) {
+    return 'What specific video, creator, or song would you like me to play?';
+  }
+  if (/^(?:search|find|look\s+up)(?:\s+(?:for|about|on|in))?(?:\s+(?:the\s+web|the\s+internet|google|youtube|github|wikipedia|maps|something|anything|it|that))?$/.test(cleaned)) {
+    return 'What topic or term would you like me to search for?';
+  }
+  if (/^(?:set|change|adjust)\s+(?:(?:the|my)\s+)?(?:screen\s+|display\s+)?brightness$/.test(cleaned)) {
+    return 'What brightness level (0–100%) would you like? Try "set brightness to 60%".';
+  }
+  if (/^(?:set|change|adjust)\s+(?:(?:the|my)\s+)?(?:system\s+)?(?:audio|sound)$/.test(cleaned)) {
+    return 'Would you like to mute/unmute audio or set volume to a specific percentage?';
+  }
+  if (/^(?:close|minimize|mute|unmute|do)\s+(?:it|that|this|something|anything)$/.test(cleaned)) {
+    return 'Which app, window, or setting would you like me to act on?';
+  }
+  return null;
+}
+
+function validateToolGrounding(query, steps) {
+  if (typeof query !== 'string' || !Array.isArray(steps) || !steps.length) {
+    return { grounded: false, tool: null };
+  }
+  for (const step of steps) {
+    const pattern = TOOL_GROUNDING_PATTERNS[step.tool];
+    if (!pattern || !pattern.test(query)) {
+      return { grounded: false, tool: step.tool };
+    }
+  }
+  return { grounded: true, tool: null };
+}
+
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' &&
     !Array.isArray(value) && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
@@ -215,6 +299,12 @@ async function proposeActions(options = {}, chatImpl = localAi.chat) {
       return { success: false, needsClarification: true, clarification: directClarification, steps: [], error: directClarification };
     }
 
+    // Enforce deterministic clarification for underspecified requests regardless of what an LLM proposes.
+    const forcedClarification = detectAmbiguousActionRequest(options.query);
+    if (forcedClarification) {
+      return { success: false, needsClarification: true, clarification: forcedClarification, steps: [], error: forcedClarification };
+    }
+
     let steps;
     try {
       steps = validateProposal(response.reply);
@@ -237,8 +327,17 @@ async function proposeActions(options = {}, chatImpl = localAi.chat) {
     }
 
     validateRequestCoverage(options.query, steps);
+    const grounded = validateToolGrounding(options.query, steps);
+    if (!grounded.grounded) {
+      const msg = 'I could not match that request to a specific supported action. Please name the exact app, setting, or website you want to use.';
+      return { success: false, needsClarification: true, clarification: msg, steps: [], error: msg };
+    }
     return { success: true, steps, requiresConfirmation: true };
   } catch (error) {
+    const fallbackClarification = detectAmbiguousActionRequest(options?.query);
+    if (fallbackClarification) {
+      return { success: false, needsClarification: true, clarification: fallbackClarification, steps: [], error: fallbackClarification };
+    }
     return { success: false, steps: [], error: error.message || 'Cannot create a safe action plan.' };
   }
 }
@@ -400,4 +499,13 @@ function planOfflineSequence(options = {}) {
   }
 }
 
-module.exports = { TOOL_SPECS, MODEL_INSTRUCTIONS, validateProposal, parseClarification, proposeActions, planOfflineSequence };
+module.exports = {
+  TOOL_SPECS,
+  MODEL_INSTRUCTIONS,
+  detectAmbiguousActionRequest,
+  validateToolGrounding,
+  validateProposal,
+  parseClarification,
+  proposeActions,
+  planOfflineSequence
+};

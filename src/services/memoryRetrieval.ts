@@ -38,7 +38,14 @@ export function selectRelevantMemories(
   const maxItems = options.maxItems ?? 4;
   const maxChars = options.maxChars ?? 600;
   const trimmedQuery = query.trim();
-  if (!trimmedQuery || /^\d+(?:\s*[+\-*/%]\s*\d+)+$/.test(trimmedQuery)) return [];
+  if (!trimmedQuery) return [];
+  const mathCandidate = trimmedQuery.replace(/[?=]+$/g, '').trim();
+  if (/^(?:\d+(?:\.\d+)?\s*%\s*of\s*\d+(?:\.\d+)?|(?:the\s+)?(?:square\s+root\s+of|sqrt(?:\s+of)?)\s*\(?\s*\d+(?:\.\d+)?\s*\)?)$/i.test(mathCandidate)) {
+    return [];
+  }
+  if (/^[\d\s.+\-*/()]+$/.test(mathCandidate) && /[+\-*/]/.test(mathCandidate)) {
+    return [];
+  }
 
   const queryTokens = tokenizeMemoryText(trimmedQuery);
   const profileRecall = PROFILE_RECALL_PATTERN.test(trimmedQuery);

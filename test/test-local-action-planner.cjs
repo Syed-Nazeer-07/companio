@@ -223,3 +223,26 @@ test('supports clarification JSON, case-insensitive folders, stringified numbers
   assert.equal(repaired.success, true);
   assert.deepEqual(repaired.steps.map(s => s.tool), ['win.battery.get', 'win.system.specs']);
 });
+
+test('ambiguous commands enforce clarification even when model hallucinates an unrelated action', async () => {
+  for (const vague of ['Adjust the computer', 'Fix my PC', 'Open an app', 'Play something', 'Search']) {
+    const result = await proposeActions(
+      { query: vague, model: 'llama3.2:1b', allowRepair: true, jsonMode: true },
+      async () => ({ success: true, reply: json([{ tool: 'win.desktop.show', params: {} }]) })
+    );
+    assert.equal(result.success, false, vague);
+    assert.equal(result.needsClarification, true, vague);
+    assert.equal(typeof result.clarification, 'string', vague);
+    assert.equal(result.steps.length, 0, vague);
+  }
+});
+
+test('ungrounded tool suggestions are converted into clarification instead of executing wrong tools', async () => {
+  const ungrounded = await proposeActions(
+    { query: 'Launch my design studio workflow', model: 'x' },
+    async () => ({ success: true, reply: json([{ tool: 'win.notepad.launch', params: {} }]) })
+  );
+  assert.equal(ungrounded.success, false);
+  assert.equal(ungrounded.needsClarification, true);
+  assert.equal(ungrounded.steps.length, 0);
+});

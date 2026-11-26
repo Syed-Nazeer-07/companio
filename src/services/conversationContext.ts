@@ -30,44 +30,62 @@ export function recentConversation(messages: ChatMessage[], currentQuery: string
   return history;
 }
 
+export function trySolveMathExpression(query: string): string | null {
+  const trimmed = query.trim();
+  if (!trimmed || trimmed.length > 180) return null;
+  // Avoid treating ISO dates, phone numbers, or semantic versions as arithmetic.
+  if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(trimmed) || /^\d{3}-\d{3}-\d{4}$/.test(trimmed)) {
+    return null;
+  }
+
+  const normalized = trimmed
+    .toLowerCase()
+    .replace(/[?=]+$/g, '')
+    .replace(/^(?:(?:can|could|would)\s+you\s+)?(?:please\s+)?(?:calculate|compute|evaluate|solve|what(?:'s| is))\s+/i, '')
+    .trim();
+
+  if (!normalized) return null;
+
+  const pctMatch = normalized.match(/^(\d+(?:\.\d+)?)\s*%\s*of\s*(\d+(?:\.\d+)?)$/);
+  if (pctMatch) {
+    const pct = parseFloat(pctMatch[1]);
+    const val = parseFloat(pctMatch[2]);
+    const ans = Number(((pct / 100) * val).toPrecision(12));
+    return `${pct}% of ${val} is ${ans} 🧮`;
+  }
+
+  const sqrtMatch = normalized.match(/^(?:the\s+)?(?:square\s+root\s+of|sqrt(?:\s+of)?)\s*\(?\s*(\d+(?:\.\d+)?)\s*\)?$/);
+  if (sqrtMatch) {
+    const val = parseFloat(sqrtMatch[1]);
+    const ans = Number(Math.sqrt(val).toPrecision(12));
+    return `The square root of ${val} is ${ans} 🧮`;
+  }
+
+  const expr = normalized
+    .replace(/\bplus\b/g, '+')
+    .replace(/\bminus\b/g, '-')
+    .replace(/\btimes\b|\bmultiplied\s+by\b/g, '*')
+    .replace(/\bdivided\s+by\b/g, '/')
+    .trim();
+
+  // Bare single literals like "42" or versions like "1.2.3" are not math expressions unless an operator exists.
+  if (/^[\d\s+\-*/().]+$/.test(expr) && /[+\-*/]/.test(expr) && !/^[+-]?\d+(?:\.\d+)?$/.test(expr.replace(/\s+/g, ''))) {
+    const result = evaluateArithmetic(expr);
+    if (result !== null) {
+      const cleanResult = Number.isInteger(result) ? result : Number(result.toPrecision(12));
+      return `${expr} = ${cleanResult} 🧮`;
+    }
+  }
+  return null;
+}
+
   // Conversational response with local desktop inference and deterministic offline utilities
 export async function generateConversationalResponse(query: string, aiConfig?: AiConfig): Promise<string> {
     const q = query.toLowerCase().trim();
 
-    // 1. Math Calculation Solver (Instant 0ms calculation)
-    if (q.includes('calculate') || q.includes('what is') || q.includes("what's") || q.includes('solve')) {
-      // Percentage check e.g. "what is 15% of 800" or "calculate 20% of 1500"
-      const pctMatch = q.match(/(\d+(?:\.\d+)?)\s*%\s*of\s*(\d+(?:\.\d+)?)/);
-      if (pctMatch) {
-        const pct = parseFloat(pctMatch[1]);
-        const val = parseFloat(pctMatch[2]);
-        const ans = (pct / 100) * val;
-        return `${pct}% of ${val} is ${ans} 🧮`;
-      }
-
-      // Square root check
-      const sqrtMatch = q.match(/(?:square root of|sqrt of|sqrt)\s*(\d+(?:\.\d+)?)/);
-      if (sqrtMatch) {
-        const val = parseFloat(sqrtMatch[1]);
-        return `The square root of ${val} is ${Math.sqrt(val)} 🧮`;
-      }
-
-      // Basic arithmetic expressions
-      let expr = q
-        .replace(/what is|what's|calculate|solve|\?/g, '')
-        .replace(/\bplus\b/g, '+')
-        .replace(/\bminus\b/g, '-')
-        .replace(/\btimes\b|\bmultiplied by\b/g, '*')
-        .replace(/\bdivided by\b/g, '/')
-        .trim();
-
-      if (/^[\d\s\+\-\*\/\.\(\)]+$/.test(expr) && /[\+\-\*\/]/.test(expr)) {
-        try {
-          const result = evaluateArithmetic(expr);
-          if (result !== null) return `${expr.trim()} = ${result} 🧮`;
-        } catch (e) {}
-      }
-    }
+    // 1. Math Calculation Solver (prefixed or bare expressions — instant 0ms evaluation)
+    const mathAnswer = trySolveMathExpression(query);
+    if (mathAnswer) return mathAnswer;
 
     // 2. Coin Flip & Dice Roll
     if (q.includes('flip a coin') || q.includes('toss a coin')) {

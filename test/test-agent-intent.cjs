@@ -241,11 +241,26 @@ test('math calculations stay conversational rather than launching Calculator and
   const mathPlan = await engine.planTask('calculate 25 * 4');
   assert.equal(mathPlan.intent, 'conversation');
   assert.equal(mathPlan.steps.length, 0);
+  const barePlan = await engine.planTask('12 * 15');
+  assert.equal(barePlan.intent, 'conversation');
+  assert.equal(barePlan.steps.length, 0);
   const pctPlan = await engine.planTask('calculate 15% of 800');
   assert.equal(pctPlan.intent, 'conversation');
   assert.equal(pctPlan.steps.length, 0);
   assert.match(await ctxExports.generateConversationalResponse('calculate 25 * 4'), /100/);
   assert.match(await ctxExports.generateConversationalResponse('calculate 15% of 800'), /120/);
+  assert.match(await ctxExports.generateConversationalResponse('12 * 15'), /180/);
+  assert.match(await ctxExports.generateConversationalResponse('(45 + 15) / 3'), /20/);
+  assert.match(await ctxExports.generateConversationalResponse('15% of 800'), /120/);
+  assert.match(await ctxExports.generateConversationalResponse('sqrt(144)'), /12/);
+  assert.equal(ctxExports.trySolveMathExpression('2026-11-26'), null);
+
+  for (const vague of ['Adjust the computer', 'Open an app', 'Play something']) {
+    const clarify = await engine.planTask(vague);
+    assert.equal(clarify.intent, 'clarification', vague);
+    assert.equal(clarify.clarificationNeeded, true, vague);
+    assert.equal(clarify.steps.length, 0, vague);
+  }
 
   const veritasium = await engine.planTask('Can you play the latest video from Veritasium?');
   assert.equal(veritasium.intent, 'browser.youtube.creator_latest');

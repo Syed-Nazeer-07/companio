@@ -102,26 +102,32 @@ export class TaskPlanner {
       throw new Error(offline.error || 'This multi-step command is not fully supported. No actions were executed.');
     }
 
-    // Clarify ambiguous under-specified commands rather than guessing silently.
-    if (/^(?:open|show)\s+(?:my|the|a)\s+folder[.!?]?$/i.test(command)) {
+    // Clarify ambiguous under-specified commands before reaching keyword fallbacks or model inference.
+    const cleanForClarify = command.replace(/[.!?]+$/, '').trim().toLowerCase();
+    const clarificationMessage =
+      /^(?:open|show)\s+(?:my|the|a)\s+folder$/.test(cleanForClarify)
+        ? 'Which folder would you like me to open — Downloads, Documents, Desktop, Pictures, Music, or Videos?'
+      : /^(?:adjust|change|configure|fix|optimize|tweak|update|manage)\s+(?:(?:the|my|this)\s+)?(?:computer|pc|laptop|system|windows|device|settings|preferences|stuff|things|it|that)$/.test(cleanForClarify)
+        ? 'Which specific setting or app would you like me to adjust — for example volume, brightness, battery, or opening an app?'
+      : /^(?:open|launch|start|run)\s+(?:(?:a|an|the|my|some)\s+)?(?:app|application|program|tool|site|website|webpage|page|link|folder|directory|window|something|anything|it|that|this)$/.test(cleanForClarify)
+        ? 'Which specific app, website, or folder should I open?'
+      : /^(?:play|watch|listen(?:\s+to)?)\s+(?:something|anything|a\s+video|some\s+video|video|some\s+music|a\s+song|music|song|it|that)$/.test(cleanForClarify)
+        ? 'What specific video, creator, or song would you like me to play?'
+      : /^(?:search|find|look\s+up)(?:\s+(?:for|about|on|in))?(?:\s+(?:the\s+web|the\s+internet|google|youtube|github|wikipedia|maps|something|anything|it|that))?$/.test(cleanForClarify)
+        ? 'What topic or term would you like me to search for?'
+      : /^(?:close|minimize|mute|unmute|do)\s+(?:it|that|this|something|anything)$/.test(cleanForClarify)
+        ? 'Which app, window, or setting would you like me to act on?'
+      : /^(?:set|change|adjust)\s+(?:(?:the|my)\s+)?(?:system\s+)?(?:audio|sound)$/.test(cleanForClarify)
+        ? 'Would you like to mute/unmute audio or set volume to a specific percentage?'
+      : /^(?:set|change|adjust)\s+(?:the\s+|my\s+)?(?:screen\s+|display\s+)?brightness$/.test(cleanForClarify)
+        ? 'What brightness level (0–100%) would you like? Try "set brightness to 60%".'
+      : null;
+
+    if (clarificationMessage) {
       return {
         id: planId, query, intent: 'clarification', steps: [], currentStepIndex: 0,
         status: 'completed', createdAt: Date.now(), clarificationNeeded: true,
-        finalMessage: 'Which folder would you like me to open — Downloads, Documents, Desktop, Pictures, Music, or Videos?'
-      };
-    }
-    if (/^(?:open|launch|start|close|mute|unmute)\s+(?:it|that|this|something)[.!?]?$/i.test(command)) {
-      return {
-        id: planId, query, intent: 'clarification', steps: [], currentStepIndex: 0,
-        status: 'completed', createdAt: Date.now(), clarificationNeeded: true,
-        finalMessage: 'Which app, website, or Windows setting would you like me to act on?'
-      };
-    }
-    if (/^(?:set|change)\s+(?:the\s+|my\s+)?(?:screen\s+|display\s+)?brightness[.!?]?$/i.test(command)) {
-      return {
-        id: planId, query, intent: 'clarification', steps: [], currentStepIndex: 0,
-        status: 'completed', createdAt: Date.now(), clarificationNeeded: true,
-        finalMessage: 'What brightness level (0–100%) would you like? Try "set brightness to 60%".'
+        finalMessage: clarificationMessage
       };
     }
 

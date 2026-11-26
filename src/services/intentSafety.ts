@@ -15,7 +15,7 @@ export function isCommandRequest(input: string): boolean {
 
   // Explicit, intentional action verbs. The polite forms are still commands.
   const actionable = request.replace(/^(?:please\s+)?(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?/, '');
-  if (/^(?:open|launch|start|browse|search|find|look\s+up|play|watch|pause|resume|mute|unmute|set|change|go\s+to|visit|show|take|capture|save|add|remember|note:|read|list|check|get|clear|delete|empty|forget|close|quit|lock|skip|next|stop|turn\s+up|turn\s+down|increase|decrease|raise|lower|dim|calculate)\b/.test(actionable)) {
+  if (/^(?:open|launch|start|run|browse|search|find|look\s+up|play|watch|listen|pause|resume|mute|unmute|set|change|adjust|configure|optimize|tweak|fix|update|go\s+to|visit|show|take|capture|save|add|remember|note:|read|list|check|get|clear|delete|empty|forget|close|quit|lock|skip|next|stop|turn\s+up|turn\s+down|increase|decrease|raise|lower|dim|calculate)\b/.test(actionable)) {
     return true;
   }
 
