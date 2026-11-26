@@ -197,13 +197,13 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
           } })}
           className={`p-4 rounded-2xl border cursor-pointer transition-all ${
             settings.ai.provider === 'local'
-              ? 'bg-sky-50/70 border-sky-500 ring-2 ring-sky-500/20 shadow-sm'
+              ? 'bg-emerald-50/70 border-emerald-700 ring-2 ring-emerald-700/20 shadow-sm'
               : 'bg-white border-slate-200 hover:border-slate-300'
           }`}
         >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <Server className="w-4 h-4 text-sky-600" />
+              <Server className="w-4 h-4 text-emerald-700" />
               <span className="text-xs font-bold text-slate-900">Local Offline LLM</span>
             </div>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
@@ -220,7 +220,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
           onClick={() => onUpdateSettings({ ai: { ...settings.ai, provider: 'mock' } })}
           className={`p-4 rounded-2xl border cursor-pointer transition-all ${
             settings.ai.provider === 'mock'
-              ? 'bg-sky-50/70 border-sky-500 ring-2 ring-sky-500/20 shadow-sm'
+              ? 'bg-emerald-50/70 border-emerald-700 ring-2 ring-emerald-700/20 shadow-sm'
               : 'bg-white border-slate-200 hover:border-slate-300'
           }`}
         >
@@ -251,13 +251,13 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
           })}
           className={`p-4 rounded-2xl border cursor-pointer transition-all text-left ${
             isCloudProvider
-              ? 'bg-sky-50/70 border-sky-500 ring-2 ring-sky-500/20 shadow-sm'
+              ? 'bg-emerald-50/70 border-emerald-700 ring-2 ring-emerald-700/20 shadow-sm'
               : 'bg-white border-slate-200 hover:border-slate-300'
           }`}
         >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <Cpu className="w-4 h-4 text-sky-600" />
+              <Cpu className="w-4 h-4 text-emerald-700" />
               <span className="text-xs font-bold text-slate-900">Cloud API</span>
             </div>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
@@ -278,7 +278,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
               <div className="flex items-center gap-2">
                 <span className={`w-2.5 h-2.5 rounded-full ${testResult?.success ? 'bg-emerald-500' : 'bg-slate-300'}`} />
                 <span className="text-xs font-bold text-slate-900">
-                  Selected local model: <span className="font-mono text-sky-700">{settings.ai.model || 'No model selected'}</span>
+                  Selected local model: <span className="font-mono text-emerald-800">{settings.ai.model || 'No model selected'}</span>
                 </span>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
@@ -286,7 +286,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
                   type="button"
                   onClick={handleFindLocalAi}
                   disabled={testingConnection}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold transition-all disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold transition-all disabled:opacity-50"
                 >
                   <Server className="w-3.5 h-3.5" />
                   <span>{testingConnection ? 'Checking...' : 'Find Local AI'}</span>
@@ -327,7 +327,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
                   onChange={(e) => onUpdateSettings({ ai: { ...settings.ai, localEndpoint: e.target.value } })}
                   placeholder="http://127.0.0.1:11434/v1"
                   spellCheck={false}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono focus:outline-none focus:border-sky-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono focus:outline-none focus:border-emerald-700"
                 />
               </label>
               <label className="text-[11px] font-bold text-slate-600 space-y-1.5">
@@ -338,7 +338,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
                   value={settings.ai.model || ''}
                   onChange={(e) => onUpdateSettings({ ai: { ...settings.ai, model: e.target.value } })}
                   placeholder="Choose a model or enter its ID"
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono focus:outline-none focus:border-sky-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono focus:outline-none focus:border-emerald-700"
                 />
                 <datalist id="companio-local-models">
                   {detectedLocalModels.map((model) => <option key={model} value={model} />)}
@@ -362,13 +362,13 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
                   value={testPrompt}
                   onChange={(e) => setTestPrompt(e.target.value)}
                   placeholder="Ask your local LLM anything..."
-                  className="flex-1 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-sky-500 focus:bg-white"
+                  className="flex-1 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:border-emerald-700 focus:bg-white"
                   onKeyDown={(e) => e.key === 'Enter' && handleRunLiveTest()}
                 />
                 <button
                   onClick={handleRunLiveTest}
                   disabled={isTestingPrompt || !testPrompt.trim()}
-                  className="flex items-center gap-1 px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold shadow-sm transition-all disabled:opacity-50"
+                  className="flex items-center gap-1 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-sm transition-all disabled:opacity-50"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>{isTestingPrompt ? 'Thinking...' : 'Test'}</span>
@@ -377,7 +377,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
 
               {testReply && (
                 <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 animate-in fade-in duration-150">
-                  <span className="font-bold text-sky-700 block mb-1">Companio (via {settings.ai.model}):</span>
+                  <span className="font-bold text-emerald-800 block mb-1">Companio (via {settings.ai.model}):</span>
                   <p className="leading-relaxed">{testReply}</p>
                 </div>
               )}
@@ -440,7 +440,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
           <form onSubmit={(e) => void handleSaveCloudKey(e)} className="space-y-2 pt-2 border-t border-slate-100">
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <span className="font-semibold text-slate-700 flex items-center gap-1.5">
-                <KeyRound className="w-3.5 h-3.5 text-sky-600" />
+                <KeyRound className="w-3.5 h-3.5 text-emerald-700" />
                 <span>
                   {cloudStatus?.providers?.[activeCloudProvider]?.configured
                     ? `Encrypted key stored (${cloudStatus.providers[activeCloudProvider].hint || '••••'})`
@@ -472,7 +472,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
               <button
                 type="submit"
                 disabled={savingCloudKey || !cloudKeyDraft.trim() || !isNativeDesktop()}
-                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold disabled:opacity-50"
               >
                 {savingCloudKey ? 'Encrypting...' : 'Save Key'}
               </button>
@@ -497,7 +497,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
                 type="button"
                 onClick={handleRunLiveTest}
                 disabled={isTestingPrompt || !testPrompt.trim()}
-                className="flex items-center gap-1 px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold disabled:opacity-50"
+                className="flex items-center gap-1 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold disabled:opacity-50"
               >
                 <Send className="w-3.5 h-3.5" />
                 <span>{isTestingPrompt ? 'Thinking...' : 'Test'}</span>
@@ -505,7 +505,7 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
             </div>
             {testReply && (
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800">
-                <span className="font-bold text-sky-700 block mb-1">Companio ({activeCloudProvider}):</span>
+                <span className="font-bold text-emerald-800 block mb-1">Companio ({activeCloudProvider}):</span>
                 <p className="leading-relaxed">{testReply}</p>
               </div>
             )}
@@ -518,11 +518,11 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
         <section className="acrylic-card rounded-xl p-5 border border-slate-200 space-y-4">
           <label className="flex items-start justify-between gap-4">
             <span><strong className="text-sm text-slate-900">Conversation continuity</strong><span className="block mt-1 text-xs text-slate-600">Opt in to sending up to eight recent chat messages to your configured model. Notes and action results are excluded. Turn off at any time; existing history can be cleared in History.</span></span>
-            <input type="checkbox" className="mt-1 h-5 w-5 accent-sky-600" checked={settings.ai.useConversationContext === true} onChange={e => onUpdateSettings({ai:{...settings.ai,useConversationContext:e.target.checked}})} />
+            <input type="checkbox" className="mt-1 h-5 w-5 accent-emerald-700" checked={settings.ai.useConversationContext === true} onChange={e => onUpdateSettings({ai:{...settings.ai,useConversationContext:e.target.checked}})} />
           </label>
           <label className="flex items-start justify-between gap-4 pt-3 border-t border-slate-100">
             <span><strong className="text-sm text-slate-900">Relevant long-term memory</strong><span className="block mt-1 text-xs text-slate-600">Include relevant, non-expired saved memories as background context in AI chat. Manage or clear memories anytime in History & Logs.</span></span>
-            <input type="checkbox" className="mt-1 h-5 w-5 accent-sky-600" checked={settings.ai.useLongTermMemory !== false} onChange={e => onUpdateSettings({ai:{...settings.ai,useLongTermMemory:e.target.checked}})} />
+            <input type="checkbox" className="mt-1 h-5 w-5 accent-emerald-700" checked={settings.ai.useLongTermMemory !== false} onChange={e => onUpdateSettings({ai:{...settings.ai,useLongTermMemory:e.target.checked}})} />
           </label>
         </section>
       )}

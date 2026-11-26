@@ -341,7 +341,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
         {/* Input: Microphone & Wake Word */}
         <div className="acrylic-card rounded-2xl p-6 space-y-5 border border-slate-200 shadow-sm">
           <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <Mic className="w-4 h-4 text-sky-600" />
+            <Mic className="w-4 h-4 text-emerald-700" />
             <span>Voice Input (Speech-to-Text)</span>
           </h3>
 
@@ -357,7 +357,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
               onChange={(e) => onUpdateSettings({
                 voice: { ...settings.voice, wakePhraseEnabled: e.target.checked }
               })}
-              className="w-5 h-5 accent-sky-600 rounded cursor-pointer"
+              className="w-5 h-5 accent-emerald-700 rounded cursor-pointer"
             />
           </div>
 
@@ -375,7 +375,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
               onChange={event => onUpdateSettings({
                 voice: { ...settings.voice, autoSendSafeSpeech: event.target.checked }
               })}
-              className="h-5 w-5 shrink-0 cursor-pointer accent-sky-600" />
+              className="h-5 w-5 shrink-0 cursor-pointer accent-emerald-700" />
           </div>
 
           {/* Local Whisper is optional, explicit, private and uses no API credentials. */}
@@ -546,7 +546,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
               Push-to-Talk Activation
             </label>
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700">
-              Press <span className="font-mono font-bold text-sky-700">{settings.activationShortcut}</span> to open the assistant.
+              Press <span className="font-mono font-bold text-emerald-800">{settings.activationShortcut}</span> to open the assistant.
               Click its microphone button to speak. Turn on auto-start above if you want the shortcut to start listening immediately.
             </div>
           </div>
@@ -557,14 +557,14 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
             Speech recognition in browser previews may depend on the browser's online speech service.
           </p>
 
-          <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-3.5 space-y-2">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5 space-y-2">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-bold text-slate-800">Test Speech Recognition</p>
                 <p className="text-[11px] text-slate-600">Shows actual transcript, locale and confidence where supported</p>
               </div>
               <button type="button" onClick={handleRecognitionTest}
-                className="shrink-0 rounded-lg bg-sky-600 px-3 py-2 text-xs font-bold text-white hover:bg-sky-700">
+                className="shrink-0 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800">
                 {testingRecognition ? 'Stop' : 'Try Dictation'}
               </button>
             </div>
@@ -589,7 +589,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
                   testingMic
                     ? 'bg-rose-500 text-white shadow-sm'
-                    : 'bg-sky-500 text-white shadow-sm hover:bg-sky-600'
+                    : 'bg-emerald-700 text-white shadow-sm hover:bg-emerald-800'
                 }`}
               >
                 {testingMic ? 'Stop Mic Test' : 'Test Mic'}
@@ -619,7 +619,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
         {/* Output: Text-To-Speech Synthesis */}
         <div className="acrylic-card rounded-2xl p-6 space-y-5 border border-slate-200 shadow-sm">
           <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <Volume2 className="w-4 h-4 text-sky-600" />
+            <Volume2 className="w-4 h-4 text-emerald-700" />
             <span>Spoken Replies (Text-to-Speech)</span>
           </h3>
 
@@ -635,18 +635,18 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
               onChange={(e) => onUpdateSettings({
                 voice: { ...settings.voice, muted: !e.target.checked }
               })}
-              className="w-5 h-5 accent-sky-600 rounded cursor-pointer"
+              className="w-5 h-5 accent-emerald-700 rounded cursor-pointer"
             />
           </div>
 
           {/* Character Voice Profile Preview */}
-          <div className="p-3.5 rounded-xl bg-sky-50/60 border border-sky-200 space-y-1.5">
+          <div className="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200 space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-sky-600" />
+                <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
                 <span>Auto-Matched for {settings.characterName || 'Companion'}</span>
               </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
                 {settings.characterId} profile
               </span>
             </div>
@@ -666,7 +666,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
               onChange={(e) => onUpdateSettings({
                 voice: { ...settings.voice, ttsVoice: e.target.value }
               })}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-xs font-semibold focus:outline-none focus:border-sky-500"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-xs font-semibold focus:outline-none focus:border-emerald-700"
             >
               <option value="">Auto-Match Character Profile (Recommended)</option>
               {availableVoices
@@ -683,7 +683,7 @@ export const VoiceSettingsPage: React.FC<Props> = ({ settings, onUpdateSettings 
           <button
             onClick={handleTestVoice}
             disabled={testingVoice}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 text-xs font-bold transition-all disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition-all disabled:opacity-50"
           >
             <Play className={`w-3.5 h-3.5 fill-current ${testingVoice ? 'animate-spin' : ''}`} />
             <span>{testingVoice ? 'Speaking...' : 'Test Voice Audio'}</span>

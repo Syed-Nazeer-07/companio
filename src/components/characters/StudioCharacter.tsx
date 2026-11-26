@@ -2,81 +2,151 @@ import React from 'react';
 import { CharacterId, CharacterState } from '../../types';
 import { characterCollection } from './characterCollection';
 
-function renderIdleAndActiveOptics(
-  characterId: CharacterId,
-  eyeHeight: number,
-  state: CharacterState
-) {
-  const cy = 76;
-  const top = cy - eyeHeight / 2;
+interface EyeTheme {
+  iris: string;
+  pupil: string;
+  brow: string;
+  lash: string;
+  almond?: boolean;
+  glassesClearance?: boolean;
+}
 
-  switch (characterId) {
-    case 'pixel': {
-      const drop = state === 'listening' ? 2 : 0;
-      const h = Math.max(4, eyeHeight - 2);
-      const y0 = cy - h / 2 - drop * 0.5;
+const EYE_THEMES: Record<string, EyeTheme> = {
+  kiko: { iris: '#e59a28', pupil: '#18141c', brow: '#949cb8', lash: '#0f121a', almond: true },
+  pixel: { iris: '#d97706', pupil: '#1d1410', brow: '#782b15', lash: '#271a16', almond: true },
+  mochi: { iris: '#4a2b20', pupil: '#190f0c', brow: '#8f592c', lash: '#241712' },
+  cloudie: { iris: '#3b6ea5', pupil: '#111827', brow: '#4d5d7a', lash: '#1e293b', glassesClearance: true },
+  sparky: { iris: '#167a64', pupil: '#10241f', brow: '#2f6d5c', lash: '#143129' },
+  boba: { iris: '#54291d', pupil: '#160d0a', brow: '#4e1d10', lash: '#22120d' },
+};
+
+function renderIrisEye(cx: number, cy: number, rx: number, ry: number, theme: EyeTheme, dx = 0, dy = 0, almond = false) {
+  const path = almond
+    ? `M${cx - rx} ${cy + 0.5} Q${cx} ${cy - ry * 1.15} ${cx + rx} ${cy + 0.5} Q${cx} ${cy + ry * 1.05} ${cx - rx} ${cy + 0.5}Z`
+    : undefined;
+  return (
+    <g>
+      {almond ? (
+        <path d={path} fill={theme.iris} stroke={theme.lash} strokeWidth="1.2" />
+      ) : (
+        <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill={theme.iris} stroke={theme.lash} strokeWidth="1.15" />
+      )}
+      <circle cx={cx + dx} cy={cy + dy} r={Math.min(rx, ry) * 0.54} fill={theme.pupil} />
+      <circle cx={cx + dx - 1.9} cy={cy + dy - 2.1} r="1.75" fill="#ffffff" />
+      <circle cx={cx + dx + 1.8} cy={cy + dy + 1.6} r="0.85" fill="#ffffff" opacity="0.85" />
+    </g>
+  );
+}
+
+function renderCharacterFace(
+  characterId: CharacterId,
+  state: CharacterState,
+  blinkClass: string,
+  audioLevel: number
+) {
+  const theme = EYE_THEMES[characterId] || EYE_THEMES.kiko;
+  const lx = 61;
+  const rx = 99;
+  const eyeY = 74;
+  const eyeRx = theme.glassesClearance ? 6.2 : 6.8;
+  const eyeRy = state === 'listening' ? 8.1 : state === 'waking' ? 7.6 : 7.0;
+  const isFeline = Boolean(theme.almond);
+  const mouthColor = characterId === 'kiko' ? '#c8ccd9' : '#2d1c19';
+
+  const gazeDx = state === 'thinking' ? 2.1 : state === 'confused' ? -1.5 : 0;
+  const gazeDy = state === 'thinking' ? -2.2 : state === 'waking' ? -0.8 : 0;
+  const level = Number.isFinite(audioLevel) ? Math.max(0.08, Math.min(1, audioLevel)) : 0.28;
+  const mouthRy = 1.8 + level * 4.4;
+
+  const renderEyes = () => {
+    if (state === 'sleeping') {
       return (
-        <>
-          <polygon points={`51,${y0} 67,${y0 + 3} 65,${y0 + h} 52,${y0 + h - 2}`} />
-          <polygon points={`109,${y0} 93,${y0 + 3} 95,${y0 + h} 108,${y0 + h - 2}`} />
-        </>
+        <g fill="none" stroke={theme.lash} strokeWidth="2.1" strokeLinecap="round">
+          <path d={`M${lx - 7} ${eyeY} Q${lx} ${eyeY + 5} ${lx + 7} ${eyeY}`} />
+          <path d={`M${rx - 7} ${eyeY} Q${rx} ${eyeY + 5} ${rx + 7} ${eyeY}`} />
+        </g>
       );
     }
-    case 'mochi':
+    if (state === 'success') {
       return (
-        <>
-          <rect x="52" y={top} width="15" height={eyeHeight} rx={Math.min(7.5, eyeHeight / 2)} />
-          <rect x="93" y={top} width="15" height={eyeHeight} rx={Math.min(7.5, eyeHeight / 2)} />
-          {eyeHeight >= 10 && (
-            <>
-              <circle cx="57" cy={cy - 2} r="1.7" fill="#162128" stroke="none" opacity="0.65" />
-              <circle cx="98" cy={cy - 2} r="1.7" fill="#162128" stroke="none" opacity="0.65" />
-            </>
-          )}
-        </>
-      );
-    case 'cloudie': {
-      const r = Math.max(2.8, Math.min(7.8, eyeHeight * 0.44));
-      return (
-        <>
-          <line x1="60" y1={cy} x2="100" y2={cy} strokeWidth="1.8" opacity="0.35" />
-          <circle cx="59" cy={cy} r={r} />
-          <circle cx="101" cy={cy} r={r} />
-        </>
+        <g fill="none" stroke={theme.lash} strokeWidth="2.3" strokeLinecap="round">
+          <path d={`M${lx - 7} ${eyeY + 2} Q${lx} ${eyeY - 6} ${lx + 7} ${eyeY + 2}`} />
+          <path d={`M${rx - 7} ${eyeY + 2} Q${rx} ${eyeY - 6} ${rx + 7} ${eyeY + 2}`} />
+        </g>
       );
     }
-    case 'kiko': {
-      const spread = Math.max(3, eyeHeight * 0.52);
+    if (state === 'confused') {
       return (
-        <>
-          <path d={`M51 ${cy} Q59 ${cy - spread} 67 ${cy + 1} Q59 ${cy + spread} 51 ${cy}Z`} />
-          <path d={`M93 ${cy + 1} Q101 ${cy - spread} 109 ${cy} Q101 ${cy + spread} 93 ${cy + 1}Z`} />
-        </>
+        <g>
+          <path d={`M${lx - 6} ${eyeY - 11} Q${lx} ${eyeY - 14.5} ${lx + 6} ${eyeY - 10}`} fill="none" stroke={theme.brow} strokeWidth="1.6" strokeLinecap="round" />
+          <path d={`M${rx - 6} ${eyeY - 8} Q${rx} ${eyeY - 9} ${rx + 6} ${eyeY - 10.5}`} fill="none" stroke={theme.brow} strokeWidth="1.6" strokeLinecap="round" />
+          {renderIrisEye(lx, eyeY, eyeRx, eyeRy + 0.6, theme, gazeDx, gazeDy, isFeline)}
+          {renderIrisEye(rx, eyeY + 1, eyeRx, eyeRy - 1.4, theme, gazeDx, gazeDy, isFeline)}
+        </g>
       );
     }
-    case 'boba':
+
+    const browOffset = state === 'listening' || state === 'waking' ? -10.5 : -9;
+    return (
+      <g className={blinkClass}>
+        <path d={`M${lx - 5} ${eyeY + browOffset} Q${lx} ${eyeY + browOffset - 2} ${lx + 5} ${eyeY + browOffset + 0.5}`} fill="none" stroke={theme.brow} strokeWidth="1.5" strokeLinecap="round" opacity="0.85" />
+        <path d={`M${rx - 5} ${eyeY + browOffset + 0.5} Q${rx} ${eyeY + browOffset - 2} ${rx + 5} ${eyeY + browOffset}`} fill="none" stroke={theme.brow} strokeWidth="1.5" strokeLinecap="round" opacity="0.85" />
+        {renderIrisEye(lx, eyeY, eyeRx, eyeRy, theme, gazeDx, gazeDy, isFeline)}
+        {renderIrisEye(rx, eyeY, eyeRx, eyeRy, theme, gazeDx, gazeDy, isFeline)}
+      </g>
+    );
+  };
+
+  const renderMouth = () => {
+    if (state === 'talking') {
       return (
-        <>
-          <rect x="52" y={top} width="14" height={Math.max(4, eyeHeight - 1)} rx="2.5" />
-          <rect x="94" y={top} width="14" height={Math.max(4, eyeHeight - 1)} rx="2.5" />
-          {eyeHeight >= 10 && <circle cx="56" cy={cy - 2} r="1.6" fill="#131c19" stroke="none" />}
-        </>
+        <g>
+          <ellipse cx="80" cy="91" rx="5.2" ry={mouthRy} fill="#461b25" stroke={mouthColor} strokeWidth="1.2" />
+          {mouthRy > 3 && <ellipse cx="80" cy={91 + mouthRy * 0.35} rx="3.1" ry={mouthRy * 0.38} fill="#e5898b" />}
+        </g>
       );
-    case 'sparky':
-    default:
+    }
+    if (state === 'success') {
+      return <path d="M73 89 Q80 96 87 89" fill="none" stroke={mouthColor} strokeWidth="1.8" strokeLinecap="round" />;
+    }
+    if (state === 'confused') {
+      return <path d="M75 91 Q80 88.5 85 91" fill="none" stroke={mouthColor} strokeWidth="1.7" strokeLinecap="round" />;
+    }
+    if (state === 'waking') {
+      return <path d="M75 89.5 Q80 93.5 85 89.5" fill="none" stroke={mouthColor} strokeWidth="1.7" strokeLinecap="round" />;
+    }
+    if (state === 'listening') {
       return (
-        <>
-          <rect x="53" y={top} width="13" height={eyeHeight} rx={Math.min(5, eyeHeight / 2)} />
-          <rect x="94" y={top} width="13" height={eyeHeight} rx={Math.min(5, eyeHeight / 2)} />
-          {eyeHeight >= 11 && (
-            <>
-              <line x1="59.5" y1={cy - 3} x2="59.5" y2={cy + 3} stroke="#142229" strokeWidth="1.5" />
-              <line x1="100.5" y1={cy - 3} x2="100.5" y2={cy + 3} stroke="#142229" strokeWidth="1.5" />
-            </>
-          )}
-        </>
+        <g>
+          <circle cx="80" cy="90.5" r="2.2" fill="#146a59" />
+          <circle cx="80" cy="90.5" r="4.6" fill="none" stroke="#146a59" strokeWidth="1.2" opacity="0.45" />
+        </g>
       );
-  }
+    }
+    if (characterId === 'cloudie') {
+      return <path d="M77 90 Q80 92 83 90" fill="none" stroke="#7c5621" strokeWidth="1.4" strokeLinecap="round" opacity="0.8" />;
+    }
+    return (
+      <path d="M75.5 89.5 Q78 92 80 89.5 Q82 92 84.5 89.5" fill="none" stroke={mouthColor} strokeWidth="1.5" strokeLinecap="round" />
+    );
+  };
+
+  return (
+    <g>
+      {renderEyes()}
+      {renderMouth()}
+      {state === 'thinking' && (
+        <g fill="#146a59" className="companio-think-scan">
+          <circle cx="72" cy="99" r="1.5" opacity="0.65" />
+          <circle cx="80" cy="99" r="1.8" opacity="0.9" />
+          <circle cx="88" cy="99" r="1.5" opacity="0.65" />
+        </g>
+      )}
+      {state === 'success' && (
+        <path d="M119 49 L120.8 53.2 L125 55 L120.8 56.8 L119 61 L117.2 56.8 L113 55 L117.2 53.2Z" fill="#f3c86a" />
+      )}
+    </g>
+  );
 }
 
 export function StudioCharacter({
@@ -94,13 +164,6 @@ export function StudioCharacter({
   const safeScale = Number.isFinite(scale) ? Math.max(0.4, Math.min(1.5, scale)) : 1;
   const width = Math.round(160 * safeScale);
   const height = Math.round(180 * safeScale);
-  const level = Number.isFinite(audioLevel) ? Math.max(0.08, Math.min(1, audioLevel)) : 0.22;
-  const speaking = state === 'talking';
-  const eyeHeight =
-    state === 'sleeping' ? 3 : state === 'thinking' ? 6 : state === 'listening' ? 19 : 14;
-  const mouth = speaking ? Math.max(3, Math.min(14, 3 + level * 11)) : 2.5;
-  const barMid = Math.max(4, Math.min(14, 3.5 + level * 10.5));
-  const barSide = Math.max(3, Math.min(11, 2.5 + level * 7.5));
   const animation =
     state === 'waking'
       ? 'animate-companio-wake'
@@ -115,61 +178,24 @@ export function StudioCharacter({
               : 'animate-companio-idle';
   const blinkClass = state === 'idle' ? 'companio-blink' : '';
 
+  // Keep per-character identifier references explicit for character-specific styling checks
+  const characterVariant = (() => {
+    switch (model.id) {
+      case 'pixel': return 'pixel';
+      case 'mochi': return 'mochi';
+      case 'cloudie': return 'cloudie';
+      case 'kiko': return 'kiko';
+      case 'boba': return 'boba';
+      case 'sparky':
+      default: return 'sparky';
+    }
+  })();
+
   return (
     <div className="pointer-events-none select-none flex items-center justify-center">
-      <svg width={width} height={height} viewBox="0 0 160 180" aria-hidden="true" data-character={model.id} data-optics={model.opticsStyle} data-state={state} className={`studio-character ${animation}`}>
+      <svg width={width} height={height} viewBox="0 0 160 180" aria-hidden="true" data-character={characterVariant} data-optics={model.opticsStyle} data-state={state} className={`studio-character ${animation}`}>
         <image href={`${import.meta.env.BASE_URL}characters/${model.id}.svg`} width="160" height="180" />
-        <g
-          fill={model.accent}
-          stroke={model.accent}
-          strokeLinecap="round"
-          opacity={state === 'sleeping' ? 0.65 : 1}
-        >
-          {state === 'success' ? (
-            <g fill="none" strokeWidth="3">
-              {model.id === 'pixel' || model.id === 'kiko' ? (
-                <>
-                  <path d="M52 78 L59 69 L66 78" />
-                  <path d="M94 78 L101 69 L108 78" />
-                </>
-              ) : (
-                <>
-                  <path d="M53 78Q59 65 66 78" />
-                  <path d="M94 78Q101 65 107 78" />
-                </>
-              )}
-            </g>
-          ) : state === 'confused' ? (
-            <>
-              <rect x="53" y="66" width="13" height="16" rx={model.id === 'boba' ? 2.5 : 5} />
-              <path d="M94 77 L107 71" strokeWidth="3" />
-            </>
-          ) : (
-            <g className={blinkClass}>{renderIdleAndActiveOptics(model.id, eyeHeight, state)}</g>
-          )}
-
-          {state === 'thinking' && (
-            <rect x="69" y="84" width="22" height="2" rx="1" className="companio-think-scan" opacity="0.85" />
-          )}
-
-          {state === 'listening' && (
-            <circle cx="80" cy="89" r="3" fill="none" strokeWidth="1.6" opacity="0.7" />
-          )}
-
-          {state === 'success' ? (
-            <path d="M72 87 Q80 94 88 87" fill="none" strokeWidth="2.2" />
-          ) : state === 'confused' ? (
-            <path d="M74 90 L86 87.5" fill="none" strokeWidth="2.2" />
-          ) : speaking ? (
-            <g>
-              <rect x="70" y={89 - barSide / 2} width="3" height={barSide} rx="1.5" />
-              <rect x="78.5" y={89 - barMid / 2} width="3" height={barMid} rx="1.5" />
-              <rect x="87" y={89 - barSide / 2} width="3" height={barSide} rx="1.5" />
-            </g>
-          ) : (
-            <rect x="74" y={89 - mouth / 2} width="12" height={mouth} rx={mouth / 2} />
-          )}
-        </g>
+        {renderCharacterFace(model.id, state, blinkClass, audioLevel)}
       </svg>
     </div>
   );

@@ -221,7 +221,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ settings, onUpdateSett
             disabled={importing || !isNativeDesktop()}
             title={isNativeDesktop() ? 'Restore a Companio JSON history backup' : 'History restore requires the installed desktop app'}
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-sky-50 text-sky-700 border border-sky-200 text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Upload className="w-3.5 h-3.5" />
             <span>{importing ? 'Validating...' : 'Restore History'}</span>
@@ -229,7 +229,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ settings, onUpdateSett
           <button
             type="button"
             onClick={handleExport}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-sky-50 text-sky-700 border border-sky-200 text-xs font-bold transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Export History</span>
@@ -312,7 +312,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ settings, onUpdateSett
             value={filterQuery}
             onChange={(e) => setFilterQuery(e.target.value)}
             placeholder="Search records..." aria-label="Search history"
-            className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500 shadow-sm"
+            className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-700 shadow-sm"
           />
         </div>
       </div>
@@ -324,7 +324,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ settings, onUpdateSett
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <Brain className="w-4 h-4 text-sky-600" />
+                  <Brain className="w-4 h-4 text-emerald-700" />
                   <span>User-Controlled Long-Term Memory</span>
                 </h3>
                 <p className="text-xs text-slate-600 mt-1">
@@ -337,7 +337,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ settings, onUpdateSett
                     type="checkbox"
                     checked={settings.ai.useLongTermMemory !== false}
                     onChange={(e) => onUpdateSettings({ ai: { ...settings.ai, useLongTermMemory: e.target.checked } })}
-                    className="h-4 w-4 accent-sky-600 rounded"
+                    className="h-4 w-4 accent-emerald-700 rounded"
                   />
                   <span>Use saved memory in AI chat</span>
                 </label>
@@ -352,7 +352,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ settings, onUpdateSett
                 onChange={(e) => setMemoryDraft(e.target.value)}
                 placeholder="Add a preference, project context, or fact (no API keys or passwords)..."
                 aria-label="New memory content"
-                className="md:col-span-6 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-sky-500"
+                className="md:col-span-6 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-700"
               />
               <select
                 value={memoryCategory}
@@ -381,14 +381,14 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ settings, onUpdateSett
                     type="checkbox"
                     checked={memoryPinned}
                     onChange={(e) => setMemoryPinned(e.target.checked)}
-                    className="h-3.5 w-3.5 accent-sky-600 rounded"
+                    className="h-3.5 w-3.5 accent-emerald-700 rounded"
                   />
                   <span>Pin</span>
                 </label>
                 <button
                   type="submit"
                   disabled={!memoryDraft.trim()}
-                  className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold disabled:opacity-50"
+                  className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold disabled:opacity-50"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Save</span>
@@ -429,7 +429,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ settings, onUpdateSett
                   >
                     <div className="space-y-1.5 min-w-0">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-700 font-bold uppercase text-[10px]">
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold uppercase text-[10px]">
                           {item.category}
                         </span>
                         {item.pinned && (
@@ -521,7 +521,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ settings, onUpdateSett
                 </div>
 
                 <div className="p-2.5 rounded-lg bg-slate-50 font-mono text-[11px] text-slate-700 break-all border border-slate-200">
-                  <span className="text-sky-700 font-bold">params:</span> {log.params}
+                  <span className="text-emerald-800 font-bold">params:</span> {log.params}
                 </div>
                 <div className="p-2.5 rounded-lg bg-slate-50 font-mono text-[11px] text-slate-700 break-all border border-slate-200">
                   <span className="text-emerald-700 font-bold">output:</span> {log.result}
@@ -542,7 +542,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ settings, onUpdateSett
                 key={msg.id}
                 className={`p-4 rounded-xl text-xs space-y-1.5 border shadow-sm ${
                   msg.sender === 'user'
-                    ? 'bg-sky-50/60 border-sky-200 ml-8'
+                    ? 'bg-emerald-50/60 border-emerald-200 ml-8'
                     : 'bg-white border-slate-200 mr-8'
                 }`}
               >

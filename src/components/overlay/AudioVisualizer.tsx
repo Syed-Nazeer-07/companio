@@ -5,7 +5,7 @@ interface Props {
   color?: string;
 }
 
-export const AudioVisualizer: React.FC<Props> = ({ active, color = 'bg-sky-400' }) => {
+export const AudioVisualizer: React.FC<Props> = ({ active, color = 'bg-emerald-600' }) => {
   return (
     <div className="flex items-center gap-1 h-5 px-2">
       {[0.4, 0.8, 1, 0.6, 0.9, 0.5, 0.7].map((heightScale, i) => (

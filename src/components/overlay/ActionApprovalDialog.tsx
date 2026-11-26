@@ -32,7 +32,7 @@ export const ActionApprovalDialog: React.FC<ActionApprovalDialogProps> = ({
       aria-describedby="companio-approval-description"
       className="flex max-h-[95%] w-full max-w-[330px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-2xl"
     >
-      <header className="flex items-start gap-3 border-b border-slate-100 px-4 py-3">
+      <header className="flex items-start gap-3 border-b border-slate-100 px-4 py-2.5">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800">
           <ShieldCheck size={19} aria-hidden="true" />
         </div>
@@ -51,9 +51,9 @@ export const ActionApprovalDialog: React.FC<ActionApprovalDialogProps> = ({
         <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">{plan.intent==='local_ai_actions'?'Local model proposal':'Requested actions'}</p>
         <p className="mt-1 text-xs text-slate-800 break-words max-h-14 overflow-y-auto">{plan.query}</p>
       </div>
-      <ol className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3" aria-label="Actions requiring approval">
+      <ol className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2.5" aria-label="Actions requiring approval">
         {plan.steps.map((step, index) => (
-          <li key={step.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <li key={step.id} className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
             <div className="flex items-start gap-2">
               <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[10px] font-bold text-emerald-800">
                 {index + 1}
