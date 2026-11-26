@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AppSettings, CharacterId, CharacterState } from '../../types';
 import { CharacterRenderer } from '../characters/CharacterRenderer';
+import { characterCollection } from '../characters/characterCollection';
 import { Check, Sliders } from 'lucide-react';
 
 interface Props {
@@ -11,50 +12,7 @@ interface Props {
 export const CharacterStudioPage: React.FC<Props> = ({ settings, onUpdateSettings }) => {
   const [previewState, setPreviewState] = useState<CharacterState>('idle');
 
-  const characters = [
-    {
-      id: 'sparky' as CharacterId,
-      name: 'Sparky',
-      role: 'Cute Animated Robot',
-      desc: 'Friendly cybernetic companion with digital visor, thruster flames, and mechanical gestures.',
-      color: 'from-sky-500 to-blue-600'
-    },
-    {
-      id: 'pixel' as CharacterId,
-      name: 'Pixel',
-      role: '16-bit Retro Fox',
-      desc: 'Authentic 16-bit retro arcade cyber-fox with pixel-perfect animations and nostalgic charm.',
-      color: 'from-orange-500 to-amber-600'
-    },
-    {
-      id: 'mochi' as CharacterId,
-      name: 'Mochi',
-      role: 'Squishy 3D Mascot',
-      desc: 'Soft, squishy creature with 3D gradient shading, glossy reflections, and happy bouncing.',
-      color: 'from-rose-400 to-orange-500'
-    },
-    {
-      id: 'cloudie' as CharacterId,
-      name: 'Cloudie',
-      role: 'Dream Cloud & Star',
-      desc: 'Pastel dream cloud with glowing blush cheeks, floating star companion, and rainbow sparkle.',
-      color: 'from-pink-400 to-sky-400'
-    },
-    {
-      id: 'kiko' as CharacterId,
-      name: 'Kiko',
-      role: 'Chibi Kitten',
-      desc: 'Ultra-cute anime kitten with twitching ears, swishing tail, heart sparkles, and soft purring.',
-      color: 'from-amber-400 to-rose-400'
-    },
-    {
-      id: 'boba' as CharacterId,
-      name: 'Boba',
-      role: 'Boba Milk Tea Bear',
-      desc: 'Smiling boba cup with bear ears on the lid, floating tapioca pearls, and bubbly sweet movements.',
-      color: 'from-orange-400 to-yellow-500'
-    }
-  ];
+  const characters = characterCollection;
 
   const handleSelect = (id: CharacterId) => {
     onUpdateSettings({ characterId: id });
@@ -75,7 +33,7 @@ export const CharacterStudioPage: React.FC<Props> = ({ settings, onUpdateSetting
       <div>
         <h2 className="text-2xl font-bold text-slate-900 mb-1.5">Character Studio</h2>
         <p className="text-sm text-slate-600">
-          Select, preview, and customize your desktop assistant companion. Each character features fluid high framerate animations and reactive expressions.
+          Choose a distinctive companion and preview its actual interaction states before using it on your desktop.
         </p>
       </div>
 
@@ -103,7 +61,7 @@ export const CharacterStudioPage: React.FC<Props> = ({ settings, onUpdateSetting
               {testStates.map((st) => (
                 <button
                   key={st}
-                  onClick={() => setPreviewState(st)}
+                  onClick={() => setPreviewState(st)} aria-pressed={previewState === st}
                   className={`px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all ${
                     previewState === st
                       ? 'bg-sky-500 text-white shadow-sm'
@@ -159,15 +117,16 @@ export const CharacterStudioPage: React.FC<Props> = ({ settings, onUpdateSetting
 
       {/* Character Gallery Grid */}
       <div>
-        <h3 className="text-base font-bold text-slate-900 mb-4">Cute Character Gallery</h3>
+        <h3 className="text-base font-bold text-slate-900 mb-4">Companion collection</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {characters.map((char) => {
             const isSelected = settings.characterId === char.id;
             return (
-              <div
+              <button type="button"
                 key={char.id}
+                aria-pressed={isSelected}
                 onClick={() => handleSelect(char.id)}
-                className={`acrylic-card rounded-2xl p-5 cursor-pointer relative border transition-all ${
+                className={`acrylic-card rounded-2xl p-5 cursor-pointer relative border transition-all text-left ${
                   isSelected
                     ? 'border-sky-500 ring-2 ring-sky-500/20 bg-sky-50/60 shadow-md'
                     : 'border-slate-200 hover:border-slate-300'
@@ -194,7 +153,7 @@ export const CharacterStudioPage: React.FC<Props> = ({ settings, onUpdateSetting
                     {char.desc}
                   </p>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>

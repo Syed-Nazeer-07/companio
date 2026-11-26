@@ -1,14 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 180" role="img" aria-label="Boba bear companion">
-<defs><linearGradient id="bofur" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ffe6be"/><stop offset="1" stop-color="#edb77f"/></linearGradient></defs>
-<ellipse cx="80" cy="159" rx="39" ry="6" fill="#7c5537" opacity=".14"/>
-<circle cx="49" cy="53" r="18" fill="url(#bofur)" stroke="#ce9566" stroke-width="2"/><circle cx="111" cy="53" r="18" fill="url(#bofur)" stroke="#ce9566" stroke-width="2"/>
-<circle cx="49" cy="53" r="9" fill="#f6b9b3"/><circle cx="111" cy="53" r="9" fill="#f6b9b3"/>
-<ellipse cx="80" cy="128" rx="37" ry="27" fill="url(#bofur)" stroke="#ce9566" stroke-width="2"/><ellipse cx="80" cy="130" rx="21" ry="17" fill="#fff3dd"/>
-<ellipse cx="80" cy="90" rx="51" ry="46" fill="url(#bofur)" stroke="#ce9566" stroke-width="2"/>
-<ellipse cx="80" cy="110" rx="20" ry="14" fill="#fff2da"/>
-<ellipse cx="59" cy="150" rx="15" ry="9" fill="#f6cda3" stroke="#ce9566" stroke-width="1.5"/><ellipse cx="101" cy="150" rx="15" ry="9" fill="#f6cda3" stroke="#ce9566" stroke-width="1.5"/>
-<path d="M66 133Q54 119 52 134Q55 147 66 138L80 136L94 138Q105 147 108 134Q106 119 94 133Z" fill="#74b7b4" stroke="#4f918d" stroke-width="1.5"/><circle cx="80" cy="136" r="6" fill="#4f918d"/>
-<ellipse cx="45" cy="105" rx="8" ry="5" fill="#ed9e9e"/><ellipse cx="115" cy="105" rx="8" ry="5" fill="#ed9e9e"/>
-<ellipse cx="62" cy="91" rx="6" ry="7.5" fill="#303b4a"/><ellipse cx="98" cy="91" rx="6" ry="7.5" fill="#303b4a"/><circle cx="60" cy="88" r="2.5" fill="#fff"/><circle cx="96" cy="88" r="2.5" fill="#fff"/>
-<ellipse cx="80" cy="105" rx="5.5" ry="4" fill="#57423c"/><path d="M74 116Q80 121 86 116" stroke="#57423c" stroke-width="2" stroke-linecap="round" fill="none"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 180" style="--accent:#d4eda7"><defs><linearGradient id="shell" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#a2aa91"/><stop offset="1" stop-color="#424e45"/></linearGradient><linearGradient id="visor" x2="0" y2="1"><stop stop-color="#1b2830"/><stop offset="1" stop-color="#0a1118"/></linearGradient></defs><path d="M52 112H108L117 148H43Z" fill="url(#shell)" stroke="#536052"/><rect x="43" y="144" width="30" height="16" rx="5" fill="#2d3732"/><rect x="87" y="144" width="30" height="16" rx="5" fill="#2d3732"/><path d="M47 121 29 138M113 121 131 138" stroke="#616f5c" stroke-width="10" stroke-linecap="round"/><path d="M30 35H130L142 54V100L126 118H34L18 100V54Z" fill="url(#shell)" stroke="#758070"/><path d="M37 38H123M38 108H122" stroke="#d5d8c9" stroke-width="2" opacity=".65"/><rect x="70" y="129" width="20" height="8" rx="2" fill="#28352c"/><path d="M75 133H85" stroke="var(--accent)" stroke-width="2"/><rect x="38" y="51" width="84" height="51" rx="9" fill="url(#visor)" stroke="#87949a" stroke-opacity=".5"/><path d="M49 57H110" stroke="#fff" stroke-opacity=".13" stroke-linecap="round"/><g fill="#d4eda7"><rect x="53" y="69" width="13" height="14" rx="5"/><rect x="94" y="69" width="13" height="14" rx="5"/><rect x="74" y="88" width="12" height="2.5" rx="1.25"/></g></svg>

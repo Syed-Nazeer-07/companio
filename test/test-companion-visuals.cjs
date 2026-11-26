@@ -4,12 +4,14 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const root=path.join(__dirname,'..');
-test('all six selectable companion models have quiet backgrounds and distinct states',()=>{
- for(const model of ['SparkyRobot','PixelMascot','Mochi3D','CloudieDream','KikoKitten','BobaBear']){
-  const source=fs.readFileSync(path.join(root,'src/components/characters',model+'.tsx'),'utf8');
-  assert.doesNotMatch(source,/className=\{\`absolute inset-0 rounded-[^\`]*blur-(?:xl|2xl|3xl)/,model+' aura should be removed');
-  for(const state of ['animate-companio-wake','animate-companio-listen','animate-companio-think','animate-companio-idle'])
-   assert.ok(source.includes(state),model+' missing '+state);
+test('all six selectable character assets are used by a stateful renderer',()=>{
+ const renderer=fs.readFileSync(path.join(root,'src/components/characters/CharacterRenderer.tsx'),'utf8');
+ assert.match(renderer,/StudioCharacter characterId=/);
+ const studio=fs.readFileSync(path.join(root,'src/components/characters/StudioCharacter.tsx'),'utf8');
+ for(const state of ['waking','listening','thinking','talking','success','confused','sleeping']) assert.ok(studio.includes(state),state);
+ for(const id of ['sparky','pixel','mochi','cloudie','kiko','boba']){
+  const asset=fs.readFileSync(path.join(root,'public/characters',id+'.svg'),'utf8');
+  assert.match(asset,/<svg /);assert.match(asset,/viewBox="0 0 160 180"/);
  }
 });
 test('sleep toggle, stable native drag handle, and fade-out remain available in overlay',()=>{

@@ -1,11 +1,6 @@
 import React from 'react';
 import { CharacterId, CharacterState } from '../../types';
-import { SparkyRobot } from './SparkyRobot';
-import { PixelMascot } from './PixelMascot';
-import { Mochi3D } from './Mochi3D';
-import { CloudieDream } from './CloudieDream';
-import { KikoKitten } from './KikoKitten';
-import { BobaBear } from './BobaBear';
+import { StudioCharacter } from './StudioCharacter';
 
 interface Props {
   characterId: CharacterId;
@@ -43,20 +38,5 @@ export const CharacterRenderer: React.FC<Props> = ({
     );
   }
 
-  switch (characterId) {
-    case 'sparky':
-      return <SparkyRobot state={state} scale={scale} audioLevel={audioLevel} />;
-    case 'pixel':
-      return <PixelMascot state={state} scale={scale} audioLevel={audioLevel} />;
-    case 'mochi':
-      return <Mochi3D state={state} scale={scale} audioLevel={audioLevel} />;
-    case 'cloudie':
-      return <CloudieDream state={state} scale={scale} audioLevel={audioLevel} />;
-    case 'kiko':
-      return <KikoKitten state={state} scale={scale} audioLevel={audioLevel} />;
-    case 'boba':
-      return <BobaBear state={state} scale={scale} audioLevel={audioLevel} />;
-    default:
-      return <SparkyRobot state={state} scale={scale} audioLevel={audioLevel} />;
-  }
+  return <StudioCharacter characterId={characterId} state={state} scale={scale} audioLevel={audioLevel} />;
 };
