@@ -1,14 +1,17 @@
-const { chromium } = require('playwright-core');
 const { verifyNavigation } = require('./browserNavigationVerifier.cjs');
 const { channelMatches, channelVideosUrl, isYouTubeWatchUrl } = require('./youtubeChannelSafety.cjs');
 
 class BrowserController {
-  constructor({ chromiumImpl = chromium, profileDirectory = null } = {}) {
+  constructor({ chromiumImpl = null, profileDirectory = null } = {}) {
     this.chromium = chromiumImpl;
     this.profileDirectory = profileDirectory;
     this.context = null;
     this.activePage = null;
     this.launchPromise = null;
+  }
+
+  getChromium() {
+    return this.chromium || (this.chromium = require('playwright-core').chromium);
   }
 
   configureProfileDirectory(directory) {
@@ -28,7 +31,7 @@ class BrowserController {
     }
     let context;
     try {
-      context = await this.chromium.launchPersistentContext(this.profileDirectory, {
+      context = await this.getChromium().launchPersistentContext(this.profileDirectory, {
         channel: 'msedge',
         headless: false,
         viewport: null,

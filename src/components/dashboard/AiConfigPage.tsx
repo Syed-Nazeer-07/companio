@@ -10,14 +10,6 @@ interface Props {
   onUpdateSettings: (newSettings: Partial<AppSettings>) => void;
 }
 
-interface LocalModelStatus {
-  id: string;
-  name: string;
-  sizeDisplay: string;
-  installed: boolean;
-  fileSize: number;
-}
-
 export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) => {
   const [testingConnection, setTestingConnection] = useState<boolean>(false);
   const [detectedLocalModels, setDetectedLocalModels] = useState<string[]>([]);
@@ -28,37 +20,10 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
   const [testReply, setTestReply] = useState<string | null>(null);
   const [isTestingPrompt, setIsTestingPrompt] = useState<boolean>(false);
 
-  // 1-Click built-in model download state
-  const [modelsList, setModelsList] = useState<LocalModelStatus[]>([]);
-  const [activeDownloadId, setActiveDownloadId] = useState<string | null>(null);
-  const [downloadProgress, setDownloadProgress] = useState<{
-    percent: number;
-    speedMbps: string;
-    receivedBytes: number;
-    totalBytes: number;
-  } | null>(null);
-
   useEffect(() => {
-    loadModelsList();
-    autoDetectOllama();
-
-    const unsub = desktopBridge.onModelDownloadProgress((progress) => {
-      if (progress.status === 'downloading') {
-        setActiveDownloadId(progress.modelId);
-        setDownloadProgress({
-          percent: progress.percent,
-          speedMbps: progress.speedMbps,
-          receivedBytes: progress.receivedBytes,
-          totalBytes: progress.totalBytes
-        });
-      } else if (progress.status === 'completed') {
-        setActiveDownloadId(null);
-        setDownloadProgress(null);
-        loadModelsList();
-      }
-    });
-
-    return () => unsub();
+    if (settings.ai.provider === 'local') {
+      void autoDetectOllama();
+    }
   }, []);
 
   const autoDetectOllama = async () => {
@@ -74,56 +39,6 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
       });
     } else {
       setTestResult({ success: false, message: result.error || 'Local server is not available.' });
-    }
-  };
-
-  const loadModelsList = async () => {
-    try {
-      const list = await desktopBridge.getModelsStatus();
-      if (Array.isArray(list)) {
-        setModelsList(list);
-      }
-    } catch (e) {}
-  };
-
-  const handleStartDownload = async (modelId: string) => {
-    setActiveDownloadId(modelId);
-    setDownloadProgress({ percent: 0, speedMbps: '0', receivedBytes: 0, totalBytes: 0 });
-
-    try {
-      const res = await desktopBridge.downloadModel(modelId);
-      if (res && res.success) {
-        setTestResult({
-          success: true,
-          message: `Downloaded ${modelId}. This is a model file only; an inference runtime is still required.`
-        });
-        await loadModelsList();
-      } else {
-        setTestResult({ success: false, message: res?.error || res?.message || 'Download did not succeed.' });
-      }
-    } catch (err: any) {
-      setTestResult({
-        success: false,
-        message: `Download error: ${err.message}`
-      });
-    } finally {
-      setActiveDownloadId(null);
-      setDownloadProgress(null);
-    }
-  };
-
-  const handleCancelDownload = async () => {
-    try {
-      const result = await desktopBridge.cancelModelDownload();
-      if (result?.success === false) {
-        setTestResult({ success: false, message: result.error || 'Could not cancel the download.' });
-        return;
-      }
-      setActiveDownloadId(null);
-      setDownloadProgress(null);
-      await loadModelsList();
-    } catch (error) {
-      setTestResult({ success: false, message: error instanceof Error ? error.message : 'Could not cancel the download.' });
     }
   };
 

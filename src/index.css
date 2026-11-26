@@ -124,5 +124,6 @@ body {
 .studio-character[data-state=sleeping] {opacity:.75;transform:translateY(5px);}
 .studio-character[data-state=confused] {transform:rotate(-5deg);}
 .studio-character[data-state=talking] {animation:companioListen 1.4s ease-in-out infinite;}
+.companio-paused .studio-character, .companio-paused .studio-character *, .studio-character[data-state=sleeping], .studio-character[data-state=sleeping] * {animation-play-state:paused!important;}
 @media(max-width:760px){.control-sidebar{width:178px;padding:15px 9px}.control-header{padding:0 15px}.control-content{padding:17px}.control-key>span{display:none}}
 @media(prefers-reduced-motion:reduce){.studio-character,.control-center *{animation-duration:.01ms!important;transition-duration:.01ms!important}}

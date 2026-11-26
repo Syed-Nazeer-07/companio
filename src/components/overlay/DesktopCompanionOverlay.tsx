@@ -37,6 +37,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
   const [isSleeping, setIsSleeping] = useState<boolean>(false);
   const [isPetted, setIsPetted] = useState<boolean>(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [isHiddenDoc, setIsHiddenDoc] = useState<boolean>(() => typeof document !== 'undefined' && document.visibilityState === 'hidden');
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reactionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const petTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -118,12 +119,17 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') shortcutActionsRef.current.dismiss();
     };
+    const handleVisibilityChange = () => {
+      setIsHiddenDoc(document.visibilityState === 'hidden');
+    };
     window.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
       unbindToggle();
       unbindWake();
       if (unbindDismiss) unbindDismiss();
       window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearTimeout(resetTimerRef.current);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
       if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current);
@@ -522,7 +528,7 @@ export const DesktopCompanionOverlay: React.FC<Props> = ({
       : Math.min(settings.overlay.scale, 1.25);
 
   return (
-    <div className={`companio-overlay relative w-full h-full flex flex-col items-center justify-end p-4 select-none overflow-hidden box-border ${isClosing ? 'companio-overlay--closing' : ''}`}>
+    <div className={`companio-overlay relative w-full h-full flex flex-col items-center justify-end p-4 select-none overflow-hidden box-border ${isClosing ? 'companio-overlay--closing' : ''} ${isHiddenDoc || isSleeping ? 'companio-paused' : ''}`}>
       {/* Speech Bubble */}
       <SpeechBubble
         text={bubbleText}
