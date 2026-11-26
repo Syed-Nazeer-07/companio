@@ -131,6 +131,7 @@ export const App: React.FC = () => {
           const shown = await desktopBridge.showOverlay();
           if (!shown) return;
         }
+        await dbService.flushNativeWrites();
         await desktopBridge.toggleDashboard(false);
       } catch (error) {
         console.error('[Companio] Could not show companion overlay:', error);

@@ -22,6 +22,12 @@ test('all six selectable character assets are used by a stateful renderer',()=>{
  const css=fs.readFileSync(path.join(root,'src/index.css'),'utf8');
  assert.match(css,/\.companio-blink\s*\{/);
  assert.match(css,/\.companio-paused\s+\.studio-character/);
+
+ const mainSrc=fs.readFileSync(path.join(root,'electron/main.cjs'),'utf8');
+ assert.match(mainSrc,/dashboardWindow\.close\(\)/);
+ assert.doesNotMatch(mainSrc,/dashboardWindow\.hide\(\)/);
+ const appSrc=fs.readFileSync(path.join(root,'src/App.tsx'),'utf8');
+ assert.match(appSrc,/dbService\.flushNativeWrites\(\)/);
 });
 test('sleep toggle, stable native drag handle, and fade-out remain available in overlay',()=>{
  const source=fs.readFileSync(path.join(root,'src/components/overlay/DesktopCompanionOverlay.tsx'),'utf8');

@@ -245,7 +245,7 @@ async function loadWindowContent(win, viewName) {
 }
 
 function createDashboardWindow() {
-  if (dashboardWindow) {
+  if (dashboardWindow && !dashboardWindow.isDestroyed()) {
     dashboardWindow.show();
     dashboardWindow.focus();
     return;
@@ -633,7 +633,7 @@ secureHandle('toggle-dashboard', async (_, show) => {
   // Avoid launching first-run setup in a second window during its shortcut probe.
   if (SMOKE_TEST) return false;
   if (show === false) {
-    if (dashboardWindow) dashboardWindow.hide();
+    if (dashboardWindow && !dashboardWindow.isDestroyed()) dashboardWindow.close();
   } else {
     createDashboardWindow();
   }
@@ -693,10 +693,10 @@ ipcMain.on('sync-state-broadcast', (event, state) => {
   try {
     if (JSON.stringify(state).length > 65536) return;
   } catch { return; }
-  if (overlayWindow && event.sender !== overlayWindow.webContents) {
+  if (overlayWindow && !overlayWindow.isDestroyed() && event.sender !== overlayWindow.webContents) {
     overlayWindow.webContents.send('sync-state', state);
   }
-  if (dashboardWindow && event.sender !== dashboardWindow.webContents) {
+  if (dashboardWindow && !dashboardWindow.isDestroyed() && event.sender !== dashboardWindow.webContents) {
     dashboardWindow.webContents.send('sync-state', state);
   }
 });

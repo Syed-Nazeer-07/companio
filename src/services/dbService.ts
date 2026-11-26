@@ -45,6 +45,10 @@ class DbService {
     });
   }
 
+  async flushNativeWrites(): Promise<void> {
+    await this.pendingNativeWrite;
+  }
+
   async retryNativeHistorySave(): Promise<{ success: boolean; error?: string }> {
     if (!isNativeDesktop()) {
       return { success: false, error: 'On-disk history is available only in the desktop app.' };
