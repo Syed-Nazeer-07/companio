@@ -81,6 +81,16 @@ async function chat(options = {}, fetchImpl = globalThis.fetch) {
     const systemPrompt = options.systemPrompt == null
       ? 'You are Companio, a helpful Windows desktop companion. Be concise and accurate. Do not claim to have performed a computer action.'
       : validateText(options.systemPrompt, 'system prompt', 2400);
+    const history = options.history ?? [];
+    if (!Array.isArray(history) || history.length > 8) throw new Error('Invalid conversation history.');
+    let historyLength = 0;
+    const turns = history.map(turn => {
+      if (!turn || !['user', 'assistant'].includes(turn.role)) throw new Error('Invalid conversation role.');
+      const content = validateText(turn.content, 'history message', 600);
+      historyLength += content.length;
+      return { role: turn.role, content };
+    });
+    if (historyLength > 2400) throw new Error('Conversation history exceeds limit.');
     const temperature = options.temperature == null ? 0.7 : options.temperature;
     if (typeof temperature !== 'number' || !Number.isFinite(temperature) || temperature < 0 || temperature > 2) {
       throw new Error('Temperature must be a number between 0 and 2.');
@@ -94,7 +104,7 @@ async function chat(options = {}, fetchImpl = globalThis.fetch) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model,
-        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: prompt }],
+        messages: [{ role: 'system', content: systemPrompt }, ...turns, { role: 'user', content: prompt }],
         temperature,
         max_tokens: maxTokens,
         stream: false

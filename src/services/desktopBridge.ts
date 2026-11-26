@@ -41,7 +41,7 @@ interface CompanioDesktopAPI {
   discoverLocalAi?: (options: { endpoint?: string }) => Promise<{
     success: boolean; endpoint?: string; models: string[]; checkedEndpoints: number; error?: string;
   }>;
-  chatLocalAi?: (options: { endpoint?: string; model: string; prompt: string; systemPrompt?: string; temperature?: number }) => Promise<{ success: boolean; reply?: string; error?: string }>;
+  chatLocalAi?: (options: { endpoint?: string; model: string; prompt: string; history?: Array<{ role: 'user' | 'assistant'; content: string }>; systemPrompt?: string; temperature?: number }) => Promise<{ success: boolean; reply?: string; error?: string }>;
   planLocalActions?: (options: { endpoint?: string; model: string; query: string }) => Promise<{ success: boolean; steps?: Array<{tool: string; params: Record<string, any>; description: string}>; requiresConfirmation?: boolean; error?: string }>;
   planOfflineSequence?: (options: {query: string}) => Promise<{success: boolean; recognized: boolean; steps?: Array<{tool: string; params: Record<string, any>; description: string}>; requiresConfirmation?: boolean; error?: string}>;
   validateHistoryImport?: (content: string) => Promise<{
@@ -342,7 +342,7 @@ export const desktopBridge = {
       : { success: false, models: [], checkedEndpoints: 0, error: 'Model discovery requires the Companio desktop app.' };
   },
 
-  async chatLocalAi(options: { endpoint?: string; model: string; prompt: string; systemPrompt?: string; temperature?: number }): Promise<{ success: boolean; reply?: string; error?: string }> {
+  async chatLocalAi(options: { endpoint?: string; model: string; prompt: string; history?: Array<{ role: 'user' | 'assistant'; content: string }>; systemPrompt?: string; temperature?: number }): Promise<{ success: boolean; reply?: string; error?: string }> {
     const api = getDesktopAPI();
     return api?.chatLocalAi
       ? api.chatLocalAi(options)
