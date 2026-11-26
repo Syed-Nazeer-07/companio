@@ -36,7 +36,9 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
     setActionStatus({ message: `Executing: ${label}...`, kind: 'running' });
     try {
       const res = await desktopBridge.executeTool(tool, params);
-      if (res?.success === true && res?.verified === true) {
+      if (res?.success === true && res?.handoffOnly === true) {
+        setActionStatus({message:res.message || `${label}: Windows accepted the request; destination not verified.`,kind:'unverified'});
+      } else if (res?.success === true && res?.verified === true) {
         setActionStatus({ message: `${label}: confirmed.`, kind: 'success' });
       } else if (res?.success === true) {
         setActionStatus({
@@ -60,6 +62,7 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
+      <header><p className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-2">Your workspace</p><h2 className="text-3xl font-semibold text-slate-900">A more capable desktop.</h2><p className="text-sm text-slate-600 mt-2">Manage your companion, check its runtime and launch supported Windows actions.</p></header>
       {/* Quick Desktop Status Card */}
       <div className="acrylic-card rounded-2xl p-6 border border-slate-200 bg-white/90 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex items-center gap-5">
@@ -129,14 +132,14 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
             onClick={() => onNavigate('automation')}
             className="text-xs text-sky-600 hover:text-sky-700 font-bold flex items-center gap-1"
           >
-            <span>All 25+ Tools</span>
+            <span>View supported tools</span>
             <ExternalLink className="w-3 h-3" />
           </button>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <button
-            onClick={() => runQuickAction('win.screenshot', {}, 'Take Screenshot')}
+            disabled={actionStatus?.kind==='running'} onClick={() => runQuickAction('win.screenshot', {}, 'Take Screenshot')}
             className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 text-left transition-all group"
           >
             <Camera className="w-5 h-5 text-sky-600 mb-2 group-hover:scale-110 transition-transform" />
@@ -145,7 +148,7 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
           </button>
 
           <button
-            onClick={() => runQuickAction('win.volume.change', { delta: 10 }, 'Volume Up')}
+            disabled={actionStatus?.kind==='running'} onClick={() => runQuickAction('win.volume.change', { delta: 10 }, 'Volume Up')}
             className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 text-left transition-all group"
           >
             <Volume2 className="w-5 h-5 text-emerald-600 mb-2 group-hover:scale-110 transition-transform" />
@@ -154,7 +157,7 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
           </button>
 
           <button
-            onClick={() => runQuickAction('win.volume.change', { delta: -10 }, 'Volume Down')}
+            disabled={actionStatus?.kind==='running'} onClick={() => runQuickAction('win.volume.change', { delta: -10 }, 'Volume Down')}
             className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 text-left transition-all group"
           >
             <Volume2 className="w-5 h-5 text-amber-600 mb-2 group-hover:scale-110 transition-transform" />
@@ -163,7 +166,7 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
           </button>
 
           <button
-            onClick={() => runQuickAction('win.brightness.change', { delta: -15 }, 'Screen Dimmer')}
+            disabled={actionStatus?.kind==='running'} onClick={() => runQuickAction('win.brightness.change', { delta: -15 }, 'Screen Dimmer')}
             className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 text-left transition-all group"
           >
             <Sun className="w-5 h-5 text-indigo-600 mb-2 group-hover:scale-110 transition-transform" />
@@ -172,7 +175,7 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
           </button>
 
           <button
-            onClick={() => runQuickAction('win.clipboard.read', {}, 'Read Clipboard')}
+            disabled={actionStatus?.kind==='running'} onClick={() => runQuickAction('win.clipboard.read', {}, 'Read Clipboard')}
             className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 text-left transition-all group"
           >
             <Clipboard className="w-5 h-5 text-purple-600 mb-2 group-hover:scale-110 transition-transform" />
@@ -181,7 +184,7 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
           </button>
 
           <button
-            onClick={() => runQuickAction('win.desktop.show', {}, 'Show Desktop')}
+            disabled={actionStatus?.kind==='running'} onClick={() => runQuickAction('win.desktop.show', {}, 'Show Desktop')}
             className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 text-left transition-all group"
           >
             <Shield className="w-5 h-5 text-rose-600 mb-2 group-hover:scale-110 transition-transform" />

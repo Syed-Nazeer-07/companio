@@ -248,6 +248,7 @@ export const App: React.FC = () => {
       {currentTab === 'history' && <HistoryPage />}
       {currentTab === 'settings' && (
         <SettingsPage
+          onNavigate={setCurrentTab}
           settings={settings}
           onUpdateSettings={handleUpdateSettings}
         />
