@@ -4,7 +4,14 @@ const source=fs.readFileSync(path.join(__dirname,'../src/services/agentEngine.ts
 const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
 const exportsObject={};
 vm.runInNewContext(js,{exports:exportsObject,AbortController,Error,Number,Math,Date,Array,Promise,setTimeout,clearTimeout,
- require(name){
+ require: function load(name) {
+    if (['./taskPlanner','./taskExecutor','./taskVerification','./conversationContext'].includes(name)) {
+      const moduleExports={};
+      const moduleSource=fs.readFileSync(path.join(__dirname,'../src/services',name.slice(2)+'.ts'),'utf8');
+      const compiled=ts.transpileModule(moduleSource,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+      vm.runInNewContext(compiled,{exports:moduleExports,require:load,Date,Math,Number,Array,Error,AbortController,Promise,setTimeout,clearTimeout,console});
+      return moduleExports;
+    }
   if(name==='./desktopBridge')return {desktopBridge:{}};
   if(name==='./dbService')return {dbService:{}};
   if(name==='./intentSafety')return {isCommandRequest:()=>false};
@@ -42,7 +49,8 @@ test('slow YouTube verification gets longer deadline without affecting ordinary 
  assert.equal(actionTimeoutMs('browser.open_url'),30000);
 });
 test('integration will not continue to additional task steps on timeout',()=>{
- assert.match(source,/outcome.kind==='timeout'/);
- assert.match(source,/The action may still finish; check Windows before retrying/);
- assert.match(source,/plan.status = 'failed'/);
+ const executorSource=fs.readFileSync(path.join(__dirname,'../src/services/taskExecutor.ts'),'utf8');
+ assert.match(executorSource,/outcome.kind==='timeout'/);
+ assert.match(executorSource,/The action may still finish; check Windows before retrying/);
+ assert.match(executorSource,/plan.status = 'failed'/);
 });

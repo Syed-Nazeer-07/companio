@@ -17,11 +17,7 @@ for (const tab of document.querySelectorAll('.demo-tab')) {
     }
     document.getElementById('demo-command').textContent = demo.command;
     const bubble = document.getElementById('demo-bubble');
-    bubble.replaceChildren(document.createTextNode(demo.response + ' '));
-    const arrow = document.createElement('span');
-    arrow.setAttribute('aria-hidden', 'true');
-    arrow.textContent = '↗';
-    bubble.appendChild(arrow);
+    bubble.replaceChildren(document.createTextNode(demo.response));
     bubble.classList.remove('bubble-enter');
     void bubble.offsetWidth;
     bubble.classList.add('bubble-enter');

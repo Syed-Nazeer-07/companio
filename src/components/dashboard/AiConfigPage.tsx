@@ -397,6 +397,14 @@ export const AiConfigPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
       )}
 
       {/* Legacy keys are never needed while cloud mode is unsupported. */}
+      {settings.ai.provider === 'local' && (
+        <section className="acrylic-card rounded-xl p-5 border border-slate-200">
+          <label className="flex items-start justify-between gap-4">
+            <span><strong className="text-sm text-slate-900">Conversation continuity</strong><span className="block mt-1 text-xs text-slate-600">Opt in to sending up to eight recent chat messages to your configured local model. Notes and action results are excluded. Turn off at any time; existing history can be cleared in History.</span></span>
+            <input type="checkbox" className="mt-1 h-5 w-5 accent-sky-600" checked={settings.ai.useConversationContext === true} onChange={e => onUpdateSettings({ai:{...settings.ai,useConversationContext:e.target.checked}})} />
+          </label>
+        </section>
+      )}
       {(settings.ai.apiKey || settings.ai.provider === 'gemini' || settings.ai.provider === 'openai' || settings.ai.provider === 'anthropic') && (
         <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-2">
           <p className="text-xs text-amber-800">

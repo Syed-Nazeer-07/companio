@@ -30,6 +30,8 @@ export interface AiConfig {
   personality: string;
   systemPrompt: string;
   localEndpoint?: string;
+  /** Explicit opt-in to sending recent local conversation to the loopback model. */
+  useConversationContext?: boolean;
 }
 
 export interface VoiceConfig {

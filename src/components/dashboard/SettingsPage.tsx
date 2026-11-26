@@ -6,9 +6,10 @@ import { desktopBridge, isNativeDesktop } from '../../services/desktopBridge';
 interface Props {
   settings: AppSettings;
   onUpdateSettings: (newSettings: Partial<AppSettings>) => void;
+  onNavigate: (tab: 'characters'|'voice'|'ai'|'history') => void;
 }
 
-export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) => {
+export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings, onNavigate }) => {
   const [shortcutDraft, setShortcutDraft] = useState(settings.activationShortcut);
   const [status, setStatus] = useState('');
   const [savingShortcut, setSavingShortcut] = useState(false);
@@ -112,10 +113,13 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
       <div>
         <h2 className="text-2xl font-bold text-slate-900 mb-1.5">Settings</h2>
         <p className="text-sm text-slate-600">
-          Simple, essential preferences for your Companio desktop companion.
+          Configure the desktop runtime, access, privacy and appearance from one place.
         </p>
       </div>
 
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2" aria-label="Related settings">
+        {([{tab:'characters',title:'Appearance',detail:'Character and scale'},{tab:'voice',title:'Voice & speech',detail:'Microphone and speech'},{tab:'ai',title:'AI & privacy',detail:'Model and context'},{tab:'history',title:'Storage & history',detail:'Local records and backups'}] as const).map(item=><button type="button" key={item.tab} onClick={()=>onNavigate(item.tab)} className="rounded-lg border border-slate-200 bg-white p-3 text-left hover:border-slate-400"><strong className="block text-sm">{item.title}</strong><span className="text-xs text-slate-500">{item.detail}</span></button>)}
+      </div>
       <div className="acrylic-card rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6">
         {/* Global Activation Shortcut */}
         <div>
@@ -183,7 +187,7 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
               <p className="text-xs text-slate-500">Keep companion character visible over other open windows</p>
             </div>
             <input
-              type="checkbox"
+              type="checkbox" aria-label="Always on top"
               checked={settings.overlay.alwaysOnTop}
               onChange={(e) => void handleOverlayOption('alwaysOnTop', e.target.checked)}
               className="w-5 h-5 accent-sky-600 rounded cursor-pointer"
@@ -197,7 +201,7 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
               <p className="text-xs text-slate-500">Automatically stick character near screen borders when dragged</p>
             </div>
             <input
-              type="checkbox"
+              type="checkbox" aria-label="Snap to screen edges"
               checked={settings.overlay.snapToEdge}
               onChange={(e) => void handleOverlayOption('snapToEdge', e.target.checked)}
               className="w-5 h-5 accent-sky-600 rounded cursor-pointer"
@@ -214,7 +218,7 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
               <p className="text-xs text-slate-500">Play pleasant audio tones on task completion and activation</p>
             </div>
             <input
-              type="checkbox"
+              type="checkbox" aria-label="Audio chimes and cues"
               checked={settings.overlay.soundEffects}
               onChange={(e) => onUpdateSettings({
                 overlay: { ...settings.overlay, soundEffects: e.target.checked }
@@ -223,20 +227,7 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings }) =>
             />
           </div>
 
-          {/* Hide in Fullscreen Games */}
-          <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-            <div>
-              <p className="text-sm font-bold text-slate-800">Hide in Exclusive Fullscreen Games</p>
-              <p className="text-xs text-slate-500">Not yet supported. Fullscreen detection is planned for a future update.</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={false}
-              disabled
-              aria-label="Fullscreen detection is not yet available"
-              className="w-5 h-5 accent-sky-600 rounded cursor-pointer"
-            />
-          </div>
+          <p className="text-xs text-slate-500">Automatic hiding in fullscreen games is not supported yet.</p>
         </div>
       </div>
 
