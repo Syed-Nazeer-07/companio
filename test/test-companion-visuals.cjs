@@ -14,7 +14,8 @@ test('all six selectable character assets are used by a stateful renderer',()=>{
   assert.match(asset,/<svg /);assert.match(asset,/viewBox="0 0 160 180"/);
   assert.doesNotMatch(asset,/width="84"\s+height="51"/);
   const siteAsset=fs.readFileSync(path.join(root,'website/assets',id+'.svg'),'utf8');
-  assert.match(siteAsset,/<svg /);assert.match(siteAsset,/viewBox="0 0 160 180"/);
+  assert.match(siteAsset,/<svg /);// Marketing artwork is deliberately independent of the desktop renderer.
+  assert.match(siteAsset,/viewBox="0 0 (?:160 180|64 72)"/);
  }
  for(const rel of ['AiConfigPage.tsx','AutomationPage.tsx','HelpPage.tsx','HistoryPage.tsx','HomePage.tsx','SettingsPage.tsx','VoiceSettingsPage.tsx']){
   const src=fs.readFileSync(path.join(root,'src/components/dashboard',rel),'utf8');

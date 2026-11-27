@@ -109,6 +109,8 @@ jobs:
           exit 1
       - name: Smoke test native ARM64 Electron UI and IPC
         run: npm run test:desktop-smoke
+      - name: Run packaged ARM64 desktop end-to-end regression suite
+        run: npm run test:e2e
       - name: Download the exact ARM64 release-candidate installer
         uses: actions/download-artifact@v5
         with:
