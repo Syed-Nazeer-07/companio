@@ -10,6 +10,7 @@ const { spawn, execFile } = require('node:child_process');
 const MAX_WAV_BYTES = 16 * 1024 * 1024;
 const MAX_TRANSCRIPT = 1600;
 const MAX_INFERENCE_MS = 90000;
+const WHISPER_INDIAN_ENGLISH_PROMPT = 'Companio, Sparky, Boba, YouTube, Spotify, Notepad, Calculator, CarryMinati, lo-fi, volume, brightness, timer, reminder, arre yaar, bhai';
 
 function validateWave(input) {
   if (!(input instanceof Uint8Array) || input.byteLength < 46 ||
@@ -185,7 +186,7 @@ class WhisperSpeechController {
         };
         try {
           child=this.spawnProcess(config.binary,[
-            '-m',config.model,'-f',audio,'-l',language,'-ng','-nt','-otxt','-of',output,'-t','4'
+            '-m',config.model,'-f',audio,'-l',language,'-ng','-nt','-otxt','-of',output,'-t','4','--prompt',WHISPER_INDIAN_ENGLISH_PROMPT
           ],{windowsHide:true,stdio:['ignore','pipe','pipe'],shell:false,cwd:path.dirname(config.binary)});
         } catch(error){finish({success:false,error:'Could not start whisper.cpp: '+error.message});return;}
         this.active={child,cancel:()=>{

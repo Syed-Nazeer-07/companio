@@ -39,12 +39,19 @@ test('all six selectable character assets are used by a stateful renderer',()=>{
  const appSrc=fs.readFileSync(path.join(root,'src/App.tsx'),'utf8');
  assert.match(appSrc,/dbService\.flushNativeWrites\(\)/);
 });
-test('sleep toggle, stable native drag handle, and fade-out remain available in overlay',()=>{
+test('single sleep control, hover/keyboard move handle, genuine suggestions, and click-through remain in overlay',()=>{
  const source=fs.readFileSync(path.join(root,'src/components/overlay/DesktopCompanionOverlay.tsx'),'utf8');
+ const input=fs.readFileSync(path.join(root,'src/components/overlay/CompactInput.tsx'),'utf8');
  assert.match(source,/aria-label="Drag to move Companio around your desktop"/);
  assert.match(source,/Put Companio to sleep/);
  assert.match(source,/companio-overlay--closing/);
  assert.match(source,/parseCompanionCommand/);
+ assert.match(source,/setOverlayInteractiveRects|setIgnoreMouseEvents/);
+ assert.match(source,/pointer-events-none/);
+ assert.match(source,/deriveHistorySuggestions/);
+ // Ensure duplicate sleep button and hardcoded generic quick commands are gone
+ assert.doesNotMatch(input,/Sleep Mode/);
+ assert.doesNotMatch(input,/Open YouTube|Open Notepad|Volume 50%/);
 });
 
 test('overlay character supports keyboard, and shortcut hints use configured value',()=>{

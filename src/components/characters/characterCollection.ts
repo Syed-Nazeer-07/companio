@@ -16,11 +16,11 @@ export const characterCollection: CompanionProfile[] = [
     id: 'sparky',
     name: 'Sparky',
     role: 'Astral sprite',
-    desc: 'Porcelain studio sprite in a forest mantle crowned by a warm brass star.',
+    desc: 'Porcelain studio sprite in an emerald mantle crowned by a warm brushed-brass star.',
     accent: '#146a59',
     personality: 'Structured and methodical — highlights clear workflow steps and verification.',
     opticsStyle: 'Celadon-jade irises with refined arched brows',
-    voiceSummary: 'Balanced, clear articulation with crisp confirmations'
+    voiceSummary: 'Balanced, crisp articulation (Microsoft Mark cadence)'
   },
   {
     id: 'pixel',

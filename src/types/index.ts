@@ -10,6 +10,16 @@ export type CharacterState =
   | 'sleeping' 
   | 'waking';
 
+export type CharacterReactionId =
+  | 'idle'
+  | 'happy'
+  | 'excited'
+  | 'thinking'
+  | 'confused'
+  | 'playful'
+  | 'concerned'
+  | 'proud';
+
 export interface CharacterProfile {
   id: CharacterId;
   name: string;
@@ -20,12 +30,25 @@ export interface CharacterProfile {
   badge: string;
 }
 
-export type AiProvider = 'gemini' | 'openai' | 'anthropic' | 'local' | 'mock';
+export type AiProvider =
+  | 'auto'
+  | 'managed_local'
+  | 'gemini'
+  | 'openai'
+  | 'anthropic'
+  | 'openrouter'
+  | 'groq'
+  | 'custom_openai'
+  | 'local'
+  | 'mock';
 
 export interface AiConfig {
   provider: AiProvider;
   apiKey: string;
   model: string;
+  managedModelId?: string;
+  performanceMode?: 'battery_saver' | 'balanced' | 'performance';
+  cloudCustomEndpoint?: string;
   temperature: number;
   personality: string;
   systemPrompt: string;
@@ -80,6 +103,7 @@ export interface OverlayConfig {
   soundEffects: boolean;
   transparentClickthrough: boolean;
   companionMode: 'floating' | 'docked';
+  showHistorySuggestions?: boolean;
 }
 
 export interface AppSettings {
@@ -117,6 +141,8 @@ export interface TaskPlan {
   clarificationNeeded?: boolean;
   recoveryHint?: string;
   retryable?: boolean;
+  reactionId?: CharacterReactionId;
+  source?: 'builtin' | 'managed_local' | 'cloud' | 'external_local';
   createdAt: number;
 }
 

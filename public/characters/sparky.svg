@@ -1,1 +1,76 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 180"><defs><radialGradient id="skin" cx="46%" cy="35%" r="62%"><stop stop-color="#ffffff"/><stop offset=".65" stop-color="#e8f1ee"/><stop offset="1" stop-color="#c3dad2"/></radialGradient><linearGradient id="mantle" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#197864"/><stop offset="1" stop-color="#0d4a3d"/></linearGradient><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fae091"/><stop offset="1" stop-color="#cf9b3c"/></linearGradient></defs><ellipse cx="80" cy="166" rx="37" ry="5.5" fill="#0d1c17" opacity=".15"/><path d="M51 107 Q80 99 109 107 L124 152 Q80 166 36 152Z" fill="url(#mantle)" stroke="#23967d" stroke-width="1.1"/><path d="M62 110 L80 132 L98 110 L92 106 L80 120 L68 106Z" fill="#f3f8f6"/><circle cx="80" cy="126" r="3.4" fill="url(#gold)"/><path d="M40 53 Q21 34 48 40 Q38 48 42 58Z" fill="url(#skin)" stroke="#98bfb1" stroke-width="1"/><path d="M120 53 Q139 34 112 40 Q122 48 118 58Z" fill="url(#skin)" stroke="#98bfb1" stroke-width="1"/><path d="M35 66 Q36 29 80 28 Q124 29 125 66 Q126 105 80 112 Q34 105 35 66Z" fill="url(#skin)" stroke="#95bdb0" stroke-width="1.2"/><path d="M54 34 Q80 27 106 34 Q96 47 80 43 Q64 47 54 34Z" fill="#176d5b"/><path d="M80 10 L82.8 17.2 L90 20 L82.8 22.8 L80 30 L77.2 22.8 L70 20 L77.2 17.2Z" fill="url(#gold)" stroke="#b38229" stroke-width=".6"/><ellipse cx="49" cy="84" rx="6" ry="3.2" fill="#f29b94" opacity=".28"/><ellipse cx="111" cy="84" rx="6" ry="3.2" fill="#f29b94" opacity=".28"/><path d="M78.5 80.5 Q80 82 81.5 80.5" stroke="#85a69c" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 180">
+  <defs>
+    <radialGradient id="sp-face" cx="44%" cy="34%" r="64%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="52%" stop-color="#eef5f2"/>
+      <stop offset="86%" stop-color="#d2e4dd"/>
+      <stop offset="100%" stop-color="#adcac0"/>
+    </radialGradient>
+    <linearGradient id="sp-mantle" x1="15%" y1="0%" x2="85%" y2="100%">
+      <stop offset="0%" stop-color="#1d7e69"/>
+      <stop offset="55%" stop-color="#125849"/>
+      <stop offset="100%" stop-color="#0b3a30"/>
+    </linearGradient>
+    <linearGradient id="sp-mantle-wing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#27927b"/>
+      <stop offset="100%" stop-color="#135748"/>
+    </linearGradient>
+    <linearGradient id="sp-hair" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#288d77"/>
+      <stop offset="100%" stop-color="#114b3f"/>
+    </linearGradient>
+    <linearGradient id="sp-gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff0b8"/>
+      <stop offset="45%" stop-color="#edc15b"/>
+      <stop offset="100%" stop-color="#b88424"/>
+    </linearGradient>
+    <radialGradient id="sp-aura" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#f7d374" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#f7d374" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sp-collar" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f7fbf9"/>
+      <stop offset="100%" stop-color="#dcebe5"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Soft ambient floor contact shadow -->
+  <ellipse cx="80" cy="168" rx="39" ry="5.5" fill="#0d1c17" opacity="0.16"/>
+
+  <!-- Subtle astral star halo & floating 4-point brass star emblem -->
+  <circle cx="80" cy="19" r="14" fill="url(#sp-aura)"/>
+  <circle cx="80" cy="19" r="10.2" fill="none" stroke="#d8ab4a" stroke-width="0.7" opacity="0.45"/>
+  <path d="M80 7.5 L83.2 15.8 L91.5 19 L83.2 22.2 L80 30.5 L76.8 22.2 L68.5 19 L76.8 15.8 Z" fill="url(#sp-gold)" stroke="#9f6e18" stroke-width="0.7" stroke-linejoin="round"/>
+  <circle cx="80" cy="19" r="2.1" fill="#fffaf0" opacity="0.85"/>
+
+  <!-- Studio mantle & draped shoulders -->
+  <path d="M47 109 Q80 98 113 109 L128 152 Q80 167 32 152 Z" fill="url(#sp-mantle)" stroke="#24947c" stroke-width="1.15" stroke-linejoin="round"/>
+  <path d="M51 112 Q42 130 37 151 Q54 157 67 154 L63 116 Z" fill="url(#sp-mantle-wing)" opacity="0.55"/>
+  <path d="M109 112 Q118 130 123 151 Q106 157 93 154 L97 116 Z" fill="url(#sp-mantle-wing)" opacity="0.45"/>
+
+  <!-- Crisp porcelain inner cravat collar & woven lapels -->
+  <path d="M58 108 L80 137 L102 108 L93 103 L80 123 L67 103 Z" fill="url(#sp-collar)" stroke="#a8c9be" stroke-width="0.9" stroke-linejoin="round"/>
+  <path d="M62 110 L80 132 L98 110" fill="none" stroke="#186a59" stroke-width="1.2" opacity="0.35"/>
+
+  <!-- Brushed gold clasp brooch -->
+  <circle cx="80" cy="127" r="4.6" fill="url(#sp-gold)" stroke="#9e6d18" stroke-width="0.75"/>
+  <circle cx="78.8" cy="125.6" r="1.4" fill="#fffdf3" opacity="0.9"/>
+
+  <!-- Sculpted sprite ear fins with delicate inner cartilage shimmer -->
+  <path d="M39 55 Q17 34 49 41 Q41 51 43 63 Z" fill="url(#sp-face)" stroke="#8cb6a8" stroke-width="1.05" stroke-linejoin="round"/>
+  <path d="M39 52 Q26 40 44 44" fill="none" stroke="#a6d2c3" stroke-width="1.4" stroke-linecap="round"/>
+  <path d="M121 55 Q143 34 111 41 Q119 51 117 63 Z" fill="url(#sp-face)" stroke="#8cb6a8" stroke-width="1.05" stroke-linejoin="round"/>
+  <path d="M121 52 Q134 40 116 44" fill="none" stroke="#a6d2c3" stroke-width="1.4" stroke-linecap="round"/>
+
+  <!-- Sculpted porcelain head -->
+  <path d="M34 67 Q35 28 80 27 Q125 28 126 67 Q126 107 80 113 Q34 107 34 67 Z" fill="url(#sp-face)" stroke="#8eb8aa" stroke-width="1.2"/>
+
+  <!-- Expressive swept celadon crest & fringe layers -->
+  <path d="M46 42 Q63 23 80 26 Q97 23 114 42 Q100 50 88 42 Q80 49 72 42 Q60 50 46 42 Z" fill="url(#sp-hair)" stroke="#0f473b" stroke-width="0.8" stroke-linejoin="round"/>
+  <path d="M58 34 Q80 28 102 34" fill="none" stroke="#62c4ac" stroke-width="1.25" stroke-linecap="round" opacity="0.55"/>
+
+  <!-- Warm tactile facial blush & refined bridge hint -->
+  <ellipse cx="48.5" cy="84.5" rx="6.6" ry="3.4" fill="#eb8f88" opacity="0.30"/>
+  <ellipse cx="111.5" cy="84.5" rx="6.6" ry="3.4" fill="#eb8f88" opacity="0.30"/>
+  <path d="M78.6 81.2 Q80 82.6 81.4 81.2" stroke="#7ea296" stroke-width="1.35" fill="none" stroke-linecap="round"/>
+</svg>

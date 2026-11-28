@@ -1,5 +1,5 @@
 import React from 'react';
-import { CharacterId, CharacterState } from '../../types';
+import { CharacterId, CharacterReactionId, CharacterState } from '../../types';
 import { characterCollection } from './characterCollection';
 
 interface EyeTheme {
@@ -41,6 +41,7 @@ function renderIrisEye(cx: number, cy: number, rx: number, ry: number, theme: Ey
 function renderCharacterFace(
   characterId: CharacterId,
   state: CharacterState,
+  reactionId: CharacterReactionId,
   blinkClass: string,
   audioLevel: number
 ) {
@@ -49,11 +50,11 @@ function renderCharacterFace(
   const rx = 99;
   const eyeY = 74;
   const eyeRx = theme.glassesClearance ? 6.2 : 6.8;
-  const eyeRy = state === 'listening' ? 8.1 : state === 'waking' ? 7.6 : 7.0;
+  const eyeRy = state === 'listening' ? 8.1 : state === 'waking' || reactionId === 'excited' ? 7.6 : 7.0;
   const isFeline = Boolean(theme.almond);
   const mouthColor = characterId === 'kiko' ? '#c8ccd9' : '#2d1c19';
 
-  const gazeDx = state === 'thinking' ? 2.1 : state === 'confused' ? -1.5 : 0;
+  const gazeDx = state === 'thinking' ? 2.1 : (state === 'confused' || reactionId === 'confused') ? -1.5 : 0;
   const gazeDy = state === 'thinking' ? -2.2 : state === 'waking' ? -0.8 : 0;
   const level = Number.isFinite(audioLevel) ? Math.max(0.08, Math.min(1, audioLevel)) : 0.28;
   const mouthRy = 1.8 + level * 4.4;
@@ -61,13 +62,19 @@ function renderCharacterFace(
   const renderEyes = () => {
     if (state === 'sleeping') {
       return (
-        <g fill="none" stroke={theme.lash} strokeWidth="2.1" strokeLinecap="round">
-          <path d={`M${lx - 7} ${eyeY} Q${lx} ${eyeY + 5} ${lx + 7} ${eyeY}`} />
-          <path d={`M${rx - 7} ${eyeY} Q${rx} ${eyeY + 5} ${rx + 7} ${eyeY}`} />
+        <g>
+          <g fill="none" stroke={theme.lash} strokeWidth="2.1" strokeLinecap="round">
+            <path d={`M${lx - 7} ${eyeY} Q${lx} ${eyeY + 5} ${lx + 7} ${eyeY}`} />
+            <path d={`M${rx - 7} ${eyeY} Q${rx} ${eyeY + 5} ${rx + 7} ${eyeY}`} />
+          </g>
+          <g className="companio-zzz" fill={theme.brow} fontSize="10" fontWeight="700" fontFamily="sans-serif">
+            <text x="116" y="47" opacity="0.8">z</text>
+            <text x="125" y="38" fontSize="12" opacity="0.65">Z</text>
+          </g>
         </g>
       );
     }
-    if (state === 'success') {
+    if (state === 'success' || reactionId === 'excited' || reactionId === 'proud') {
       return (
         <g fill="none" stroke={theme.lash} strokeWidth="2.3" strokeLinecap="round">
           <path d={`M${lx - 7} ${eyeY + 2} Q${lx} ${eyeY - 6} ${lx + 7} ${eyeY + 2}`} />
@@ -75,13 +82,33 @@ function renderCharacterFace(
         </g>
       );
     }
-    if (state === 'confused') {
+    if (reactionId === 'playful') {
+      return (
+        <g className={blinkClass}>
+          <path d={`M${lx - 5} ${eyeY - 10} Q${lx} ${eyeY - 13} ${lx + 5} ${eyeY - 10}`} fill="none" stroke={theme.brow} strokeWidth="1.5" strokeLinecap="round" opacity="0.85" />
+          <path d={`M${rx - 5} ${eyeY - 9} Q${rx} ${eyeY - 11.5} ${rx + 5} ${eyeY - 8.5}`} fill="none" stroke={theme.brow} strokeWidth="1.5" strokeLinecap="round" opacity="0.85" />
+          {renderIrisEye(lx, eyeY, eyeRx, eyeRy, theme, 1.1, -0.5, isFeline)}
+          <path d={`M${rx - 6.5} ${eyeY + 0.5} Q${rx} ${eyeY - 4} ${rx + 6.5} ${eyeY + 0.5}`} fill="none" stroke={theme.lash} strokeWidth="2.2" strokeLinecap="round" />
+        </g>
+      );
+    }
+    if (state === 'confused' || reactionId === 'confused') {
       return (
         <g>
           <path d={`M${lx - 6} ${eyeY - 11} Q${lx} ${eyeY - 14.5} ${lx + 6} ${eyeY - 10}`} fill="none" stroke={theme.brow} strokeWidth="1.6" strokeLinecap="round" />
           <path d={`M${rx - 6} ${eyeY - 8} Q${rx} ${eyeY - 9} ${rx + 6} ${eyeY - 10.5}`} fill="none" stroke={theme.brow} strokeWidth="1.6" strokeLinecap="round" />
           {renderIrisEye(lx, eyeY, eyeRx, eyeRy + 0.6, theme, gazeDx, gazeDy, isFeline)}
           {renderIrisEye(rx, eyeY + 1, eyeRx, eyeRy - 1.4, theme, gazeDx, gazeDy, isFeline)}
+        </g>
+      );
+    }
+    if (reactionId === 'concerned') {
+      return (
+        <g className={blinkClass}>
+          <path d={`M${lx - 5} ${eyeY - 8} Q${lx} ${eyeY - 11.5} ${lx + 5} ${eyeY - 11}`} fill="none" stroke={theme.brow} strokeWidth="1.55" strokeLinecap="round" opacity="0.9" />
+          <path d={`M${rx - 5} ${eyeY - 11} Q${rx} ${eyeY - 11.5} ${rx + 5} ${eyeY - 8}`} fill="none" stroke={theme.brow} strokeWidth="1.55" strokeLinecap="round" opacity="0.9" />
+          {renderIrisEye(lx, eyeY, eyeRx, eyeRy, theme, 0, 0.8, isFeline)}
+          {renderIrisEye(rx, eyeY, eyeRx, eyeRy, theme, 0, 0.8, isFeline)}
         </g>
       );
     }
@@ -106,13 +133,13 @@ function renderCharacterFace(
         </g>
       );
     }
-    if (state === 'success') {
+    if (state === 'success' || reactionId === 'excited' || reactionId === 'proud') {
       return <path d="M73 89 Q80 96 87 89" fill="none" stroke={mouthColor} strokeWidth="1.8" strokeLinecap="round" />;
     }
-    if (state === 'confused') {
+    if (state === 'confused' || reactionId === 'confused' || reactionId === 'concerned') {
       return <path d="M75 91 Q80 88.5 85 91" fill="none" stroke={mouthColor} strokeWidth="1.7" strokeLinecap="round" />;
     }
-    if (state === 'waking') {
+    if (state === 'waking' || reactionId === 'happy' || reactionId === 'playful') {
       return <path d="M75 89.5 Q80 93.5 85 89.5" fill="none" stroke={mouthColor} strokeWidth="1.7" strokeLinecap="round" />;
     }
     if (state === 'listening') {
@@ -142,8 +169,13 @@ function renderCharacterFace(
           <circle cx="88" cy="99" r="1.5" opacity="0.65" />
         </g>
       )}
-      {state === 'success' && (
-        <path d="M119 49 L120.8 53.2 L125 55 L120.8 56.8 L119 61 L117.2 56.8 L113 55 L117.2 53.2Z" fill="#f3c86a" />
+      {(state === 'success' || reactionId === 'excited' || reactionId === 'proud') && (
+        <g>
+          <path d="M119 49 L120.8 53.2 L125 55 L120.8 56.8 L119 61 L117.2 56.8 L113 55 L117.2 53.2Z" fill="#f3c86a" />
+          {reactionId === 'excited' && (
+            <path d="M39 45 L40.2 48.2 L43.4 49.4 L40.2 50.6 L39 53.8 L37.8 50.6 L34.6 49.4 L37.8 48.2Z" fill="#7be0c5" opacity="0.9" />
+          )}
+        </g>
       )}
     </g>
   );
@@ -152,11 +184,13 @@ function renderCharacterFace(
 export function StudioCharacter({
   characterId,
   state,
+  reactionId = 'idle',
   scale = 1,
   audioLevel = 0,
 }: {
   characterId: CharacterId;
   state: CharacterState;
+  reactionId?: CharacterReactionId;
   scale?: number;
   audioLevel?: number;
 }) {
@@ -171,11 +205,15 @@ export function StudioCharacter({
         ? 'animate-companio-listen'
         : state === 'thinking'
           ? 'animate-companio-think'
-          : state === 'success'
+          : state === 'success' || reactionId === 'excited' || reactionId === 'proud'
             ? 'animate-companio-celebrate'
-            : state === 'sleeping'
-              ? ''
-              : 'animate-companio-idle';
+            : reactionId === 'playful'
+              ? 'animate-companio-playful'
+              : reactionId === 'concerned'
+                ? 'animate-companio-concerned'
+                : state === 'sleeping'
+                  ? ''
+                  : 'animate-companio-idle';
   const blinkClass = state === 'idle' ? 'companio-blink' : '';
 
   // Keep per-character identifier references explicit for character-specific styling checks
@@ -193,9 +231,9 @@ export function StudioCharacter({
 
   return (
     <div className="pointer-events-none select-none flex items-center justify-center">
-      <svg width={width} height={height} viewBox="0 0 160 180" aria-hidden="true" data-character={characterVariant} data-optics={model.opticsStyle} data-state={state} className={`studio-character ${animation}`}>
+      <svg width={width} height={height} viewBox="0 0 160 180" aria-hidden="true" data-character={characterVariant} data-optics={model.opticsStyle} data-state={state} data-reaction={reactionId} className={`studio-character ${animation}`}>
         <image href={`${import.meta.env.BASE_URL}characters/${model.id}.svg`} width="160" height="180" />
-        {renderCharacterFace(model.id, state, blinkClass, audioLevel)}
+        {renderCharacterFace(model.id, state, reactionId, blinkClass, audioLevel)}
       </svg>
     </div>
   );

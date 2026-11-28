@@ -23,7 +23,7 @@ export const ActionApprovalDialog: React.FC<ActionApprovalDialogProps> = ({
     if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   };
   return (
-  <div className="absolute inset-0 z-[100] flex items-center justify-center bg-slate-950/45 p-3 backdrop-blur-[3px] app-no-drag">
+  <div data-companio-interactive="true" className="pointer-events-auto absolute inset-0 z-[100] flex items-center justify-center bg-slate-950/45 p-3 backdrop-blur-[3px]">
     <section
       ref={dialogRef} onKeyDown={handleKeys}
       role="dialog"

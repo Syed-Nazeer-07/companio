@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { AppSettings, CharacterId, CharacterState } from '../../types';
 import { CharacterRenderer } from '../characters/CharacterRenderer';
 import { characterCollection } from '../characters/characterCollection';
-import { Check, Sliders, Volume2 } from 'lucide-react';
+import { speechService } from '../../services/speechService';
+import { Check, Sliders, Volume2, MessageCircle } from 'lucide-react';
 
 interface Props {
   settings: AppSettings;
@@ -12,9 +13,14 @@ interface Props {
 export const CharacterStudioPage: React.FC<Props> = ({ settings, onUpdateSettings }) => {
   const [previewState, setPreviewState] = useState<CharacterState>('idle');
   const [previewAudioLevel, setPreviewAudioLevel] = useState(0);
+  const [previewingVoice, setPreviewingVoice] = useState(false);
 
   const characters = characterCollection;
   const activeProfile = characters.find((c) => c.id === settings.characterId) || characters[0];
+
+  useEffect(() => () => {
+    speechService.stopSpeaking();
+  }, []);
 
   useEffect(() => {
     if (previewState !== 'talking') {
@@ -30,7 +36,42 @@ export const CharacterStudioPage: React.FC<Props> = ({ settings, onUpdateSetting
   }, [previewState]);
 
   const handleSelect = (id: CharacterId) => {
+    if (previewingVoice) {
+      speechService.stopSpeaking();
+      setPreviewingVoice(false);
+    }
     onUpdateSettings({ characterId: id });
+  };
+
+  const handlePreviewVoice = () => {
+    if (previewingVoice) {
+      speechService.stopSpeaking();
+      setPreviewingVoice(false);
+      setPreviewState('idle');
+      return;
+    }
+    const lines: Record<string, string> = {
+      sparky: `Hi! I'm Sparky, ready to organize your Windows workflow and keep everything verified.`,
+      boba: `Hey there, I'm Boba. Steady, cozy, and right here whenever you want a hand.`,
+      pixel: `Hey! Pixel here — fast lookups, quick actions, let's build something cool!`,
+      mochi: `Hello, I'm Mochi. Quiet when you focus, responsive whenever you summon me.`,
+      cloudie: `Good day, I'm Cloudie. Tell me what you are working on and we'll plan it cleanly.`,
+      kiko: `I'm Kiko. Poised and attentive — summon me anytime on your desktop.`
+    };
+    setPreviewingVoice(true);
+    setPreviewState('talking');
+    speechService.speak(lines[activeProfile.id] || lines.sparky, {
+      characterId: activeProfile.id,
+      rate: settings.voice.ttsRate,
+      pitch: settings.voice.ttsPitch,
+      volume: settings.voice.ttsVolume,
+      muted: false,
+      onAudioLevel: (lvl) => setPreviewAudioLevel(lvl),
+      onEnd: () => {
+        setPreviewingVoice(false);
+        setPreviewState('idle');
+      }
+    });
   };
 
   const testStates: CharacterState[] = [
@@ -75,18 +116,32 @@ export const CharacterStudioPage: React.FC<Props> = ({ settings, onUpdateSetting
           <div className="w-full space-y-2.5">
             <div className="flex items-center justify-between gap-2">
               <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Trigger Expression:</p>
-              <button
-                type="button"
-                onClick={() => setPreviewState((prev) => (prev === 'talking' ? 'idle' : 'talking'))}
-                className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold border transition-colors ${
-                  previewState === 'talking'
-                    ? 'border-emerald-700 bg-emerald-700 text-white'
-                    : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-                }`}
-              >
-                <Volume2 className="w-3 h-3" />
-                {previewState === 'talking' ? 'Stop speaking' : 'Preview Speaking'}
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handlePreviewVoice}
+                  className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold border transition-colors ${
+                    previewingVoice
+                      ? 'border-emerald-700 bg-emerald-700 text-white'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <MessageCircle className="w-3 h-3" />
+                  {previewingVoice ? 'Stop voice' : 'Preview Voice'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewState((prev) => (prev === 'talking' ? 'idle' : 'talking'))}
+                  className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold border transition-colors ${
+                    previewState === 'talking'
+                      ? 'border-emerald-700 bg-emerald-700 text-white'
+                      : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                  }`}
+                >
+                  <Volume2 className="w-3 h-3" />
+                  {previewState === 'talking' ? 'Stop speaking' : 'Preview Speaking'}
+                </button>
+              </div>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {testStates.map((st) => (

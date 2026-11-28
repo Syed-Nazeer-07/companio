@@ -18,6 +18,12 @@ const desktopAPI = {
   showOverlay: () => ipcRenderer.invoke('show-overlay'),
   notifyOverlayReady: () => ipcRenderer.invoke('overlay-ready'),
   setIgnoreMouseEvents: (ignore) => ipcRenderer.invoke('set-ignore-mouse-events', ignore),
+  setOverlayInteractiveRects: (rects) => ipcRenderer.invoke('set-overlay-interactive-rects', rects),
+  getOverlayBounds: () => ipcRenderer.invoke('get-overlay-bounds'),
+  startOverlayDrag: () => ipcRenderer.invoke('overlay-drag-start'),
+  moveOverlayDrag: () => ipcRenderer.invoke('overlay-drag-move'),
+  endOverlayDrag: () => ipcRenderer.invoke('overlay-drag-end'),
+  showOverlayPassive: () => ipcRenderer.invoke('show-overlay-passive'),
   saveOverlayPosition: (x, y) => ipcRenderer.invoke('save-overlay-position', { x, y }),
   getOverlayPosition: () => ipcRenderer.invoke('get-overlay-position'),
   moveCompanion: (direction) => ipcRenderer.invoke('move-companion', direction),
@@ -72,6 +78,37 @@ const desktopAPI = {
     return () => ipcRenderer.removeListener('whisper-model-progress',handler);
   },
 
+  // Managed offline local AI (app-owned llama.cpp runtime + verified GGUF models)
+  getManagedAiStatus: () => ipcRenderer.invoke('managed-ai-get-status'),
+  listManagedAiModels: () => ipcRenderer.invoke('managed-ai-list-models'),
+  installManagedAiBundle: (options) => ipcRenderer.invoke('managed-ai-install-bundle', options),
+  installManagedAiModel: (modelId, options) => ipcRenderer.invoke('managed-ai-install-model', { modelId, ...(options || {}) }),
+  pauseManagedAiDownload: () => ipcRenderer.invoke('managed-ai-pause'),
+  resumeManagedAiDownload: () => ipcRenderer.invoke('managed-ai-resume'),
+  cancelManagedAiDownload: (options) => ipcRenderer.invoke('managed-ai-cancel', options),
+  repairManagedAiModel: (modelId) => ipcRenderer.invoke('managed-ai-repair', modelId),
+  deleteManagedAiModel: (modelId) => ipcRenderer.invoke('managed-ai-delete', modelId),
+  setActiveManagedAiModel: (modelId) => ipcRenderer.invoke('managed-ai-set-active', modelId),
+  importManagedAiModel: (filePath) => ipcRenderer.invoke('managed-ai-import-model', filePath),
+  startManagedAi: () => ipcRenderer.invoke('managed-ai-start'),
+  stopManagedAi: () => ipcRenderer.invoke('managed-ai-stop'),
+  verifyManagedAiHealth: () => ipcRenderer.invoke('managed-ai-health'),
+  setManagedAiPerformanceMode: (mode) => ipcRenderer.invoke('managed-ai-set-performance-mode', mode),
+  consumeInstallerAiSetup: () => ipcRenderer.invoke('managed-ai-consume-installer-setup'),
+  chatManagedAi: (options) => ipcRenderer.invoke('managed-ai-chat', options),
+  cancelManagedAiChat: () => ipcRenderer.invoke('managed-ai-cancel-chat'),
+  planManagedAiStructured: (options) => ipcRenderer.invoke('managed-ai-plan-structured', options),
+  onManagedAiProgress: (callback) => {
+    const handler = (_event, progress) => callback(progress);
+    ipcRenderer.on('managed-ai-progress', handler);
+    return () => ipcRenderer.removeListener('managed-ai-progress', handler);
+  },
+  onManagedAiToken: (callback) => {
+    const handler = (_event, chunk) => callback(chunk);
+    ipcRenderer.on('managed-ai-token', handler);
+    return () => ipcRenderer.removeListener('managed-ai-token', handler);
+  },
+
   // Local inference (loopback-only, validated in Electron main process)
   listLocalAiModels: (options) => ipcRenderer.invoke('local-ai-models', options),
   discoverLocalAi: (options) => ipcRenderer.invoke('local-ai-discover', options),
@@ -80,6 +117,7 @@ const desktopAPI = {
   getCloudAiStatus: () => ipcRenderer.invoke('cloud-ai-status'),
   setCloudAiKey: (provider, apiKey) => ipcRenderer.invoke('cloud-ai-set-key', { provider, apiKey }),
   clearCloudAiKey: (provider) => ipcRenderer.invoke('cloud-ai-clear-key', provider),
+  testCloudAi: (options) => ipcRenderer.invoke('cloud-ai-test', options),
   chatCloudAi: (options) => ipcRenderer.invoke('cloud-ai-chat', options),
   planCloudActions: (options) => ipcRenderer.invoke('cloud-ai-plan', options),
   planOfflineSequence: (options) => ipcRenderer.invoke('offline-sequence', options),

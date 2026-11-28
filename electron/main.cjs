@@ -1,4 +1,4 @@
-const { app, BrowserWindow, globalShortcut, ipcMain, screen, Tray, Menu, nativeImage, session, dialog, shell, desktopCapturer, safeStorage } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, screen, Tray, Menu, nativeImage, session, dialog, shell, desktopCapturer, safeStorage, powerMonitor } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { fileURLToPath } = require('url');
@@ -17,6 +17,13 @@ const { WhisperModelInstaller } = require('./automation/whisperModelInstaller.cj
 const { WhisperBinaryInstaller } = require('./automation/whisperBinaryInstaller.cjs');
 const localAiController = require('./automation/localAiController.cjs');
 const localActionPlanner = require('./automation/localActionPlanner.cjs');
+const { ManagedLlmRuntime } = require('./automation/managedLlmRuntime.cjs');
+const { ManagedModelManager } = require('./automation/managedModelManager.cjs');
+const {
+  STRUCTURED_RESPONSE_SCHEMA,
+  buildStructuredSystemPrompt,
+  validateStructuredModelOutput
+} = require('./automation/actionRegistry.cjs');
 const { SecretStore } = require('./automation/secretStore.cjs');
 const cloudAiController = require('./automation/cloudAiController.cjs');
 const historyBackupController = require('./automation/historyBackupController.cjs');
@@ -30,12 +37,19 @@ const { registerSingleInstance } = require('./automation/singleInstance.cjs');
 const { createDebouncedWork } = require('./automation/debouncedWork.cjs');
 const { createActivationGate } = require('./automation/activationGate.cjs');
 const { captureScreenshotWithFallback } = require('./automation/screenshotFallback.cjs');
+const { sanitizeInteractiveRects, shouldIgnoreOverlayMouse } = require('./automation/overlayHitTest.cjs');
 
 let overlayWindow = null;
 let dashboardWindow = null;
 let tray = null;
 let currentShortcut = 'CommandOrControl+Shift+Space';
 let overlayPreferences = { alwaysOnTop: true, snapToEdge: true };
+let overlayMouseIgnored = true;
+let overlayDragging = false;
+let overlayDragOrigin = null;
+let overlayInteractiveRects = [];
+let overlayHitTimer = null;
+let lastOverlayCursorKey = '';
 const overlayActivation = createActivationGate(() => {
   const win = overlayWindow;
   if (win && !win.isDestroyed()) win.webContents.send('shortcut-activated');
@@ -58,7 +72,30 @@ const whisperSpeech = new WhisperSpeechController({
 });
 const whisperModelInstaller = new WhisperModelInstaller({ userData: app.getPath('userData') });
 const whisperBinaryInstaller = new WhisperBinaryInstaller({ userData: app.getPath('userData') });
+const managedLlmRuntime = new ManagedLlmRuntime({ performanceMode: 'balanced' });
+let userPerformanceMode = 'balanced';
+let onBatteryPower = false;
+function applyEffectivePerformanceMode() {
+  const effective = (onBatteryPower && userPerformanceMode !== 'performance')
+    ? 'battery_saver'
+    : userPerformanceMode;
+  managedLlmRuntime.setPerformanceMode(effective);
+  return effective;
+}
+const managedModelManager = new ManagedModelManager({
+  userData: app.getPath('userData'),
+  arch: process.arch,
+  runtime: managedLlmRuntime
+});
 const captureScreenshot = () => captureScreenshotWithFallback({winAppsController, desktopCapturer, screen});
+
+function broadcastManagedAiEvent(channel, payload) {
+  for (const win of [dashboardWindow, overlayWindow]) {
+    if (win && !win.isDestroyed() && win.webContents && !win.webContents.isDestroyed()) {
+      try { win.webContents.send(channel, payload); } catch {}
+    }
+  }
+}
 
 function loadSavedPosition() {
   try {
@@ -122,12 +159,56 @@ function protectWindow(win) {
   });
 }
 
+function syncOverlayMousePassthrough(force = false) {
+  if (!overlayWindow || overlayWindow.isDestroyed() || !overlayWindow.isVisible()) return;
+  let cursor = null;
+  let bounds = null;
+  if (!overlayDragging) {
+    try {
+      cursor = screen.getCursorScreenPoint();
+      bounds = overlayWindow.getBounds();
+    } catch {
+      return;
+    }
+    const cursorKey = `${cursor.x},${cursor.y},${bounds.x},${bounds.y}`;
+    if (!force && cursorKey === lastOverlayCursorKey) return;
+    lastOverlayCursorKey = cursorKey;
+  }
+
+  const ignore = shouldIgnoreOverlayMouse({
+    cursor,
+    bounds,
+    rects: overlayInteractiveRects,
+    dragging: overlayDragging
+  });
+  if (overlayMouseIgnored !== ignore) {
+    overlayMouseIgnored = ignore;
+    try { overlayWindow.setIgnoreMouseEvents(ignore); } catch {}
+  }
+}
+
+function startOverlayHitPolling() {
+  if (SMOKE_TEST || overlayHitTimer) return;
+  overlayHitTimer = setInterval(() => syncOverlayMousePassthrough(false), 32);
+  if (typeof overlayHitTimer.unref === 'function') overlayHitTimer.unref();
+}
+
+function stopOverlayHitPolling() {
+  if (overlayHitTimer) {
+    clearInterval(overlayHitTimer);
+    overlayHitTimer = null;
+  }
+  lastOverlayCursorKey = '';
+}
+
 function wakeCompanionWindow() {
   if (!app.isReady()) return;
   if (!overlayWindow || overlayWindow.isDestroyed()) createOverlayWindow();
   const win = overlayWindow;
   if (!win) return;
   if (!win.isVisible()) win.show();
+  startOverlayHitPolling();
+  syncOverlayMousePassthrough(true);
   win.focus();
   // Document ready is not React ready: queue the wake until the renderer
   // has registered shortcut listeners and hydrated its saved state.
@@ -177,6 +258,15 @@ function createOverlayWindow() {
   });
   const win = overlayWindow;
   protectWindow(win);
+  overlayMouseIgnored = true;
+  overlayDragging = false;
+  overlayDragOrigin = null;
+  overlayInteractiveRects = [];
+  lastOverlayCursorKey = '';
+  try {
+    win.setIgnoreMouseEvents(true);
+  } catch {}
+  startOverlayHitPolling();
 
   loadWindowContent(win, 'overlay');
 
@@ -205,10 +295,35 @@ function createOverlayWindow() {
   win.on('moved', () => {
     if (!snapping) placementSaver.schedule();
   });
+  win.on('show', () => {
+    startOverlayHitPolling();
+    syncOverlayMousePassthrough(true);
+  });
+  win.on('blur', () => {
+    if (!overlayDragging && !win.isDestroyed()) {
+      syncOverlayMousePassthrough(true);
+    }
+  });
+  win.on('hide', () => {
+    stopOverlayHitPolling();
+    overlayDragging = false;
+    overlayDragOrigin = null;
+    overlayMouseIgnored = true;
+    if (!win.isDestroyed()) {
+      try { win.setIgnoreMouseEvents(true); } catch {}
+    }
+  });
   // Flush before destruction so fast quit/restart still remembers placement.
-  win.on('close', () => placementSaver.flush());
+  win.on('close', () => {
+    stopOverlayHitPolling();
+    placementSaver.flush();
+  });
   win.on('closed', () => {
+    stopOverlayHitPolling();
     placementSaver.cancel();
+    overlayDragging = false;
+    overlayDragOrigin = null;
+    overlayInteractiveRects = [];
     if (overlayWindow === win) overlayWindow = null;
   });
 }
@@ -561,9 +676,172 @@ secureHandle('local-ai-plan', async (_, options) => localActionPlanner.proposeAc
 secureHandle('cloud-ai-status', async () => secretStore.status());
 secureHandle('cloud-ai-set-key', async (_, payload) => secretStore.setKey(payload?.provider, payload?.apiKey));
 secureHandle('cloud-ai-clear-key', async (_, provider) => secretStore.clearKey(provider));
+secureHandle('cloud-ai-test', async (_, options) => cloudAiController.testCloudConnection(options, { secretStore }));
 secureHandle('cloud-ai-chat', async (_, options) => cloudAiController.chatCloud(options, { secretStore }));
 secureHandle('cloud-ai-plan', async (_, options) => cloudAiController.proposeCloudActions(options, { secretStore }));
 secureHandle('offline-sequence', async (_, options) => localActionPlanner.planOfflineSequence(options));
+secureHandle('managed-ai-get-status', async () => {
+  const runtimeStatus = managedLlmRuntime.getStatus();
+  return {
+    success: true,
+    ...managedModelManager.getStatus(),
+    onBatteryPower,
+    userPerformanceMode,
+    effectivePerformanceMode: runtimeStatus.performanceMode,
+    runtimeProcess: runtimeStatus
+  };
+});
+secureHandle('managed-ai-list-models', async () => ({
+  success: true,
+  models: managedModelManager.listModels()
+}));
+secureHandle('managed-ai-install-bundle', async (_event, options) => {
+  return await managedModelManager.installLocalAiBundle(options || {}, (progress) => {
+    broadcastManagedAiEvent('managed-ai-progress', progress);
+  });
+});
+secureHandle('managed-ai-install-model', async (_event, payload) => {
+  const modelId = payload?.modelId;
+  return await managedModelManager.installModel(
+    modelId,
+    (progress) => broadcastManagedAiEvent('managed-ai-progress', progress),
+    { forceReinstall: Boolean(payload?.forceReinstall) }
+  );
+});
+secureHandle('managed-ai-pause', () => managedModelManager.pauseDownload());
+secureHandle('managed-ai-resume', () => managedModelManager.resumeDownload());
+secureHandle('managed-ai-cancel', (_event, options) => managedModelManager.cancelDownload(options || {}));
+secureHandle('managed-ai-repair', async (_event, modelId) => {
+  return await managedModelManager.repairModel(modelId, (progress) => {
+    broadcastManagedAiEvent('managed-ai-progress', progress);
+  });
+});
+secureHandle('managed-ai-delete', async (_event, modelId) => {
+  const current = managedLlmRuntime.getStatus();
+  if (current.running && current.modelId === modelId) {
+    await managedLlmRuntime.stop();
+  }
+  return managedModelManager.deleteModel(modelId);
+});
+secureHandle('managed-ai-set-active', async (_event, modelId) => {
+  const current = managedLlmRuntime.getStatus();
+  if (current.running && current.modelId !== modelId) {
+    await managedLlmRuntime.stop();
+  }
+  return managedModelManager.setActiveModel(modelId);
+});
+secureHandle('managed-ai-import-model', async (event, filePath) => {
+  let targetPath = typeof filePath === 'string' && filePath.trim() ? filePath.trim() : null;
+  if (!targetPath) {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const chosen = await dialog.showOpenDialog(win, {
+      title: 'Import local GGUF language model',
+      properties: ['openFile'],
+      filters: [{ name: 'GGUF Model Weights', extensions: ['gguf'] }]
+    });
+    if (chosen.canceled || !chosen.filePaths?.length) {
+      return { success: false, cancelled: true };
+    }
+    targetPath = chosen.filePaths[0];
+  }
+  return managedModelManager.importLocalModel(targetPath);
+});
+secureHandle('managed-ai-start', async () => {
+  const cfg = managedModelManager.getActiveRuntimeConfig();
+  if (!cfg) {
+    return { success: false, error: 'Install a Managed Local AI runtime and model first in AI Intelligence settings.' };
+  }
+  try {
+    const status = await managedLlmRuntime.ensureStarted(cfg);
+    return { success: true, ...status };
+  } catch (err) {
+    return { success: false, error: err.message || 'Could not start local AI engine.' };
+  }
+});
+secureHandle('managed-ai-stop', async () => {
+  await managedLlmRuntime.stop();
+  return { success: true };
+});
+secureHandle('managed-ai-health', async () => {
+  const cfg = managedModelManager.getActiveRuntimeConfig();
+  if (!cfg) {
+    return { ok: false, verified: false, error: 'No managed local AI runtime and model installed yet.' };
+  }
+  const health = await managedLlmRuntime.verifyHealth(cfg);
+  managedModelManager.writeConfig({
+    lastHealthCheck: { ...health, checkedAt: new Date().toISOString() }
+  });
+  return health;
+});
+secureHandle('managed-ai-set-performance-mode', (_event, mode) => {
+  if (['battery_saver', 'balanced', 'performance'].includes(mode)) {
+    userPerformanceMode = mode;
+  }
+  applyEffectivePerformanceMode();
+  return { success: true, onBatteryPower, userPerformanceMode, status: managedLlmRuntime.getStatus() };
+});
+secureHandle('managed-ai-consume-installer-setup', () => {
+  return managedModelManager.consumeInstallerSetupManifest();
+});
+secureHandle('managed-ai-chat', async (event, options) => {
+  const cfg = managedModelManager.getActiveRuntimeConfig();
+  if (!cfg) {
+    return { success: false, error: 'Managed local AI is not installed yet.' };
+  }
+  const requestId = typeof options?.requestId === 'string' ? options.requestId : null;
+  return await managedLlmRuntime.chat(
+    { ...(options || {}), runtimeConfig: cfg },
+    (delta, full) => {
+      if (event.sender && !event.sender.isDestroyed()) {
+        try { event.sender.send('managed-ai-token', { requestId, delta, full }); } catch {}
+      }
+    }
+  );
+});
+secureHandle('managed-ai-cancel-chat', () => ({
+  success: true,
+  cancelled: managedLlmRuntime.cancelActiveRequest()
+}));
+secureHandle('managed-ai-plan-structured', async (_event, options) => {
+  const prompt = typeof options?.prompt === 'string' ? options.prompt.trim() : '';
+  if (!prompt) {
+    return { success: false, error: 'Prompt is required.' };
+  }
+  const cfg = managedModelManager.getActiveRuntimeConfig();
+  if (!cfg) {
+    return { success: false, error: 'Managed local AI is not installed yet.' };
+  }
+  const systemPrompt = buildStructuredSystemPrompt({
+    characterName: options?.characterName || 'Sparky',
+    characterPersonality: options?.characterPersonality,
+    memoryBlock: options?.memoryBlock || ''
+  });
+  const res = await managedLlmRuntime.chat({
+    prompt,
+    history: Array.isArray(options?.history) ? options.history : [],
+    systemPrompt,
+    responseFormat: STRUCTURED_RESPONSE_SCHEMA,
+    temperature: 0.15,
+    maxTokens: 450,
+    stream: false,
+    runtimeConfig: cfg
+  });
+  if (!res.success || !res.reply) {
+    return { success: false, cancelled: Boolean(res.cancelled), error: res.error || 'Managed local AI planning failed.' };
+  }
+  const validated = validateStructuredModelOutput(res.reply, prompt, { externalProposal: false });
+  if (!validated.ok) {
+    return { success: false, error: validated.error || 'Model output could not be validated safely.' };
+  }
+  return {
+    success: true,
+    ...validated,
+    modelId: res.modelId,
+    ttftMs: res.ttftMs,
+    totalMs: res.totalMs,
+    tokensPerSec: res.tokensPerSec
+  };
+});
 secureHandle('history-validate-import', async (_, content) => historyBackupController.validateHistoryBackup(content));
 secureHandle('history-store-load', async () => nativeHistoryStore.load());
 secureHandle('desktop-diagnostics', async () => {
@@ -675,11 +953,82 @@ secureHandle('move-companion', (event, direction) => {
   }
 });
 
+secureHandle('set-overlay-interactive-rects', (event, rects) => {
+  if (event.sender !== overlayWindow?.webContents || !overlayWindow || overlayWindow.isDestroyed()) return false;
+  if (!Array.isArray(rects) || rects.length > 24) return false;
+  overlayInteractiveRects = sanitizeInteractiveRects(rects, 24);
+  syncOverlayMousePassthrough(true);
+  return true;
+});
+
 secureHandle('set-ignore-mouse-events', (event, ignore) => {
   const win = BrowserWindow.fromWebContents(event.sender);
-  if (win !== overlayWindow || typeof ignore !== 'boolean') return false;
-  win.setIgnoreMouseEvents(ignore, { forward: true });
+  if (!win || win !== overlayWindow || win.isDestroyed() || typeof ignore !== 'boolean') return false;
+  if (overlayDragging && ignore) return false;
+  if (overlayMouseIgnored !== ignore) {
+    overlayMouseIgnored = ignore;
+    win.setIgnoreMouseEvents(ignore);
+  }
   return true;
+});
+
+secureHandle('get-overlay-bounds', (event) => {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return null;
+  if (event.sender !== overlayWindow.webContents && event.sender !== dashboardWindow?.webContents) return null;
+  return overlayWindow.getBounds();
+});
+
+secureHandle('overlay-drag-start', (event) => {
+  if (event.sender !== overlayWindow?.webContents || !overlayWindow || overlayWindow.isDestroyed()) {
+    return { success: false };
+  }
+  const cursor = screen.getCursorScreenPoint();
+  const bounds = overlayWindow.getBounds();
+  overlayDragging = true;
+  overlayMouseIgnored = false;
+  overlayDragOrigin = { cursorX: cursor.x, cursorY: cursor.y, bounds };
+  try { overlayWindow.setIgnoreMouseEvents(false); } catch {}
+  return { success: true, bounds };
+});
+
+secureHandle('overlay-drag-move', (event) => {
+  if (event.sender !== overlayWindow?.webContents || !overlayWindow || overlayWindow.isDestroyed() || !overlayDragging || !overlayDragOrigin) {
+    return { success: false };
+  }
+  const cursor = screen.getCursorScreenPoint();
+  const dx = cursor.x - overlayDragOrigin.cursorX;
+  const dy = cursor.y - overlayDragOrigin.cursorY;
+  const area = screen.getDisplayNearestPoint(cursor).workArea;
+  const { width, height, x: startX, y: startY } = overlayDragOrigin.bounds;
+  const nextX = Math.round(Math.min(Math.max(area.x - Math.floor(width * 0.25), startX + dx), area.x + area.width - Math.floor(width * 0.75)));
+  const nextY = Math.round(Math.min(Math.max(area.y, startY + dy), area.y + area.height - Math.floor(height * 0.5)));
+  overlayWindow.setBounds({ x: nextX, y: nextY, width, height });
+  return { success: true, bounds: overlayWindow.getBounds() };
+});
+
+secureHandle('overlay-drag-end', (event) => {
+  if (event.sender !== overlayWindow?.webContents || !overlayWindow || overlayWindow.isDestroyed()) {
+    overlayDragging = false;
+    overlayDragOrigin = null;
+    return { success: false };
+  }
+  overlayDragging = false;
+  overlayDragOrigin = null;
+  const bounds = overlayWindow.getBounds();
+  if (overlayPreferences.snapToEdge) {
+    const area = screen.getDisplayMatching(bounds).workArea;
+    const snap = (value, low, high) =>
+      Math.abs(value - low) <= 24 ? low : Math.abs(value - high) <= 24 ? high : value;
+    const snappedX = snap(bounds.x, area.x, area.x + area.width - bounds.width);
+    const snappedY = snap(bounds.y, area.y, area.y + area.height - bounds.height);
+    if (snappedX !== bounds.x || snappedY !== bounds.y) {
+      overlayWindow.setBounds({ x: snappedX, y: snappedY, width: bounds.width, height: bounds.height });
+    }
+  }
+  const finalBounds = overlayWindow.getBounds();
+  savePosition(finalBounds.x, finalBounds.y);
+  syncOverlayMousePassthrough(true);
+  return { success: true, bounds: finalBounds };
 });
 
 secureHandle('quit-app', () => {
@@ -776,9 +1125,16 @@ secureHandle('overlay-ready', (event) => {
 });
 
 secureHandle('show-overlay', () => {
-  if (overlayWindow) {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
     overlayWindow.show();
     overlayWindow.focus();
+  }
+  return true;
+});
+
+secureHandle('show-overlay-passive', () => {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    if (!overlayWindow.isVisible()) overlayWindow.showInactive();
   }
   return true;
 });
@@ -793,6 +1149,18 @@ app.commandLine.appendSwitch('enable-speech-dispatcher');
 app.whenReady().then(async () => {
   if (!primaryInstance) return;
   if (process.platform === 'win32') app.setAppUserModelId('com.companio.desktop');
+  try {
+    onBatteryPower = Boolean(powerMonitor?.isOnBatteryPower?.());
+    applyEffectivePerformanceMode();
+    powerMonitor?.on?.('on-battery', () => {
+      onBatteryPower = true;
+      applyEffectivePerformanceMode();
+    });
+    powerMonitor?.on?.('on-ac', () => {
+      onBatteryPower = false;
+      applyEffectivePerformanceMode();
+    });
+  } catch {}
   // Never grant camera, accessibility, Bluetooth or USB permissions automatically.
   if (session && session.defaultSession) {
     const trusted = (wc) => {
@@ -866,11 +1234,11 @@ app.whenReady().then(async () => {
         new Promise((_, reject) => setTimeout(() => reject(new Error('Overlay failed to hydrate history within 12 seconds')), 12000))
       ]);
       if (!overlayReady) throw new Error('The companion overlay did not finish its storage initialization');
-      const dragHandleVisible = await win.webContents.executeJavaScript(
-        "(() => { const el = document.querySelector('[aria-label=\"Drag to move Companio around your desktop\"]'); if (!el) return false; const rect = el.getBoundingClientRect(); const style = getComputedStyle(el); return rect.width >= 100 && rect.height >= 24 && style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) > 0.95; })()"
+      const dragHandleAccessible = await win.webContents.executeJavaScript(
+        "(() => { const el = document.querySelector('[aria-label=\"Drag to move Companio around your desktop\"]'); const char = document.querySelector('.companio-character'); return Boolean(el && char); })()"
       );
-      if (!dragHandleVisible) throw new Error('The draggable Companio handle must be visible without hovering');
-      smokeReport({ stage: 'drag-handle-visible' });
+      if (!dragHandleAccessible) throw new Error('The draggable Companio character and accessible move control must be present');
+      smokeReport({ stage: 'drag-handle-accessible' });
       smokeReport({ stage: 'history-hydrated' });
       // On headless Windows runners, the main-process timer occasionally stops
       // progressing after IPC. Dispatch immediately and let the renderer itself
@@ -1036,8 +1404,15 @@ app.whenReady().then(async () => {
   });
 });
 
+app.on('before-quit', () => {
+  stopOverlayHitPolling();
+  void managedLlmRuntime.dispose();
+});
+
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
+  stopOverlayHitPolling();
+  void managedLlmRuntime.dispose();
 });
 
 app.on('window-all-closed', () => {

@@ -8,22 +8,39 @@ export interface CharacterVoiceProfile {
   voiceNameKeywords: string[];
 }
 
+export function isLikelyTtsEcho(transcript: string, lastSpokenText: string, elapsedMs: number): boolean {
+  if (typeof transcript !== 'string' || typeof lastSpokenText !== 'string') return false;
+  if (!Number.isFinite(elapsedMs) || elapsedMs < 0 || elapsedMs > 2500) return false;
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').trim().split(/\s+/).filter(Boolean);
+  const a = normalize(transcript);
+  const b = normalize(lastSpokenText);
+  if (a.length === 0 || b.length === 0) return false;
+  if (a.join(' ') === b.join(' ')) return true;
+  if (a.length < 2) return false;
+  let shared = 0;
+  for (let i = 0; i < a.length; i++) {
+    if (b.includes(a[i])) shared++;
+  }
+  const overlap = shared / a.length;
+  return overlap >= 0.72;
+}
+
 export function getCharacterVoiceProfile(characterId: string): CharacterVoiceProfile {
   switch (characterId) {
     case 'sparky':
-      return { rate: 1.04, pitch: 0.94, voiceNameKeywords: ['David', 'Guy', 'George', 'Mark'] };
+      return { rate: 1.06, pitch: 1.04, voiceNameKeywords: ['Mark', 'Guy', 'David', 'George'] };
     case 'pixel':
-      return { rate: 1.12, pitch: 1.12, voiceNameKeywords: ['Aria', 'Samantha', 'Zira'] };
+      return { rate: 1.13, pitch: 1.14, voiceNameKeywords: ['Zira', 'Aria', 'Samantha'] };
     case 'mochi':
-      return { rate: 0.96, pitch: 1.13, voiceNameKeywords: ['Jenny', 'Sonia', 'Zira'] };
+      return { rate: 0.96, pitch: 1.09, voiceNameKeywords: ['Heera', 'Jenny', 'Sonia', 'Zira'] };
     case 'cloudie':
-      return { rate: 0.92, pitch: 1.02, voiceNameKeywords: ['Sonia', 'Hazel', 'Jenny'] };
+      return { rate: 0.92, pitch: 0.98, voiceNameKeywords: ['David', 'Sonia', 'Hazel', 'Jenny'] };
     case 'kiko':
-      return { rate: 1.08, pitch: 1.1, voiceNameKeywords: ['Zira', 'Aria', 'Jenny'] };
+      return { rate: 1.08, pitch: 1.1, voiceNameKeywords: ['Zira', 'Aria', 'Heera', 'Jenny'] };
     case 'boba':
-      return { rate: 0.95, pitch: 0.92, voiceNameKeywords: ['George', 'Guy', 'David'] };
+      return { rate: 0.93, pitch: 0.88, voiceNameKeywords: ['Ravi', 'George', 'David', 'Guy'] };
     default:
-      return { rate: 1.05, pitch: 1.15, voiceNameKeywords: ['Zira', 'Jenny', 'Aria'] };
+      return { rate: 1.04, pitch: 1.05, voiceNameKeywords: ['Mark', 'Zira', 'David', 'Jenny'] };
   }
 }
 
@@ -38,6 +55,9 @@ export class SpeechService {
   private listenToken = 0;
   private activeSpeechFinish: (() => void) | null = null;
   private whisperCapture: LocalWhisperRecorder | null = null;
+  private isSpeakingNow = false;
+  private lastSpokenText = '';
+  private lastSpokenEndedAt = 0;
 
   constructor() {
     this.initRecognition();
@@ -66,6 +86,10 @@ export class SpeechService {
     playActivationChime = true,
     engine: 'auto' | 'windows' | 'whisper' = 'windows'
   ): Promise<void> {
+    const interruptedSpeech = this.isSpeakingNow;
+    if (interruptedSpeech) {
+      this.stopSpeaking();
+    }
     this.stopListening();
     const token = ++this.listenToken;
     this.isListening = true;
@@ -79,10 +103,22 @@ export class SpeechService {
       // The recognizer already completed. Do not send a late IPC cancel that
       // could race with the next fast push-to-talk session.
       this.stopListening(false);
-      if (kind === 'result' && detail?.trim()) onFinal(detail.trim(), metadata);
-      else if (kind === 'error') onError(detail || 'Speech recognition did not start.');
+      if (kind === 'result' && detail?.trim()) {
+        const cleanTranscript = detail.trim();
+        const msSinceTts = this.lastSpokenEndedAt > 0 ? Date.now() - this.lastSpokenEndedAt : Number.POSITIVE_INFINITY;
+        if (isLikelyTtsEcho(cleanTranscript, this.lastSpokenText, msSinceTts)) {
+          onStop?.();
+          return;
+        }
+        onFinal(cleanTranscript, metadata);
+      } else if (kind === 'error') onError(detail || 'Speech recognition did not start.');
       else onStop?.();
     };
+
+    if (interruptedSpeech) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 180));
+      if (!active()) return;
+    }
 
     if (playActivationChime) this.playChime('activate');
     onInterim('Listening…');
@@ -300,15 +336,20 @@ export class SpeechService {
     const finish = () => {
       if (finished) return;
       finished = true;
+      this.isSpeakingNow = false;
+      this.lastSpokenEndedAt = Date.now();
       if (this.activeSpeechFinish === finish) this.activeSpeechFinish = null;
       clearInterval(this.mouthAnimInterval);
       this.mouthAnimInterval = null;
       options.onAudioLevel?.(0);
       options.onEnd?.();
     };
+    this.isSpeakingNow = true;
+    this.lastSpokenText = text;
     this.activeSpeechFinish = finish;
 
     utterance.onstart = () => {
+      this.isSpeakingNow = true;
       if (options.onStart) options.onStart();
       // Simulate audio waveform levels for mouth animation
       if (options.onAudioLevel) {

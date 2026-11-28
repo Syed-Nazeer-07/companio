@@ -229,7 +229,54 @@ export const SettingsPage: React.FC<Props> = ({ settings, onUpdateSettings, onNa
             />
           </div>
 
+          {/* Genuine History Suggestions */}
+          <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+            <div>
+              <p className="text-sm font-bold text-slate-800">Command history suggestions</p>
+              <p className="text-xs text-slate-500">Show quick chips from your own recent verified commands (hidden when empty)</p>
+            </div>
+            <input
+              type="checkbox" aria-label="Show command history suggestions"
+              checked={settings.overlay.showHistorySuggestions !== false}
+              onChange={(e) => onUpdateSettings({
+                overlay: { ...settings.overlay, showHistorySuggestions: e.target.checked }
+              })}
+              className="w-5 h-5 accent-emerald-700 rounded cursor-pointer"
+            />
+          </div>
+
           <p className="text-xs text-slate-500">Automatic hiding in fullscreen games is not supported yet.</p>
+        </div>
+
+        {/* Appearance & Theme */}
+        <div className="border-t border-slate-100 pt-5 space-y-3">
+          <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Appearance &amp; Theme</h3>
+          <div className="grid grid-cols-3 gap-2.5" role="radiogroup" aria-label="Application theme">
+            {([
+              { id: 'light', label: 'Light Studio', desc: 'Crisp warm paper surface' },
+              { id: 'dark', label: 'Dark Obsidian', desc: 'Deep slate night surface' },
+              { id: 'system', label: 'Match Windows', desc: 'Follow OS preference' }
+            ] as const).map((option) => {
+              const selected = settings.theme === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => onUpdateSettings({ theme: option.id })}
+                  className={`p-3 rounded-xl border text-left transition-colors ${
+                    selected
+                      ? 'border-emerald-700 bg-emerald-50 text-emerald-900'
+                      : 'border-slate-200 bg-slate-50 text-slate-800 hover:border-slate-300'
+                  }`}
+                >
+                  <strong className="block text-xs">{option.label}</strong>
+                  <span className="block text-[11px] text-slate-500 mt-0.5">{option.desc}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 

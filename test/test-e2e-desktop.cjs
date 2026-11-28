@@ -179,7 +179,7 @@ async function run() {
     // 5. Voice Settings: Offline Whisper ARM64 setup card & engine switching
     await dashboard.getByRole('button', { name: 'Voice Settings' }).click();
     await dashboard.locator('text=/Offline Whisper setup/i').waitFor({ state: 'visible', timeout: 5000 });
-    await dashboard.getByRole('button', { name: /Set up offline Whisper/i }).waitFor({ state: 'visible', timeout: 5000 });
+    await dashboard.getByRole('button', { name: /Set up offline Whisper|Offline Whisper ready/i }).waitFor({ state: 'visible', timeout: 5000 });
     await dashboard.locator('#companio-speech-engine').selectOption('whisper');
     await dashboard.getByRole('button', { name: 'Choose whisper-cli.exe' }).waitFor({ state: 'visible', timeout: 5000 });
     await dashboard.locator('#companio-speech-engine').selectOption('auto');

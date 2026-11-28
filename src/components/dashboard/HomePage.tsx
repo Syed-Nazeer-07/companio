@@ -102,7 +102,17 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
             </p>
             <p className="text-xs text-slate-500 font-medium flex items-center gap-1.5 pt-0.5">
               <Cpu className="w-3.5 h-3.5 text-emerald-700" />
-              <span>AI Brain: <strong className="text-slate-800">{settings.ai.provider === 'local' ? `Local model selected (${settings.ai.model || 'llama3.2:1b'})` : 'Built-in Engine'}</strong></span>
+              <span>AI Brain: <strong className="text-slate-800">{
+                settings.ai.provider === 'auto'
+                  ? `Smart Hybrid Auto (${settings.ai.managedModelId || 'qwen2.5-1.5b'})`
+                  : settings.ai.provider === 'managed_local'
+                    ? `Managed Local AI (${settings.ai.managedModelId || 'qwen2.5-1.5b'})`
+                    : settings.ai.provider === 'local'
+                      ? `External Local Server (${settings.ai.model || 'unselected'})`
+                      : ['openai', 'gemini', 'anthropic', 'groq', 'openrouter', 'custom_openai'].includes(settings.ai.provider)
+                        ? `Cloud AI (${settings.ai.provider})`
+                        : 'Built-in Engine (Offline)'
+              }</strong></span>
             </p>
           </div>
         </div>

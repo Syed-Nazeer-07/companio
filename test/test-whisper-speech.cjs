@@ -66,6 +66,7 @@ test('correct local inference reads verified output and deletes the temporary re
   assert.equal(args[0],'-m');
   assert.ok(args.includes('-ng'));
   assert.ok(args.includes('-otxt'));
+  assert.ok(args.includes('--prompt'));
   assert.equal(options.shell,false);
   const prefix=args[args.indexOf('-of')+1];
   assert.equal(fs.existsSync(args[args.indexOf('-f')+1]),true);

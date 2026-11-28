@@ -103,6 +103,23 @@ export const App: React.FC = () => {
     };
   }, []);
 
+  // Sync cohesive light/dark/system theme tokens onto document root
+  useEffect(() => {
+    const mq = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-color-scheme: dark)')
+      : null;
+    const apply = () => {
+      const resolved = settings.theme === 'dark' || (settings.theme === 'system' && mq?.matches)
+        ? 'dark'
+        : 'light';
+      document.documentElement.dataset.theme = resolved;
+      document.documentElement.style.colorScheme = resolved;
+    };
+    apply();
+    mq?.addEventListener?.('change', apply);
+    return () => mq?.removeEventListener?.('change', apply);
+  }, [settings.theme]);
+
   // Global shortcut/tray activation may arrive before history hydration.
   // Signal readiness only after the overlay UI and its listeners are mounted.
   useEffect(() => {

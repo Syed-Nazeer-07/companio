@@ -1,1 +1,71 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 180"><defs><radialGradient id="rust" cx="46%" cy="35%" r="65%"><stop stop-color="#cc5e38"/><stop offset=".6" stop-color="#9c3c21"/><stop offset="1" stop-color="#5d2011"/></radialGradient><radialGradient id="creamMask" cx="50%" cy="50%" r="55%"><stop stop-color="#fffaf0"/><stop offset="1" stop-color="#eeddc3"/></radialGradient><linearGradient id="bandana" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#2c8469"/><stop offset="1" stop-color="#17513f"/></linearGradient></defs><ellipse cx="80" cy="166" rx="42" ry="5.5" fill="#1b0d09" opacity=".17"/><path d="M104 146 Q146 149 144 111 Q141 96 127 104 Q114 116 104 136Z" fill="url(#rust)" stroke="#682413" stroke-width="1.1"/><path d="M116 124 Q127 123 133 134 M126 112 Q137 112 142 122" stroke="#f7e8d4" stroke-width="4" stroke-linecap="round" opacity=".88"/><path d="M52 112 Q80 105 108 112 L117 151 Q80 163 43 151Z" fill="#2e1c19" stroke="#53322a" stroke-width="1.1"/><path d="M51 111 Q80 123 109 111 L107 125 L80 137 L53 125Z" fill="url(#bandana)" stroke="#3fa383" stroke-width=".9"/><circle cx="35" cy="36" r="14" fill="url(#creamMask)" stroke="#7a321e" stroke-width="1.2"/><circle cx="35" cy="36" r="8" fill="#5e2415"/><circle cx="125" cy="36" r="14" fill="url(#creamMask)" stroke="#7a321e" stroke-width="1.2"/><circle cx="125" cy="36" r="8" fill="#5e2415"/><path d="M27 64 Q30 30 80 28 Q130 30 133 64 Q142 84 128 103 Q111 116 80 116 Q49 116 32 103 Q18 84 27 64Z" fill="url(#rust)" stroke="#6b2615" stroke-width="1.2"/><path d="M29 82 Q44 73 60 80 Q68 83 71 75 Q80 71 89 75 Q92 83 100 80 Q116 73 131 82 Q122 112 80 114 Q38 112 29 82Z" fill="url(#creamMask)"/><path d="M47 84 Q53 96 51 107 M113 84 Q107 96 109 107" stroke="#6f2715" stroke-width="4" stroke-linecap="round" opacity=".72"/><ellipse cx="60" cy="60" rx="4.5" ry="2.8" fill="#fff7ea"/><ellipse cx="100" cy="60" rx="4.5" ry="2.8" fill="#fff7ea"/><ellipse cx="80" cy="82.5" rx="4.4" ry="3.1" fill="#231614"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 180">
+  <defs>
+    <radialGradient id="bb-fur" cx="46%" cy="32%" r="66%">
+      <stop offset="0%" stop-color="#dd6f46"/>
+      <stop offset="58%" stop-color="#ab4426"/>
+      <stop offset="100%" stop-color="#692413"/>
+    </radialGradient>
+    <radialGradient id="bb-tail" cx="40%" cy="40%" r="65%">
+      <stop offset="0%" stop-color="#d2623a"/>
+      <stop offset="100%" stop-color="#6b2514"/>
+    </radialGradient>
+    <radialGradient id="bb-cream" cx="50%" cy="45%" r="58%">
+      <stop offset="0%" stop-color="#fffcf4"/>
+      <stop offset="68%" stop-color="#f7ebd8"/>
+      <stop offset="100%" stop-color="#e5cfaf"/>
+    </radialGradient>
+    <linearGradient id="bb-chest" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3c231e"/>
+      <stop offset="100%" stop-color="#211210"/>
+    </linearGradient>
+    <linearGradient id="bb-bandana" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#329476"/>
+      <stop offset="65%" stop-color="#1d6851"/>
+      <stop offset="100%" stop-color="#114434"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Floor contact shadow -->
+  <ellipse cx="80" cy="168" rx="43" ry="5.5" fill="#1b0d09" opacity="0.17"/>
+
+  <!-- Plush curled ring-striped red panda tail -->
+  <path d="M101 146 Q149 150 147 109 Q145 92 128 100 Q114 111 102 135 Z" fill="url(#bb-tail)" stroke="#5c1f10" stroke-width="1.15" stroke-linejoin="round"/>
+  <path d="M113 128 Q126 126 132 139 M123 114 Q135 113 141 125 M133 103 Q142 103 145 112" fill="none" stroke="#f8ead5" stroke-width="4.2" stroke-linecap="round" opacity="0.92"/>
+  <path d="M108 138 Q119 138 124 148" fill="none" stroke="#531b0e" stroke-width="2.6" stroke-linecap="round" opacity="0.55"/>
+
+  <!-- Torso with tucked espresso fur paws -->
+  <path d="M51 112 Q80 104 109 112 L119 152 Q80 165 41 152 Z" fill="url(#bb-chest)" stroke="#52312a" stroke-width="1.15" stroke-linejoin="round"/>
+  <ellipse cx="53" cy="144" rx="7.5" ry="5" fill="#4e2e27" stroke="#2d1915" stroke-width="0.9"/>
+  <ellipse cx="107" cy="144" rx="7.5" ry="5" fill="#4e2e27" stroke="#2d1915" stroke-width="0.9"/>
+
+  <!-- Woven sage bandana scarf with subtle fold stitch and knot -->
+  <path d="M50 111 Q80 124 110 111 L107 127 L80 139 L53 127 Z" fill="url(#bb-bandana)" stroke="#48b392" stroke-width="0.95" stroke-linejoin="round"/>
+  <path d="M57 118 Q80 129 103 118" fill="none" stroke="#93e2c9" stroke-width="0.9" stroke-dasharray="2.5 2.5" opacity="0.65"/>
+  <circle cx="80" cy="127" r="3.2" fill="#2a7f65" stroke="#5ac3a2" stroke-width="0.7"/>
+
+  <!-- Layered red panda ears with fluffy cream tufts -->
+  <circle cx="34" cy="36" r="14.5" fill="url(#bb-cream)" stroke="#752d1a" stroke-width="1.2"/>
+  <circle cx="34.5" cy="36.5" r="8.2" fill="#4f1c0f"/>
+  <circle cx="126" cy="36" r="14.5" fill="url(#bb-cream)" stroke="#752d1a" stroke-width="1.2"/>
+  <circle cx="125.5" cy="36.5" r="8.2" fill="#4f1c0f"/>
+
+  <!-- Sculpted russet head silhouette with fluffy cheeks -->
+  <path d="M26 65 Q30 29 80 27 Q130 29 134 65 Q143 85 129 104 Q112 117 80 117 Q48 117 31 104 Q17 85 26 65 Z" fill="url(#bb-fur)" stroke="#672312" stroke-width="1.2"/>
+  <!-- Soft forehead fur highlight -->
+  <path d="M52 38 Q80 30 108 38" fill="none" stroke="#ef936e" stroke-width="2.1" stroke-linecap="round" opacity="0.45"/>
+
+  <!-- Creamy muzzle & expressive cheek ruffs aligned smoothly around cy=74 eyes -->
+  <path d="M29 82 Q44 74 59 80 Q68 83 71 75 Q80 71 89 75 Q92 83 101 80 Q116 74 131 82 Q123 113 80 115 Q37 113 29 82 Z" fill="url(#bb-cream)"/>
+
+  <!-- Characteristic red-panda tear-streak cheek stripes -->
+  <path d="M46 84 Q53 96 50 108" fill="none" stroke="#6d2514" stroke-width="4.4" stroke-linecap="round" opacity="0.78"/>
+  <path d="M114 84 Q107 96 110 108" fill="none" stroke="#6d2514" stroke-width="4.4" stroke-linecap="round" opacity="0.78"/>
+
+  <!-- Warm cream eyebrow pips -->
+  <ellipse cx="60" cy="59.5" rx="4.7" ry="2.9" fill="#fff8ec"/>
+  <ellipse cx="100" cy="59.5" rx="4.7" ry="2.9" fill="#fff8ec"/>
+
+  <!-- Tactile glossy nose with specular pinprick -->
+  <ellipse cx="80" cy="82.5" rx="4.6" ry="3.2" fill="#211412"/>
+  <circle cx="78.6" cy="81.6" r="1.05" fill="#ffffff" opacity="0.7"/>
+</svg>

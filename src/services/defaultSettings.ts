@@ -9,16 +9,18 @@ export const DEFAULT_SETTINGS: AppSettings = {
   character: {
     id: 'sparky',
     name: 'Sparky',
-    tagline: 'Cute Animated Robot',
-    description: 'Cybernetic animated assistant',
-    accentColor: '#0ea5e9',
-    glowColor: 'rgba(14, 165, 233, 0.3)',
-    badge: 'Popular'
+    tagline: 'Studio Astral Sprite',
+    description: 'Porcelain studio sprite in an emerald mantle crowned by a warm brass star.',
+    accentColor: '#146a59',
+    glowColor: 'rgba(20, 106, 89, 0.25)',
+    badge: 'Featured'
   },
   ai: {
-    provider: 'mock',
+    provider: 'auto',
     apiKey: '',
-    model: 'companio-deterministic-v1',
+    model: 'qwen2.5-1.5b',
+    managedModelId: 'qwen2.5-1.5b',
+    performanceMode: 'balanced',
     temperature: 0.7,
     personality: 'friendly',
     systemPrompt: 'You are Companio, an intelligent personal AI desktop companion for Windows 11.',
@@ -47,7 +49,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     snapToEdge: true,
     autoHideInFullscreen: true,
     soundEffects: true,
-    transparentClickthrough: false,
-    companionMode: 'floating'
+    transparentClickthrough: true,
+    companionMode: 'floating',
+    showHistorySuggestions: true
   }
 };
