@@ -66,6 +66,7 @@ test('correct local inference reads verified output and deletes the temporary re
   assert.equal(args[0],'-m');
   assert.ok(args.includes('-ng'));
   assert.ok(args.includes('-otxt'));
+  assert.ok(args.includes('--prompt'));
   assert.equal(options.shell,false);
   const prefix=args[args.indexOf('-of')+1];
   assert.equal(fs.existsSync(args[args.indexOf('-f')+1]),true);
@@ -125,4 +126,45 @@ test('verified packaged speech engine is available without user configuration',a
   fs.unlinkSync(model);
   assert.equal(c.status().configured,false);
  }finally{fs.rmSync(home,{recursive:true,force:true});}
+});
+
+test('verifyRuntime runs whisper-cli.exe --help safely without shell and reports errors cleanly', async () => {
+ const calls = [];
+ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'companio-whisper-verify-'));
+ const executable = path.join(dir, 'whisper-cli.exe');
+ const model = path.join(dir, 'ggml-base.en-q5_1.bin');
+ try {
+  fs.writeFileSync(executable, 'stub');
+  fs.writeFileSync(model, Buffer.alloc(10_000_001));
+  const okController = new WhisperSpeechController({
+   userData: dir,
+   platform: 'win32',
+   arch: 'arm64',
+   execFileProcess: (cmd, args, opts, cb) => {
+    calls.push({ cmd, args, opts });
+    cb(null, 'usage: whisper-cli [options]', '');
+   }
+  });
+  okController.choose('binary', executable);
+  okController.choose('model', model);
+  const ok = await okController.verifyRuntime();
+  assert.equal(ok.success, true);
+  assert.equal(ok.verified, true);
+  assert.equal(ok.arch, 'arm64');
+  assert.deepEqual(calls[0].args, ['--help']);
+  assert.equal(calls[0].opts.shell, false);
+  assert.equal(calls[0].opts.windowsHide, true);
+
+  const failController = new WhisperSpeechController({
+   userData: dir,
+   platform: 'win32',
+   execFileProcess: (_cmd, _args, _opts, cb) => cb(Error('missing dll'), '', 'VCRUNTIME140.dll not found')
+  });
+  const bad = await failController.verifyRuntime();
+  assert.equal(bad.success, false);
+  assert.equal(bad.verified, false);
+  assert.match(bad.error, /VCRUNTIME140/);
+ } finally {
+  fs.rmSync(dir, { recursive: true, force: true });
+ }
 });

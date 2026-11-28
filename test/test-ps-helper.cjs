@@ -46,3 +46,50 @@ test('PowerShell failures are still reported, not converted to success', async (
   };
   await assert.rejects(runPowerShell('invalid', 1000, fakeSpawn), /Access denied/);
 });
+
+test('PowerShell helper caps stderr at 64 KB and replaces progress-only CLIXML errors cleanly', async () => {
+  const bigSpawn = () => {
+    const child = new EventEmitter();
+    child.stdout = new PassThrough();
+    child.stderr = new PassThrough();
+    child.kill = () => {};
+    process.nextTick(() => {
+      child.stderr.write('x'.repeat(100 * 1024));
+      child.emit('close', 1);
+    });
+    return child;
+  };
+  await assert.rejects(runPowerShell('noop', 1000, bigSpawn), err => {
+    assert.equal(err.message.length, 64 * 1024);
+    return true;
+  });
+
+  const clixmlProgressSpawn = () => {
+    const child = new EventEmitter();
+    child.stdout = new PassThrough();
+    child.stderr = new PassThrough();
+    child.kill = () => {};
+    process.nextTick(() => {
+      child.stderr.write('#< CLIXML\r\n<Objs Version="1.1.0.1"><Obj S="progress"><MS><S N="T">Preparing modules</S></MS></Obj></Objs>');
+      child.emit('close', 1);
+    });
+    return child;
+  };
+  await assert.rejects(runPowerShell('noop', 1000, clixmlProgressSpawn), err => {
+    assert.equal(err.message, 'PowerShell exited with code 1');
+    return true;
+  });
+
+  const clixmlRealErrorSpawn = () => {
+    const child = new EventEmitter();
+    child.stdout = new PassThrough();
+    child.stderr = new PassThrough();
+    child.kill = () => {};
+    process.nextTick(() => {
+      child.stderr.write('#< CLIXML\r\n<Objs><S S="Error">Real failure</S></Objs>');
+      child.emit('close', 1);
+    });
+    return child;
+  };
+  await assert.rejects(runPowerShell('noop', 1000, clixmlRealErrorSpawn), /Real failure/);
+});

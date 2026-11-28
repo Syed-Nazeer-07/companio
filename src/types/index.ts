@@ -10,6 +10,16 @@ export type CharacterState =
   | 'sleeping' 
   | 'waking';
 
+export type CharacterReactionId =
+  | 'idle'
+  | 'happy'
+  | 'excited'
+  | 'thinking'
+  | 'confused'
+  | 'playful'
+  | 'concerned'
+  | 'proud';
+
 export interface CharacterProfile {
   id: CharacterId;
   name: string;
@@ -20,18 +30,47 @@ export interface CharacterProfile {
   badge: string;
 }
 
-export type AiProvider = 'gemini' | 'openai' | 'anthropic' | 'local' | 'mock';
+export type AiProvider =
+  | 'auto'
+  | 'managed_local'
+  | 'gemini'
+  | 'openai'
+  | 'anthropic'
+  | 'openrouter'
+  | 'groq'
+  | 'custom_openai'
+  | 'local'
+  | 'mock';
 
 export interface AiConfig {
   provider: AiProvider;
   apiKey: string;
   model: string;
+  managedModelId?: string;
+  performanceMode?: 'battery_saver' | 'balanced' | 'performance';
+  cloudCustomEndpoint?: string;
   temperature: number;
   personality: string;
   systemPrompt: string;
   localEndpoint?: string;
   /** Explicit opt-in to sending recent local conversation to the loopback model. */
   useConversationContext?: boolean;
+  /** Controls whether curated long-term memories are retrieved for conversational context. */
+  useLongTermMemory?: boolean;
+}
+
+export type MemoryCategory = 'preference' | 'fact' | 'project' | 'workflow';
+
+export interface MemoryItem {
+  id: string;
+  content: string;
+  category: MemoryCategory;
+  pinned: boolean;
+  enabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+  lastUsedAt: number | null;
+  expiresAt: number | null;
 }
 
 export interface VoiceConfig {
@@ -64,6 +103,7 @@ export interface OverlayConfig {
   soundEffects: boolean;
   transparentClickthrough: boolean;
   companionMode: 'floating' | 'docked';
+  showHistorySuggestions?: boolean;
 }
 
 export interface AppSettings {
@@ -98,7 +138,18 @@ export interface TaskPlan {
   status: 'planning' | 'executing' | 'verifying' | 'completed' | 'failed' | 'cancelled';
   error?: string;
   finalMessage?: string;
+  clarificationNeeded?: boolean;
+  recoveryHint?: string;
+  retryable?: boolean;
+  reactionId?: CharacterReactionId;
+  source?: 'builtin' | 'managed_local' | 'cloud' | 'external_local';
   createdAt: number;
+}
+
+// Display-only receipt; cannot be executed and carries no tool parameters.
+export interface TaskReceipt {
+  status: 'completed' | 'failed' | 'cancelled';
+  steps: { description: string; outcome: 'verified' | 'sent' | 'failed' | 'unverified' | 'stopped' }[];
 }
 
 export interface ChatMessage {
@@ -107,5 +158,6 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   taskPlan?: TaskPlan;
+  taskReceipt?: TaskReceipt;
   status?: 'success' | 'error' | 'info';
 }

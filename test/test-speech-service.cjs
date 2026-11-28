@@ -245,3 +245,41 @@ test('cancelled Whisper session cannot clear the next active capture', async()=>
  instances[1].resolve(new Uint8Array(32044));
  await second;
 });
+
+test('distinct character voice profiles select separate Windows OneCore voices, interrupt TTS cleanly, and filter speaker echo', async () => {
+  const { getCharacterVoiceProfile, isLikelyTtsEcho } = (() => {
+    const out = {};
+    vm.runInNewContext(compiled, {
+      exports: out,
+      require: (name) => name === './desktopBridge' ? { desktopBridge: {}, isNativeDesktop: () => false } : { LocalWhisperRecorder: class {} },
+      window: { speechSynthesis: { getVoices: () => [], cancel() {}, speak() {} } },
+      navigator: {},
+      SpeechSynthesisUtterance: class {},
+      setInterval, clearInterval, setTimeout, clearTimeout,
+      Uint8Array, Math, Error, Array, console
+    });
+    return out;
+  })();
+
+  assert.deepEqual(Array.from(getCharacterVoiceProfile('sparky').voiceNameKeywords), ['Mark', 'Guy', 'David', 'George']);
+  assert.deepEqual(Array.from(getCharacterVoiceProfile('boba').voiceNameKeywords), ['Ravi', 'George', 'David', 'Guy']);
+  assert.deepEqual(Array.from(getCharacterVoiceProfile('mochi').voiceNameKeywords), ['Heera', 'Jenny', 'Sonia', 'Zira']);
+  assert.equal(getCharacterVoiceProfile('kiko').pitch, 1.1);
+  assert.equal(getCharacterVoiceProfile('kiko').rate, 1.08);
+
+  // Echo filter rejects near-identical recent TTS playback, accepts genuinely new user commands or late utterances
+  assert.equal(isLikelyTtsEcho('Sure, setting volume to fifty percent.', 'Sure setting volume to fifty percent!', 600), true);
+  assert.equal(isLikelyTtsEcho('Open Notepad please', 'Sure setting volume to fifty percent!', 600), false);
+  assert.equal(isLikelyTtsEcho('Sure, setting volume to fifty percent.', 'Sure setting volume to fifty percent!', 4000), false);
+
+  // Calling startListening while TTS is active cancels TTS immediately before starting recognition
+  const h = setup({ native: true, listen: async () => ({ success: true, text: 'Sure, setting volume to fifty percent', language: 'en-IN' }) });
+  h.service.speak('Sure, setting volume to fifty percent!', { characterId: 'boba' });
+  const beforeCancels = h.speechSynthesis.cancelCount;
+  const results = [];
+  let stopped = 0;
+  await h.service.startListening(() => {}, (txt) => results.push(txt), () => {}, undefined, () => { stopped++; }, 'en-IN', false, 'windows');
+  assert.ok(h.speechSynthesis.cancelCount > beforeCancels, 'Expected startListening to interrupt active TTS speech');
+  assert.deepEqual(results, [], 'Expected speaker echo within settle window to be suppressed cleanly');
+  assert.equal(stopped, 1);
+});

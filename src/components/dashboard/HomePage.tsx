@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   Play, 
   Volume2, 
@@ -31,8 +31,21 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
     message: string;
     kind: 'running' | 'success' | 'unverified' | 'error';
   } | null>(null);
+  const statusTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (statusTimerRef.current !== null) {
+        window.clearTimeout(statusTimerRef.current);
+      }
+    };
+  }, []);
 
   const runQuickAction = async (tool: string, params: any = {}, label: string) => {
+    if (statusTimerRef.current !== null) {
+      window.clearTimeout(statusTimerRef.current);
+      statusTimerRef.current = null;
+    }
     setActionStatus({ message: `Executing: ${label}...`, kind: 'running' });
     try {
       const res = await desktopBridge.executeTool(tool, params);
@@ -57,7 +70,10 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
         kind: 'error'
       });
     }
-    setTimeout(() => setActionStatus(null), 5000);
+    statusTimerRef.current = window.setTimeout(() => {
+      setActionStatus(null);
+      statusTimerRef.current = null;
+    }, 5000);
   };
 
   return (
@@ -85,8 +101,18 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
               Hotkey: <kbd className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700 font-mono text-[11px] font-bold">{settings.activationShortcut}</kbd> to toggle or hide anytime.
             </p>
             <p className="text-xs text-slate-500 font-medium flex items-center gap-1.5 pt-0.5">
-              <Cpu className="w-3.5 h-3.5 text-sky-600" />
-              <span>AI Brain: <strong className="text-slate-800">{settings.ai.provider === 'local' ? `Local model selected (${settings.ai.model || 'llama3.2:1b'})` : 'Built-in Engine'}</strong></span>
+              <Cpu className="w-3.5 h-3.5 text-emerald-700" />
+              <span>AI Brain: <strong className="text-slate-800">{
+                settings.ai.provider === 'auto'
+                  ? `Smart Hybrid Auto (${settings.ai.managedModelId || 'qwen2.5-1.5b'})`
+                  : settings.ai.provider === 'managed_local'
+                    ? `Managed Local AI (${settings.ai.managedModelId || 'qwen2.5-1.5b'})`
+                    : settings.ai.provider === 'local'
+                      ? `External Local Server (${settings.ai.model || 'unselected'})`
+                      : ['openai', 'gemini', 'anthropic', 'groq', 'openrouter', 'custom_openai'].includes(settings.ai.provider)
+                        ? `Cloud AI (${settings.ai.provider})`
+                        : 'Built-in Engine (Offline)'
+              }</strong></span>
             </p>
           </div>
         </div>
@@ -94,7 +120,7 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
         <div className="flex items-center gap-3 w-full md:w-auto">
           <button
             onClick={onLaunchOverlay}
-            className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold shadow-md shadow-sky-500/20 transition-all active:scale-95"
+            className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-sm transition-all active:scale-95"
           >
             <Play className="w-3.5 h-3.5 fill-current" />
             <span>Show / Focus Companion</span>
@@ -114,7 +140,7 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
           actionStatus.kind === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
             : actionStatus.kind === 'error' ? 'bg-rose-50 border-rose-200 text-rose-800'
             : actionStatus.kind === 'unverified' ? 'bg-amber-50 border-amber-200 text-amber-800'
-            : 'bg-sky-50 border-sky-200 text-sky-800'
+            : 'bg-emerald-50 border-emerald-200 text-emerald-800'
         }`}>
           {actionStatus.kind === 'running' ? <Activity className="w-4 h-4 shrink-0 animate-spin" />
             : actionStatus.kind === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" />
@@ -130,7 +156,7 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
           <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Quick PC Controls</h3>
           <button
             onClick={() => onNavigate('automation')}
-            className="text-xs text-sky-600 hover:text-sky-700 font-bold flex items-center gap-1"
+            className="text-xs text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1"
           >
             <span>View supported tools</span>
             <ExternalLink className="w-3 h-3" />
@@ -142,7 +168,7 @@ export const HomePage: React.FC<Props> = ({ settings, onNavigate, onLaunchOverla
             disabled={actionStatus?.kind==='running'} onClick={() => runQuickAction('win.screenshot', {}, 'Take Screenshot')}
             className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 text-left transition-all group"
           >
-            <Camera className="w-5 h-5 text-sky-600 mb-2 group-hover:scale-110 transition-transform" />
+            <Camera className="w-5 h-5 text-emerald-700 mb-2 group-hover:scale-110 transition-transform" />
             <div className="text-xs font-bold text-slate-900">Screenshot</div>
             <div className="text-[10px] text-slate-500">Capture monitor</div>
           </button>

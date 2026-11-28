@@ -1,45 +1,75 @@
 import { CharacterId } from '../../types';
-export const characterCollection: { id: CharacterId; name: string; role: string; desc: string; accent: string }[] = [
+
+export interface CompanionProfile {
+  id: CharacterId;
+  name: string;
+  role: string;
+  desc: string;
+  accent: string;
+  personality: string;
+  opticsStyle: string;
+  voiceSummary: string;
+}
+
+export const characterCollection: CompanionProfile[] = [
   {
-    "id": "sparky",
-    "name": "Sparky",
-    "role": "Precision robot",
-    "desc": "Brushed titanium, a panoramic visor and measured movement.",
-    "accent": "#9df5da"
+    id: 'sparky',
+    name: 'Sparky',
+    role: 'Astral sprite',
+    desc: 'Porcelain studio sprite in an emerald mantle crowned by a warm brushed-brass star.',
+    accent: '#146a59',
+    personality: 'Structured and methodical — highlights clear workflow steps and verification.',
+    opticsStyle: 'Celadon-jade irises with refined arched brows',
+    voiceSummary: 'Balanced, crisp articulation (Microsoft Mark cadence)'
   },
   {
-    "id": "pixel",
-    "name": "Pixel",
-    "role": "Cybernetic fox",
-    "desc": "Angular copper armor and an alert, compact silhouette.",
-    "accent": "#ffdb9c"
+    id: 'pixel',
+    name: 'Pixel',
+    role: 'Woodland fox',
+    desc: 'Warm terracotta kit fox with cream ruffs, slate kerchief, and alert ears.',
+    accent: '#ea580c',
+    personality: 'Nimble and inquisitive — built for fast research, code lookup, and shortcuts.',
+    opticsStyle: 'Alert chestnut-amber eyes framed over cream cheek ruffs',
+    voiceSummary: 'Upbeat, responsive cadence for rapid task feedback'
   },
   {
-    "id": "mochi",
-    "name": "Mochi",
-    "role": "Ceramic rover",
-    "desc": "Porcelain shell, low center of gravity and quiet movement.",
-    "accent": "#c7e3fd"
+    id: 'mochi',
+    name: 'Mochi',
+    role: 'Ivory Shiba',
+    desc: 'Warm porcelain-ivory Shiba companion wearing a sage studio knit scarf.',
+    accent: '#d97706',
+    personality: 'Calm and unhurried — keeps updates concise without visual noise.',
+    opticsStyle: 'Soulful espresso eyes with warm honey highlights',
+    voiceSummary: 'Soft, even-paced tone suited to quiet workspaces'
   },
   {
-    "id": "cloudie",
-    "name": "Cloudie",
-    "role": "Hover drone",
-    "desc": "Suspended graphite and pearl modules with a restrained light band.",
-    "accent": "#b9caff"
+    id: 'cloudie',
+    name: 'Cloudie',
+    role: 'Scholar owl',
+    desc: 'Slate-plumage barn owl in antique-brass spectacles with calm blue-gold gaze.',
+    accent: '#2563eb',
+    personality: 'Reflective and analytical — keeps context structured across multi-step work.',
+    opticsStyle: 'Sapphire-framed scholar eyes behind antique-brass spectacles',
+    voiceSummary: 'Composed, articulate intonation with minimal filler'
   },
   {
-    "id": "kiko",
-    "name": "Kiko",
-    "role": "Obsidian feline",
-    "desc": "A dark sculpted feline with amber optical expressions.",
-    "accent": "#ffc77e"
+    id: 'kiko',
+    name: 'Kiko',
+    role: 'Obsidian feline',
+    desc: 'Sculpted midnight cat familiar with a jade scarf and warm golden gaze.',
+    accent: '#f59e0b',
+    personality: 'Attentive and discerning — stays poised at rest until summoned.',
+    opticsStyle: 'Golden-amber feline irises with fine upper lashes',
+    voiceSummary: 'Measured, deliberate pacing with crisp sentence endings'
   },
   {
-    "id": "boba",
-    "name": "Boba",
-    "role": "Utility droid",
-    "desc": "Industrial olive chassis and a practical, stable stance.",
-    "accent": "#d4eda7"
+    id: 'boba',
+    name: 'Boba',
+    role: 'Red panda',
+    desc: 'Chestnut red panda with cream cheek markings, striped tail, and sage bandana.',
+    accent: '#9a3412',
+    personality: 'Dependable and grounded — tailored for steady everyday desktop workflows.',
+    opticsStyle: 'Warm glossy espresso-caramel eyes with cream brow pips',
+    voiceSummary: 'Warm, grounded phrasing with straightforward status updates'
   }
 ];

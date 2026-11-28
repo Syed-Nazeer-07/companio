@@ -2,6 +2,7 @@ import { TaskPlan } from '../types';
 import { desktopBridge } from './desktopBridge';
 import { dbService } from './dbService';
 import { getDelightfulSuccessMessage, verifiedOutcome } from './taskVerification';
+import { classifyFailureRecovery } from './failureRecovery';
 
 // Never let a slow external process freeze Companio indefinitely. A timed-out
 // Windows action may still complete, so the caller must NOT retry it silently.
@@ -45,6 +46,9 @@ export function actionTimeoutMs(tool:string):number {
 
 export class TaskExecutor {
   private activeAbortController: AbortController | null = null;
+  private nativeInFlight: Promise<unknown> | null = null;
+  private activePomodoroTimers = new Set<ReturnType<typeof setTimeout>>();
+  private activeTimers = new Map<string, { timer: ReturnType<typeof setTimeout>; label: string; minutes: number; endsAt: number }>();
 
   // Emergency Cancel
   cancelActiveTask() {
@@ -59,6 +63,7 @@ export class TaskExecutor {
     plan: TaskPlan, 
     onProgress: (updatedPlan: TaskPlan) => void
   ): Promise<TaskPlan> {
+    if (this.nativeInFlight && !this.activeAbortController) throw new Error('A previous Windows action has not returned. Check its outcome before starting another command.');
     if (this.activeAbortController) throw new Error('Another task is still settling. Wait before starting a new action.');
     if (plan.steps.length > 0 && (plan.status !== 'planning' || plan.steps.some(step => step.status !== 'pending'))) {
       throw new Error('This task was already started. Request a fresh plan rather than replaying it.');
@@ -83,6 +88,9 @@ export class TaskExecutor {
       const handedOff = plan.steps.slice(0, index).filter(step => step.status === 'success' && step.result?.handoffOnly).length;
       const remaining = plan.steps.length - index - 1;
       plan.error = `${reason}${verified ? ` ${verified} earlier step(s) verified.` : ''}${handedOff ? ` ${handedOff} earlier request(s) handed off to Windows.` : ''}${remaining ? ` ${remaining} remaining step(s) were not run.` : ''}`;
+      const recovery = classifyFailureRecovery(plan.steps[index]?.tool || '', reason);
+      plan.recoveryHint = recovery.hint;
+      plan.retryable = recovery.retryable;
     };
 
     // Release the active controller on every outcome, including early failure
@@ -115,16 +123,23 @@ export class TaskExecutor {
           if (!Number.isInteger(mins) || mins < 1 || mins > 180) {
             throw new Error('Choose a focus duration of 1–180 minutes.');
           }
-          if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+          if (typeof Notification === 'undefined') {
+            throw new Error('Focus reminder requires notification support.');
+          }
+          let permission = Notification.permission;
+          if (permission === 'default' && typeof Notification.requestPermission === 'function') {
+            permission = await Notification.requestPermission();
+          }
+          if (permission !== 'granted') {
             throw new Error('Focus reminder requires notification permission. Enable notifications and try again.');
           }
-          {
-            setTimeout(() => {
-              new Notification('Companio Focus Mode Completed! 🍅', {
-                body: `Great job! Your ${mins}-minute focus session has ended. Time for a well-deserved stretch break!`
-              });
-            }, mins * 60 * 1000);
-          }
+          const timerHandle = setTimeout(() => {
+            this.activePomodoroTimers.delete(timerHandle);
+            new Notification('Companio Focus Mode Completed! 🍅', {
+              body: `Great job! Your ${mins}-minute focus session has ended. Time for a well-deserved stretch break!`
+            });
+          }, mins * 60 * 1000);
+          this.activePomodoroTimers.add(timerHandle);
           result = {
             success: true,
             message: `Focus session started for ${mins} minutes! Time to shine 🍅`,
@@ -151,27 +166,125 @@ export class TaskExecutor {
             verified: true
           };
         } else if (step.tool === 'utility.notes.clear') {
-          if (!window.confirm('Delete all saved Companio notes? This cannot be undone.')) {
-            result = { success: false, verified: false, error: 'Note deletion cancelled.' };
+          const cleared = await dbService.clearNotes();
+          result = {
+            success: cleared.success,
+            message: cleared.success ? 'All notes cleared! 🧹' : 'Notes could not be cleared.',
+            error: cleared.error,
+            verified: cleared.success
+          };
+        } else if (step.tool === 'utility.memory.add') {
+          const content = step.params?.content || '';
+          const category = step.params?.category || 'fact';
+          const saved = await dbService.addMemory({ content, category });
+          result = {
+            success: saved.success,
+            message: saved.success ? `Saved to memory [${category}]: "${saved.item?.content || content}".` : 'Memory could not be saved.',
+            error: saved.error,
+            verified: saved.success
+          };
+        } else if (step.tool === 'utility.memory.list') {
+          const items = await dbService.getMemories();
+          const msg = items.length > 0
+            ? `Saved long-term memory (${items.length}):\n` + items.slice(0, 8).map((m, idx) => `${idx + 1}. [${m.category}${m.pinned ? ', pinned' : ''}${m.enabled ? '' : ', paused'}] ${m.content}`).join('\n')
+            : 'No long-term memories are saved yet. Tell me "save to memory: ..." or manage them in History & Logs.';
+          result = { success: true, message: msg, verified: true };
+        } else if (step.tool === 'utility.memory.forget') {
+          const topic = String(step.params?.topic || '').trim().toLowerCase();
+          const items = await dbService.getMemories();
+          const matches = items.filter(m => m.content.toLowerCase().includes(topic));
+          if (!matches.length) {
+            result = { success: false, verified: false, error: `No saved memory matched "${step.params?.topic || ''}".` };
           } else {
-            const cleared = await dbService.clearNotes();
+            let deletedCount = 0;
+            for (const item of matches) {
+              const del = await dbService.deleteMemory(item.id);
+              if (del.success && del.removed) deletedCount++;
+            }
             result = {
-              success: cleared.success,
-              message: cleared.success ? 'All notes cleared! 🧹' : 'Notes could not be cleared.',
-              error: cleared.error,
-              verified: cleared.success
+              success: deletedCount > 0,
+              verified: deletedCount > 0,
+              message: `Forgot ${deletedCount} saved ${deletedCount === 1 ? 'memory' : 'memories'} matching "${step.params?.topic || ''}".`
             };
           }
+        } else if (step.tool === 'utility.memory.clear') {
+          const cleared = await dbService.clearMemories();
+          result = {
+            success: cleared.success,
+            verified: cleared.success,
+            message: cleared.success ? 'All saved memories cleared.' : 'Could not clear saved memory.',
+            error: cleared.error
+          };
+        } else if (step.tool === 'utility.timer.create' || step.tool === 'utility.timer.update') {
+          const mins = Number(step.params?.minutes);
+          if (!Number.isInteger(mins) || mins < 1 || mins > 480) {
+            throw new Error('Choose a reminder duration between 1 and 480 minutes.');
+          }
+          const label = String(step.params?.label || 'Reminder').trim().slice(0, 80) || 'Reminder';
+          const key = label.toLowerCase();
+          if (step.tool === 'utility.timer.update') {
+            for (const [existingKey, existing] of this.activeTimers.entries()) {
+              clearTimeout(existing.timer);
+              this.activeTimers.delete(existingKey);
+            }
+          } else if (this.activeTimers.has(key)) {
+            clearTimeout(this.activeTimers.get(key)!.timer);
+          }
+          const timerHandle = setTimeout(() => {
+            this.activeTimers.delete(key);
+            if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+              new Notification(`Companio Reminder: ${label}`, {
+                body: `Your ${mins}-minute timer has finished.`
+              });
+            }
+          }, mins * 60 * 1000);
+          if (typeof (timerHandle as any).unref === 'function') {
+            (timerHandle as any).unref();
+          }
+          this.activeTimers.set(key, { timer: timerHandle, label, minutes: mins, endsAt: Date.now() + mins * 60 * 1000 });
+          result = {
+            success: true,
+            verified: true,
+            message: step.tool === 'utility.timer.update'
+              ? `Updated reminder timer to ${mins} minutes (${label}).`
+              : `Set a ${mins}-minute reminder timer (${label}).`
+          };
+        } else if (step.tool === 'utility.time.now') {
+          const now = new Date();
+          result = {
+            success: true,
+            verified: true,
+            message: `It is ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} on ${now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}.`
+          };
+        } else if (step.tool === 'utility.companion.sleep' || step.tool === 'utility.companion.wake') {
+          result = {
+            success: true,
+            verified: true,
+            companionState: step.tool === 'utility.companion.sleep' ? 'sleeping' : 'idle',
+            message: step.tool === 'utility.companion.sleep'
+              ? 'Resting quietly now. Press your shortcut whenever you need me.'
+              : 'Awake and ready to help!'
+          };
         } else {
           const timeout=actionTimeoutMs(step.tool);
           const outcome=await runWithActionDeadline(
-            () => desktopBridge.executeTool(step.tool, step.params),
+            () => {
+              // A UI timeout/cancel cannot interrupt a native IPC call. Hold the
+              // native lease until the real operation settles, not just the race.
+              const pending = Promise.resolve(desktopBridge.executeTool(step.tool, step.params));
+              this.nativeInFlight = pending;
+              const release = () => { if (this.nativeInFlight === pending) this.nativeInFlight = null; };
+              void pending.then(release, release);
+              return pending;
+            },
             timeout,
             signal
           );
           if(outcome.kind==='done') result=outcome.value;
           else if(outcome.kind==='cancelled'){
             step.status='cancelled';
+            step.result={success:false,verified:false,cancelled:true,outcomeUnknown:true};
+            dbService.addLog(step.tool,step.params,step.result,false,Date.now()-startTime);
             plan.status='cancelled';
             plan.error='Stopped by user. An already-started Windows action may still finish.';
             for(let j=i+1;j<plan.steps.length;j++)plan.steps[j].status='cancelled';
@@ -190,6 +303,8 @@ export class TaskExecutor {
 
         if (signal.aborted) {
           step.status = 'cancelled';
+          step.result = {success:false,verified:false,cancelled:true,outcomeUnknown:true};
+          dbService.addLog(step.tool,step.params,step.result,false,duration);
           plan.status = 'cancelled';
           plan.error = 'Stopped by user. An already-started Windows action may still finish.';
           for(let j=i+1;j<plan.steps.length;j++)plan.steps[j].status='cancelled';
@@ -214,6 +329,8 @@ export class TaskExecutor {
       } catch (err: any) {
         step.status = 'failed';
         step.error = err instanceof Error ? err.message : String(err);
+        step.result = {success:false,verified:false,error:step.error};
+        dbService.addLog(step.tool,step.params,step.result,false,Date.now()-startTime);
         fail(i, `Error executing ${step.tool}: ${step.error}`);
         publish();
         return plan;

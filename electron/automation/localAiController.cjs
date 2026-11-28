@@ -107,7 +107,8 @@ async function chat(options = {}, fetchImpl = globalThis.fetch) {
         messages: [{ role: 'system', content: systemPrompt }, ...turns, { role: 'user', content: prompt }],
         temperature,
         max_tokens: maxTokens,
-        stream: false
+        stream: false,
+        ...(options.jsonMode === true ? { response_format: { type: 'json_object' } } : {})
       })
     }, 45000, fetchImpl);
     const reply = data?.choices?.[0]?.message?.content;

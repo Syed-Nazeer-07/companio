@@ -103,7 +103,7 @@ export const AutomationPage: React.FC = () => {
               onClick={() => setSelectedCategory(cat)}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
                 selectedCategory === cat
-                  ? 'bg-sky-500 text-white shadow-sm'
+                  ? 'bg-emerald-700 text-white shadow-sm'
                   : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
               }`}
             >
@@ -120,7 +120,7 @@ export const AutomationPage: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search capabilities..."
-            className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500 shadow-sm"
+            className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-700 shadow-sm"
           />
         </div>
       </div>
@@ -135,7 +135,7 @@ export const AutomationPage: React.FC = () => {
             <div key={tool.id} className="acrylic-card rounded-2xl p-5 border border-slate-200 flex flex-col justify-between shadow-sm">
               <div>
                 <div className="flex items-center justify-between gap-2 mb-2">
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 uppercase tracking-wider border border-sky-200">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 uppercase tracking-wider border border-emerald-200">
                     {tool.category}
                   </span>
                   <span className="text-[11px] text-slate-400 font-mono truncate">
@@ -166,7 +166,7 @@ export const AutomationPage: React.FC = () => {
                 <button
                   onClick={() => handleTestTool(tool)}
                   disabled={isTesting}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 text-xs font-bold transition-all disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition-all disabled:opacity-50"
                 >
                   <Play className={`w-3.5 h-3.5 fill-current ${isTesting ? 'animate-spin' : ''}`} />
                   <span>{isTesting ? 'Verifying...' : 'Test Action'}</span>
@@ -175,7 +175,7 @@ export const AutomationPage: React.FC = () => {
                 {testStatus && (
                   <div className="text-xs truncate flex items-center gap-1.5">
                     {testStatus.loading ? (
-                      <span className="text-sky-600 animate-pulse text-[11px] font-medium">Executing on desktop...</span>
+                      <span className="text-emerald-700 animate-pulse text-[11px] font-medium">Executing on desktop...</span>
                     ) : testStatus.success ? (
                       <span className="text-emerald-600 flex items-center gap-1 font-bold text-[11px]">
                         <CheckCircle2 className="w-3.5 h-3.5" />

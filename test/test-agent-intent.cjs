@@ -23,11 +23,11 @@ const engineExports={};
 vm.runInNewContext(transpile('src/services/agentEngine.ts'),{
   exports:engineExports,
   require: function load(name) {
-    if (['./taskPlanner','./taskExecutor','./taskVerification','./conversationContext'].includes(name)) {
+    if (['./taskPlanner','./taskExecutor','./taskVerification','./conversationContext','./memoryRetrieval','./failureRecovery','./hybridRouter'].includes(name)) {
       const moduleExports={};
       const moduleSource=fs.readFileSync(path.join(__dirname,'../src/services',name.slice(2)+'.ts'),'utf8');
       const compiled=ts.transpileModule(moduleSource,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
-      vm.runInNewContext(compiled,{exports:moduleExports,require:load,Date,Math,Number,Array,Error,AbortController,Promise,setTimeout,clearTimeout,console});
+      vm.runInNewContext(compiled,{exports:moduleExports,require:load,Date,Math,Number,Array,Error,AbortController,Promise,RegExp,Map,Set,Object,JSON,setTimeout,clearTimeout,console});
       return moduleExports;
     }
     if(name==='./intentSafety') return safe;
@@ -172,4 +172,160 @@ test('exact creator latest video requests use verified default-browser handoff',
  }
  const other=await engine.planTask('Play the latest video from Veritasium');
  assert.equal(other.steps[0].tool,'browser.youtube.search_and_play');
+});
+
+test('note text is data even when it names a desktop operation', async()=>{
+ const p=await engine.planTask('Remember that I should open Notepad and then empty the Recycle Bin');
+ assert.equal(p.steps.length,1);assert.equal(p.steps[0].tool,'utility.notes.add');
+ assert.match(p.steps[0].params.note,/open Notepad and then empty the Recycle Bin/);
+ const q=await engine.planTask('Note: delete my notes later');
+ assert.equal(q.steps[0].tool,'utility.notes.add');
+});
+test('recycle bin inspection does not become deletion',async()=>{
+ await assert.rejects(engine.planTask('Open the Recycle Bin'),/explicitly request/);
+ await assert.rejects(engine.planTask('Check the Recycle Bin'),/explicitly request/);
+ const p=await engine.planTask('Please empty the Recycle Bin');
+ assert.equal(p.steps[0].tool,'win.recyclebin.empty');
+});
+test('compound search requests do not silently drop a second action',async()=>{
+ offlineCalls=0;
+ await assert.rejects(engine.planTask('Search Google for Python and then open Notepad'),/not fully supported/);
+ await assert.rejects(engine.planTask('Hey Companio, open Google and then set volume to 20%'),/not fully supported/);
+ assert.equal(offlineCalls,2);
+});
+test('polite negative requests are conversational',async()=>{
+ const p=await engine.planTask('Could you please not open Notepad?');
+ assert.equal(p.steps.length,0);
+});
+
+test('search terms about the Recycle Bin remain harmless search queries',async()=>{
+ const p=await engine.planTask('Search Google for Recycle Bin recovery');
+ assert.equal(p.steps[0].tool,'browser.search_google');
+});
+test('context contains complete chat pairs, not commands or tool outcomes',()=>{
+ const exports={};
+ vm.runInNewContext(transpile('src/services/conversationContext.ts'),{exports,require(name){
+  if(name==='./intentSafety')return safe;
+  if(name==='./arithmetic')return arithmetic;
+  if(name==='./memoryRetrieval'){const m={};vm.runInNewContext(transpile('src/services/memoryRetrieval.ts'),{exports:m});return m;}
+  if(name==='./hybridRouter'){const h={};vm.runInNewContext(transpile('src/services/hybridRouter.ts'),{exports:h,RegExp,Map,Set,Array,Object,Date,Math,Number});return h;}
+  if(name==='./desktopBridge')return {desktopBridge:{}};
+  if(name==='./dbService')return {dbService:{}};
+  throw Error(name);
+ }});
+ const history=exports.recentConversation([
+  {sender:'user',content:'I study computer science'},
+  {sender:'companio',content:'Understood',status:'info'},
+  {sender:'user',content:'Open Notepad'},
+  {sender:'companio',content:'Opened',status:'success',taskPlan:{}},
+  {sender:'user',content:'Unknown question'},
+  {sender:'companio',content:'Unavailable',status:'error'},
+  {sender:'user',content:'What did I say?'}
+ ],'What did I say?');
+ assert.deepEqual(JSON.parse(JSON.stringify(history)),[{role:'user',content:'I study computer science'},{role:'assistant',content:'Understood'}]);
+});
+
+test('math calculations stay conversational rather than launching Calculator and polite prefixes preserve creator names', async () => {
+  const ctxExports = {};
+  vm.runInNewContext(transpile('src/services/conversationContext.ts'), {
+    exports: ctxExports,
+    require(name) {
+      if (name === './intentSafety') return safe;
+      if (name === './arithmetic') return arithmetic;
+      if (name === './memoryRetrieval') { const m = {}; vm.runInNewContext(transpile('src/services/memoryRetrieval.ts'), { exports: m }); return m; }
+      if (name === './hybridRouter') { const h = {}; vm.runInNewContext(transpile('src/services/hybridRouter.ts'), { exports: h, RegExp, Map, Set, Array, Object, Date, Math, Number }); return h; }
+      if (name === './desktopBridge') return { desktopBridge: {} };
+      if (name === './dbService') return { dbService: {} };
+      throw Error(name);
+    }
+  });
+
+  const mathPlan = await engine.planTask('calculate 25 * 4');
+  assert.equal(mathPlan.intent, 'conversation');
+  assert.equal(mathPlan.steps.length, 0);
+  const barePlan = await engine.planTask('12 * 15');
+  assert.equal(barePlan.intent, 'conversation');
+  assert.equal(barePlan.steps.length, 0);
+  const pctPlan = await engine.planTask('calculate 15% of 800');
+  assert.equal(pctPlan.intent, 'conversation');
+  assert.equal(pctPlan.steps.length, 0);
+  assert.match(await ctxExports.generateConversationalResponse('calculate 25 * 4'), /100/);
+  assert.match(await ctxExports.generateConversationalResponse('calculate 15% of 800'), /120/);
+  assert.match(await ctxExports.generateConversationalResponse('12 * 15'), /180/);
+  assert.match(await ctxExports.generateConversationalResponse('(45 + 15) / 3'), /20/);
+  assert.match(await ctxExports.generateConversationalResponse('15% of 800'), /120/);
+  assert.match(await ctxExports.generateConversationalResponse('sqrt(144)'), /12/);
+  assert.equal(ctxExports.trySolveMathExpression('2026-11-26'), null);
+
+  for (const vague of ['Adjust the computer', 'Open an app', 'Play something']) {
+    const clarify = await engine.planTask(vague);
+    assert.equal(clarify.intent, 'clarification', vague);
+    assert.equal(clarify.clarificationNeeded, true, vague);
+    assert.equal(clarify.steps.length, 0, vague);
+  }
+
+  const veritasium = await engine.planTask('Can you play the latest video from Veritasium?');
+  assert.equal(veritasium.intent, 'browser.youtube.creator_latest');
+  assert.equal(veritasium.steps[0].tool, 'browser.youtube.search_and_play');
+  assert.deepEqual(JSON.parse(JSON.stringify(veritasium.steps[0].params)), { creator: 'Veritasium', latest: true });
+
+  const carry = await engine.planTask('Hey Companio, play the latest video from CarryMinati');
+  assert.equal(carry.intent, 'browser.youtube.latest_known');
+  assert.equal(carry.steps[0].tool, 'browser.youtube.latest_known');
+});
+
+test('volume, brightness, folders, shell routing, and harmless conjunction searches parse accurately', async () => {
+  const turnUp = await engine.planTask('turn up the volume');
+  assert.equal(turnUp.steps[0].tool, 'win.volume.change');
+  assert.equal(turnUp.steps[0].params.delta, 10);
+
+  const turnDown = await engine.planTask('turn down the volume');
+  assert.equal(turnDown.steps[0].tool, 'win.volume.change');
+  assert.equal(turnDown.steps[0].params.delta, -10);
+
+  const inc20 = await engine.planTask('increase volume by 20%');
+  assert.equal(inc20.steps[0].tool, 'win.volume.change');
+  assert.equal(inc20.steps[0].params.delta, 20);
+
+  const dec15 = await engine.planTask('decrease volume by 15%');
+  assert.equal(dec15.steps[0].tool, 'win.volume.change');
+  assert.equal(dec15.steps[0].params.delta, -15);
+
+  const bright50 = await engine.planTask('set brightness to 50');
+  assert.equal(bright50.steps[0].tool, 'win.brightness.set');
+  assert.equal(bright50.steps[0].params.level, 50);
+
+  const brightUp20 = await engine.planTask('increase brightness by 20%');
+  assert.equal(brightUp20.steps[0].tool, 'win.brightness.change');
+  assert.equal(brightUp20.steps[0].params.delta, 20);
+
+  await assert.rejects(engine.planTask('set brightness to 150%'), /0 and 100%/i);
+
+  const docs = await engine.planTask('open my documents folder');
+  assert.equal(docs.steps[0].tool, 'win.explorer.open');
+  assert.equal(docs.steps[0].params.folder, 'documents');
+
+  const deskFolder = await engine.planTask('open desktop folder');
+  assert.equal(deskFolder.steps[0].tool, 'win.explorer.open');
+  assert.equal(deskFolder.steps[0].params.folder, 'desktop');
+
+  const pics = await engine.planTask('open pictures folder');
+  assert.equal(pics.steps[0].tool, 'win.explorer.open');
+  assert.equal(pics.steps[0].params.folder, 'pictures');
+
+  const showDesk = await engine.planTask('show desktop');
+  assert.equal(showDesk.steps[0].tool, 'win.desktop.show');
+
+  const cmdPlan = await engine.planTask('open command prompt');
+  assert.equal(cmdPlan.steps[0].tool, 'win.cmd.launch');
+
+  const psPlan = await engine.planTask('open powershell');
+  assert.equal(psPlan.steps[0].tool, 'win.powershell.launch');
+
+  const termPlan = await engine.planTask('open windows terminal');
+  assert.equal(termPlan.steps[0].tool, 'win.terminal.launch');
+
+  const searchBackThen = await engine.planTask('Search Google for back then');
+  assert.equal(searchBackThen.steps[0].tool, 'browser.search_google');
+  assert.equal(searchBackThen.steps[0].params.query, 'back then');
 });

@@ -67,14 +67,14 @@ export const HelpPage: React.FC<Props> = ({ onStartOnboarding }) => {
 
         <button
           onClick={onStartOnboarding}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold shadow-md shadow-sky-500/20 transition-all active:scale-95"
+          className="shrink-0 whitespace-nowrap flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-sm transition-all active:scale-95"
         >
           <BookOpen className="w-3.5 h-3.5" />
           <span>Rerun Setup Wizard</span>
         </button>
       </div>
 
-      <div className="rounded-xl border border-sky-200 bg-sky-50/60 px-4 py-3 text-xs leading-relaxed text-slate-700">
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-xs leading-relaxed text-slate-700">
         <strong className="text-slate-900">How commands work:</strong> Use clear action words such as
         {' '}<code>open</code>, <code>set</code>, <code>search</code> or <code>save</code>.
         Single, clearly requested low-risk app and website launches run directly.
@@ -90,14 +90,14 @@ export const HelpPage: React.FC<Props> = ({ onStartOnboarding }) => {
           return (
             <div key={i} className="acrylic-card rounded-2xl p-6 border border-slate-200 shadow-sm space-y-3">
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Icon className="w-4 h-4 text-sky-600" />
+                <Icon className="w-4 h-4 text-emerald-700" />
                 <span>{sec.title}</span>
               </h3>
               <ul className="space-y-2">
                 {sec.examples.map((ex, idx) => (
                   <li
                     key={idx}
-                    className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 font-mono text-xs text-sky-800 font-medium"
+                    className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 font-mono text-xs text-emerald-800 font-medium"
                   >
                     {ex}
                   </li>

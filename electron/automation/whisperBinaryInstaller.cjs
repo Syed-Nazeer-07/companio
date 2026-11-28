@@ -66,14 +66,15 @@ class WhisperBinaryInstaller {
     this.fetchImpl=fetchImpl;this.fs=fileSystem;this.extract=extract;this.timeoutMs=timeoutMs;
     this.manifests=manifests;this.current=null;
   }
-  status() {return this.current ? {downloading:true,received:this.current.received,total:this.current.total}
-    : {downloading:false,received:0,total:0};}
+  status() {return this.current ? {downloading:true,received:this.current.received,total:this.current.total,arch:this.arch,release:RELEASE}
+    : {downloading:false,received:0,total:0,arch:this.arch,release:RELEASE};}
   cancel() {if(!this.current) return {success:true,cancelled:false};this.current.abort.abort();return {success:true,cancelled:true};}
-  async install(onProgress=()=>{}) {
+  async install(onProgress=()=>{}, options={}) {
     if(this.platform!=='win32' || !this.manifests[this.arch]) {
       return {success:false,error:'Automatic Whisper CPU setup supports Windows x64 and ARM64 only.'};
     }
     if(this.current)return {success:false,error:'Whisper CPU setup is already running.'};
+    const forceReinstall=Boolean(options && typeof options==='object' && options.forceReinstall===true);
     const manifest=this.manifests[this.arch];
     const root=path.join(this.userData,'speech-tools');
     const target=path.join(root,'whisper-'+RELEASE+'-'+this.arch);
@@ -84,18 +85,26 @@ class WhisperBinaryInstaller {
     this.current={abort,received:0,total:manifest.maxBytes};
     const timer=setTimeout(()=>abort.abort(),this.timeoutMs);
     let handle=null;
+    let corrupted=false;
     try {
       this.fs.mkdirSync(root,{recursive:true});
       if(this.fs.existsSync(target)) {
-        const binary=validateInstalledBinary(target,this.fs);
-        const stamp=JSON.parse(this.fs.readFileSync(path.join(target,'companio-source.json'),'utf8'));
-        const digest=crypto.createHash('sha256');
-        for await (const chunk of this.fs.createReadStream(binary)) digest.update(chunk);
-        if(stamp.archiveSha256===manifest.sha256 && stamp.binarySha256===digest.digest('hex') &&
-            stamp.arch===this.arch && stamp.release===RELEASE) {
-          return {success:true,filePath:binary,reused:true};
+        if(forceReinstall) {
+          this.fs.rmSync(target,{recursive:true,force:true});
+        } else {
+          try {
+            const binary=validateInstalledBinary(target,this.fs);
+            const stamp=JSON.parse(this.fs.readFileSync(path.join(target,'companio-source.json'),'utf8'));
+            const digest=crypto.createHash('sha256');
+            for await (const chunk of this.fs.createReadStream(binary)) digest.update(chunk);
+            if(stamp.archiveSha256===manifest.sha256 && stamp.binarySha256===digest.digest('hex') &&
+                stamp.arch===this.arch && stamp.release===RELEASE) {
+              return {success:true,filePath:binary,reused:true};
+            }
+          } catch {}
+          corrupted=true;
+          throw Error('Existing Whisper installation failed verification. Repair offline Whisper to reinstall cleanly.');
         }
-        throw Error('Existing Whisper installation could not be verified. Remove it manually before reinstalling.');
       }
       try{this.fs.unlinkSync(temporary);}catch{}
       this.fs.rmSync(staging,{recursive:true,force:true});
@@ -143,7 +152,11 @@ class WhisperBinaryInstaller {
       onProgress({stage:'done',received,total:received,percent:100});
       return {success:true,filePath:path.join(target,'Release','whisper-cli.exe'),reused:false};
     } catch(error) {
-      return {success:false,error:abort.signal.aborted?'Whisper CPU setup cancelled or timed out.':error?.message||'Whisper CPU setup failed.'};
+      return {
+        success:false,
+        ...(corrupted ? {corrupted:true} : {}),
+        error:abort.signal.aborted?'Whisper CPU setup cancelled or timed out.':error?.message||'Whisper CPU setup failed.'
+      };
     } finally {
       clearTimeout(timer);
       if(handle){try{await handle.close();}catch{}}

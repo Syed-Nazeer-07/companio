@@ -13,58 +13,8 @@ import { HistoryPage } from './components/dashboard/HistoryPage';
 import { SettingsPage } from './components/dashboard/SettingsPage';
 import { HelpPage } from './components/dashboard/HelpPage';
 import { migrateVoicePreferences } from './services/voicePreferences';
+import { DEFAULT_SETTINGS } from './services/defaultSettings';
 import { SetupWizardModal } from './components/onboarding/SetupWizardModal';
-
-const DEFAULT_SETTINGS: AppSettings = {
-  firstTimeSetupDone: false,
-  theme: 'light',
-  activationShortcut: 'Ctrl+Shift+Space',
-  characterId: 'sparky',
-  characterName: 'Companio',
-  character: {
-    id: 'sparky',
-    name: 'Sparky',
-    tagline: 'Cute Animated Robot',
-    description: 'Cybernetic animated assistant',
-    accentColor: '#0ea5e9',
-    glowColor: 'rgba(14, 165, 233, 0.3)',
-    badge: 'Popular'
-  },
-  ai: {
-    provider: 'mock',
-    apiKey: '',
-    model: 'companio-deterministic-v1',
-    temperature: 0.7,
-    personality: 'friendly',
-    systemPrompt: 'You are Companio, an intelligent personal AI desktop companion for Windows 11.'
-  },
-  voice: {
-    wakePhraseEnabled: false,
-    autoSendSafeSpeech: true,
-    wakePhrase: 'Hey Companio',
-    pushToTalkKey: 'Space',
-    sttEngine: 'browser',
-    recognitionLanguage: 'en-IN',
-    recognitionEngine: 'auto',
-    ttsVoice: '',
-    ttsRate: 1.0,
-    ttsPitch: 1.05,
-    ttsVolume: 1.0,
-    muted: false,
-    audioReactivity: 1.0
-  },
-  overlay: {
-    x: 0,
-    y: 0,
-    scale: 1.0,
-    alwaysOnTop: true,
-    snapToEdge: true,
-    autoHideInFullscreen: true,
-    soundEffects: true,
-    transparentClickthrough: false,
-    companionMode: 'floating'
-  }
-};
 
 // Merge nested preferences so older, partial, or malformed saved settings
 // cannot replace an entire settings section with null or missing fields.
@@ -153,6 +103,23 @@ export const App: React.FC = () => {
     };
   }, []);
 
+  // Sync cohesive light/dark/system theme tokens onto document root
+  useEffect(() => {
+    const mq = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-color-scheme: dark)')
+      : null;
+    const apply = () => {
+      const resolved = settings.theme === 'dark' || (settings.theme === 'system' && mq?.matches)
+        ? 'dark'
+        : 'light';
+      document.documentElement.dataset.theme = resolved;
+      document.documentElement.style.colorScheme = resolved;
+    };
+    apply();
+    mq?.addEventListener?.('change', apply);
+    return () => mq?.removeEventListener?.('change', apply);
+  }, [settings.theme]);
+
   // Global shortcut/tray activation may arrive before history hydration.
   // Signal readiness only after the overlay UI and its listeners are mounted.
   useEffect(() => {
@@ -181,6 +148,7 @@ export const App: React.FC = () => {
           const shown = await desktopBridge.showOverlay();
           if (!shown) return;
         }
+        await dbService.flushNativeWrites();
         await desktopBridge.toggleDashboard(false);
       } catch (error) {
         console.error('[Companio] Could not show companion overlay:', error);
@@ -245,7 +213,12 @@ export const App: React.FC = () => {
           onUpdateSettings={handleUpdateSettings}
         />
       )}
-      {currentTab === 'history' && <HistoryPage />}
+      {currentTab === 'history' && (
+        <HistoryPage
+          settings={settings}
+          onUpdateSettings={handleUpdateSettings}
+        />
+      )}
       {currentTab === 'settings' && (
         <SettingsPage
           onNavigate={setCurrentTab}

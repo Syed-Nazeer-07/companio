@@ -15,35 +15,37 @@ function New-CompanioImage([int]$size) {
     $graphics.Clear([System.Drawing.Color]::Transparent)
     $graphics.ScaleTransform(($size / 128.0), ($size / 128.0))
 
-    $rect = [System.Drawing.Rectangle]::new(6, 6, 116, 116)
-    $blue = [System.Drawing.Color]::FromArgb(14, 165, 233)
-    $indigo = [System.Drawing.Color]::FromArgb(79, 70, 229)
-    $brush = [System.Drawing.Drawing2D.LinearGradientBrush]::new($rect, $blue, $indigo, [float]45)
+    $bg = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(217, 241, 142))
     $shape = [System.Drawing.Drawing2D.GraphicsPath]::new()
     try {
-      $shape.AddArc(6, 6, 64, 64, 180, 90)
-      $shape.AddArc(58, 6, 64, 64, 270, 90)
-      $shape.AddArc(58, 58, 64, 64, 0, 90)
-      $shape.AddArc(6, 58, 64, 64, 90, 90)
+      $shape.AddArc(3, 3, 66, 66, 180, 90)
+      $shape.AddArc(59, 3, 66, 66, 270, 90)
+      $shape.AddArc(59, 59, 66, 66, 0, 90)
+      $shape.AddArc(3, 59, 66, 66, 90, 90)
       $shape.CloseFigure()
-      $graphics.FillPath($brush, $shape)
+      $graphics.FillPath($bg, $shape)
     } finally {
       $shape.Dispose()
-      $brush.Dispose()
+      $bg.Dispose()
     }
 
-    $stroke = [System.Drawing.Pen]::new([System.Drawing.Color]::White, [float]17)
+    $ink = [System.Drawing.Color]::FromArgb(22, 32, 28)
+    $stroke = [System.Drawing.Pen]::new($ink, [float]16.5)
     try {
       $stroke.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
       $stroke.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
-      $graphics.DrawArc($stroke, 26, 29, 72, 70, 45, 270)
+      $graphics.DrawArc($stroke, 24, 29, 73, 70, 54, 234)
     } finally {
       $stroke.Dispose()
     }
 
-    $yellow = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(254, 240, 138))
-    try { $graphics.FillEllipse($yellow, 94, 24, 16, 16) }
-    finally { $yellow.Dispose() }
+    $dot = [System.Drawing.SolidBrush]::new($ink)
+    try { $graphics.FillEllipse($dot, [float]86.5, [float]27.5, [float]17.0, [float]17.0) }
+    finally { $dot.Dispose() }
+
+    $highlight = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(217, 241, 142))
+    try { $graphics.FillEllipse($highlight, [float]93.8, [float]31.6, [float]4.0, [float]4.0) }
+    finally { $highlight.Dispose() }
   } finally {
     $graphics.Dispose()
   }

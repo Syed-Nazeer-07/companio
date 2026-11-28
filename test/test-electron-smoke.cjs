@@ -17,8 +17,9 @@ if (!binary) {
   process.exit(1);
 }
 const resultFile = path.join(os.tmpdir(), 'companio-smoke-' + process.pid + '.json');
+const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'companio-smoke-profile-'));
 try { fs.unlinkSync(resultFile); } catch {}
-const child = spawn(binary, ['--companio-smoke'], {
+const child = spawn(binary, ['--companio-smoke', '--user-data-dir=' + profileDir], {
   cwd: root,
   env: { ...process.env, NODE_ENV: 'production', COMPANIO_SMOKE_TEST: '1', COMPANIO_SMOKE_RESULT_PATH: resultFile },
   windowsHide: true,
@@ -38,6 +39,7 @@ function finish(ok, message) {
   clearTimeout(timeout);
   try { child.kill(); } catch {}
   try { fs.unlinkSync(resultFile); } catch {}
+  try { fs.rmSync(profileDir, { recursive: true, force: true }); } catch {}
   console.log('Desktop smoke stage:', lastStage);
   console.log(output.slice(-5000));
   console.log(message);

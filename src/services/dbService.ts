@@ -1,6 +1,4 @@
-import initSqlJs, { Database } from 'sql.js';
-import sqliteWasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
-import { AppSettings, ChatMessage } from '../types';
+import { AppSettings, ChatMessage, MemoryCategory, MemoryItem } from '../types';
 import { desktopBridge, isNativeDesktop } from './desktopBridge';
 
 export interface AutomationLogRecord {
@@ -14,11 +12,11 @@ export interface AutomationLogRecord {
 }
 
 class DbService {
-  private db: Database | null = null;
   private initialized: boolean = false;
   private initializationPromise: Promise<void> | null = null;
   private pendingNativeWrite: Promise<void> = Promise.resolve();
   private nativeHistoryError: string | null = null;
+  private memoryCache: MemoryItem[] = [];
 
   getHistoryPersistenceError(): string | null {
     return this.nativeHistoryError;
@@ -45,6 +43,10 @@ class DbService {
     }).catch((error) => {
       this.reportNativeWriteError(error instanceof Error ? error.message : 'Native history save failed.');
     });
+  }
+
+  async flushNativeWrites(): Promise<void> {
+    await this.pendingNativeWrite;
   }
 
   async retryNativeHistorySave(): Promise<{ success: boolean; error?: string }> {
@@ -127,34 +129,8 @@ class DbService {
   }
 
   private async initializeOnce(): Promise<void> {
-    try {
-      const SQL = await initSqlJs({
-        locateFile: () => sqliteWasmUrl
-      });
-      this.db = new SQL.Database();
-      this.db.run(`
-        CREATE TABLE IF NOT EXISTS conversation_history (
-          id TEXT PRIMARY KEY,
-          sender TEXT NOT NULL,
-          content TEXT NOT NULL,
-          timestamp INTEGER NOT NULL,
-          status TEXT
-        );
-        CREATE TABLE IF NOT EXISTS automation_logs (
-          id TEXT PRIMARY KEY,
-          timestamp INTEGER NOT NULL,
-          tool TEXT NOT NULL,
-          params TEXT,
-          result TEXT,
-          verified INTEGER NOT NULL,
-          durationMs INTEGER NOT NULL
-        );
-      `);
-      console.log('[SQLite] In-memory SQL cache initialized; native history is hydrated separately.');
-    } catch (e) {
-      console.warn('[SQLite] Fallback to in-memory/localStorage:', e);
-    }
     await this.hydrateNativeHistory();
+    await this.getMemories().catch(() => []);
     this.initialized = true;
   }
 
@@ -181,19 +157,24 @@ class DbService {
   // Conversation logs
   addMessage(msg: ChatMessage) {
     try {
+      // Persist a bounded read-only receipt, not the runnable plan or its args.
+      const {taskPlan, ...record} = msg;
+      if (taskPlan && ['completed','failed','cancelled'].includes(taskPlan.status) && taskPlan.steps.length) {
+        record.taskReceipt = {
+          status: taskPlan.status as 'completed'|'failed'|'cancelled',
+          steps: taskPlan.steps.slice(0,32).map(step => ({
+            description: step.description.slice(0,300),
+            outcome: step.status==='success' ? (step.result?.handoffOnly?'sent':'verified') : step.status==='failed' ? (step.result?.success?'unverified':'failed') : 'stopped'
+          }))
+        };
+      }
+      msg = record;
       const history = this.getMessages();
       history.push(msg);
       // Keep last 100 messages
       if (history.length > 100) history.shift();
       localStorage.setItem('companio_chat_history', JSON.stringify(history));
       this.enqueueNativeChange({ kind: 'add-message', record: msg });
-
-      if (this.db) {
-        this.db.run(
-          'INSERT INTO conversation_history (id, sender, content, timestamp, status) VALUES (?, ?, ?, ?, ?)',
-          [msg.id, msg.sender, msg.content, msg.timestamp, msg.status || 'info']
-        );
-      }
     } catch (e) {}
   }
 
@@ -221,7 +202,6 @@ class DbService {
       localStorage.removeItem('companio_chat_history');
       localStorage.removeItem('aura_chat_history');
       this.enqueueNativeChange({ kind: 'clear-messages' });
-      if (this.db) this.db.run('DELETE FROM conversation_history');
     } catch (e) {}
   }
 
@@ -243,13 +223,6 @@ class DbService {
       if (logs.length > 150) logs.pop();
       localStorage.setItem('companio_automation_logs', JSON.stringify(logs));
       this.enqueueNativeChange({ kind: 'add-log', record });
-
-      if (this.db) {
-        this.db.run(
-          'INSERT INTO automation_logs (id, timestamp, tool, params, result, verified, durationMs) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [record.id, record.timestamp, record.tool, record.params, record.result, record.verified ? 1 : 0, record.durationMs]
-        );
-      }
     } catch (e) {}
   }
 
@@ -280,7 +253,6 @@ class DbService {
       localStorage.removeItem('companio_automation_logs');
       localStorage.removeItem('aura_automation_logs');
       this.enqueueNativeChange({ kind: 'clear-logs' });
-      if (this.db) this.db.run('DELETE FROM automation_logs');
     } catch (e) {}
   }
 
@@ -357,27 +329,6 @@ class DbService {
       }
     }
 
-    // SQL.js is currently an in-memory cache. Local storage is authoritative.
-    // Rebuilding this cache is best-effort and never overrides a valid restore.
-    if (this.db) {
-      try {
-        this.db.run('DELETE FROM conversation_history; DELETE FROM automation_logs;');
-        for (const msg of backup.conversations) {
-          this.db.run(
-            'INSERT INTO conversation_history (id, sender, content, timestamp, status) VALUES (?, ?, ?, ?, ?)',
-            [msg.id, msg.sender, msg.content, msg.timestamp, msg.status || 'info']
-          );
-        }
-        for (const log of backup.automationLogs) {
-          this.db.run(
-            'INSERT INTO automation_logs (id, timestamp, tool, params, result, verified, durationMs) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [log.id, log.timestamp, log.tool, log.params, log.result, log.verified ? 1 : 0, log.durationMs]
-          );
-        }
-      } catch (error) {
-        console.warn('[Companio] In-memory SQL history cache could not be refreshed:', error);
-      }
-    }
     return { success: true };
   }
 
@@ -414,6 +365,58 @@ class DbService {
       automationLogs: this.getLogs().slice(0,150),
       notes: []
     });
+  }
+
+  getCachedMemories(): MemoryItem[] {
+    if (this.memoryCache.length > 0) return this.memoryCache;
+    try {
+      const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('companio_memory_v1') : null;
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(parsed)) {
+        this.memoryCache = parsed;
+      }
+    } catch {}
+    return this.memoryCache;
+  }
+
+  async getMemories(): Promise<MemoryItem[]> {
+    const res = await desktopBridge.listMemories();
+    if (res.success && Array.isArray(res.items)) {
+      this.memoryCache = res.items;
+    }
+    return this.memoryCache;
+  }
+
+  async addMemory(input: { content: string; category?: MemoryCategory; pinned?: boolean; expiresAt?: number | null }): Promise<{ success: boolean; item?: MemoryItem; error?: string }> {
+    const res = await desktopBridge.addMemory(input);
+    if (res.success && Array.isArray(res.items)) {
+      this.memoryCache = res.items;
+    }
+    return { success: res.success, item: res.item, error: res.error };
+  }
+
+  async updateMemory(id: string, patch: { content?: string; category?: MemoryCategory; pinned?: boolean; enabled?: boolean; expiresAt?: number | null }): Promise<{ success: boolean; item?: MemoryItem; error?: string }> {
+    const res = await desktopBridge.updateMemory(id, patch);
+    if (res.success && Array.isArray(res.items)) {
+      this.memoryCache = res.items;
+    }
+    return { success: res.success, item: res.item, error: res.error };
+  }
+
+  async deleteMemory(id: string): Promise<{ success: boolean; removed?: boolean; error?: string }> {
+    const res = await desktopBridge.deleteMemory(id);
+    if (res.success && Array.isArray(res.items)) {
+      this.memoryCache = res.items;
+    }
+    return { success: res.success, removed: res.removed, error: res.error };
+  }
+
+  async clearMemories(): Promise<{ success: boolean; error?: string }> {
+    const res = await desktopBridge.clearMemories();
+    if (res.success) {
+      this.memoryCache = [];
+    }
+    return { success: res.success, error: res.error };
   }
 }
 

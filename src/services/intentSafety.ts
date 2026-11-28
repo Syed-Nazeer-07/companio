@@ -10,11 +10,12 @@ export function isCommandRequest(input: string): boolean {
   if (!request || request.length > 1200) return false;
 
   if (/^(?:please\s+)?(?:don't|do not|never|avoid|without)\b/.test(request)) return false;
+  if (/^(?:please\s+)?(?:can|could|would|will)\s+you\s+(?:please\s+)?(?:not|never|avoid)\b/.test(request)) return false;
   if (/^note:\s*\S/.test(request)) return true;
 
   // Explicit, intentional action verbs. The polite forms are still commands.
   const actionable = request.replace(/^(?:please\s+)?(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?/, '');
-  if (/^(?:open|launch|start|browse|search|find|look\s+up|play|watch|pause|resume|mute|unmute|set|change|go\s+to|visit|show|take|capture|save|add|remember|note:|read|check|get|clear|delete|empty|close|quit|lock|skip|next|stop|turn\s+up|turn\s+down|increase|decrease|raise|lower|dim|calculate)\b/.test(actionable)) {
+  if (/^(?:open|launch|start|run|browse|search|find|look\s+up|play|watch|listen|pause|resume|mute|unmute|set|change|adjust|configure|optimize|tweak|fix|update|go\s+to|visit|show|take|capture|save|add|remember|note:|read|list|check|get|clear|delete|empty|forget|close|quit|lock|skip|next|stop|turn\s+up|turn\s+down|increase|decrease|raise|lower|dim|calculate)\b/.test(actionable)) {
     return true;
   }
 

@@ -14,11 +14,11 @@ function createEngine(executeTool) {
   vm.runInNewContext(output,{
     exports,Date,Math,Array,Number,Error,AbortController,console,setTimeout,clearTimeout,
     require: function load(name) {
-    if (['./taskPlanner','./taskExecutor','./taskVerification','./conversationContext'].includes(name)) {
+    if (['./taskPlanner','./taskExecutor','./taskVerification','./conversationContext','./memoryRetrieval','./failureRecovery','./hybridRouter'].includes(name)) {
       const moduleExports={};
       const moduleSource=fs.readFileSync(path.join(__dirname,'../src/services',name.slice(2)+'.ts'),'utf8');
       const compiled=ts.transpileModule(moduleSource,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
-      vm.runInNewContext(compiled,{exports:moduleExports,require:load,Date,Math,Number,Array,Error,AbortController,Promise,setTimeout,clearTimeout,console});
+      vm.runInNewContext(compiled,{exports:moduleExports,require:load,Date,Math,Number,Array,Error,AbortController,Promise,RegExp,Map,Set,Object,JSON,setTimeout,clearTimeout,console});
       return moduleExports;
     }
       if(name==='./desktopBridge') return {desktopBridge:{executeTool}};
@@ -100,4 +100,120 @@ test('partial completion reports verified steps before a later failure',async()=
   const result=await engine.executePlan(plan(),()=>{});
   assert.equal(result.status,'failed');
   assert.match(result.error,/1 earlier step\(s\) verified/);
+});
+
+test('cancelled native call keeps its lease until the underlying operation settles',async()=>{
+ let release,calls=0;
+ const {engine,logs}=createEngine(()=>{calls++;return new Promise(resolve=>{release=resolve;});});
+ const first=engine.executePlan(plan(),()=>{});
+ assert.equal(engine.cancelActiveTask(),true);
+ const result=await first;
+ assert.equal(result.status,'cancelled');
+ assert.equal(result.steps[0].result.outcomeUnknown,true);
+ assert.equal(logs.length,1);
+ await assert.rejects(engine.executePlan(plan(),()=>{}),/previous Windows action/);
+ assert.equal(calls,1);
+ release({success:true,verified:true});
+ await Promise.resolve();
+ const next=engine.executePlan(plan(),()=>{});
+ assert.equal(calls,2);
+ engine.cancelActiveTask();release({success:true,verified:true});
+ await next;
+});
+test('native exceptions leave a failed audit record',async()=>{
+ const {engine,logs}=createEngine(async()=>{throw Error('IPC failure');});
+ const result=await engine.executePlan(plan(),()=>{});
+ assert.equal(result.status,'failed');
+ assert.equal(logs.length,1);
+ assert.equal(logs[0][2].error,'IPC failure');
+ assert.equal(logs[0][3],false);
+});
+
+test('completion report uses actual native result, not inferred values',async()=>{
+ const {engine}=createEngine(async()=>({success:true,verified:true,message:'Volume limited to 30% by Windows'}));
+ const p=plan();p.steps=[p.steps[1]];
+ const result=await engine.executePlan(p,()=>{});
+ assert.equal(result.finalMessage,'Volume limited to 30% by Windows');
+});
+test('mixed verified actions and launch handoffs are distinguished in the report',async()=>{
+ const {engine}=createEngine(async(tool)=>tool==='win.notepad.launch'?{success:true,verified:true,handoffOnly:true,message:'Request sent'}:{success:true,verified:true,message:'Volume is 45%'});
+ const result=await engine.executePlan(plan(),()=>{});
+ assert.equal(result.status,'completed');
+ assert.match(result.finalMessage,/1 verified; 1 handed off/);
+ assert.match(result.finalMessage,/destination unverified/);
+ assert.match(result.finalMessage,/Volume is 45%/);
+});
+
+test('pomodoro requests notification permission when default and tracks timer handle safely', async () => {
+  const executorSource = fs.readFileSync(path.join(__dirname, '../src/services/taskExecutor.ts'), 'utf8');
+  const compiledExecutor = ts.transpileModule(executorSource, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+  }).outputText;
+
+  let requestedPermission = false;
+  let scheduledMs = null;
+  let clearedTimer = false;
+  const fakeNotification = function () {};
+  fakeNotification.permission = 'default';
+  fakeNotification.requestPermission = async () => {
+    requestedPermission = true;
+    return 'granted';
+  };
+
+  const fakeHandle = { id: 'pomodoro-handle' };
+  const fakeSetTimeout = (fn, ms) => {
+    scheduledMs = ms;
+    return fakeHandle;
+  };
+  const fakeClearTimeout = handle => {
+    if (handle === fakeHandle) clearedTimer = true;
+  };
+
+  const executorExports = {};
+  const verificationSource = fs.readFileSync(path.join(__dirname, '../src/services/taskVerification.ts'), 'utf8');
+  const compiledVerification = ts.transpileModule(verificationSource, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+  }).outputText;
+  const verificationExports = {};
+  vm.runInNewContext(compiledVerification, { exports: verificationExports, Date, Math, Array, Number, Error, Promise });
+  const recoverySource = fs.readFileSync(path.join(__dirname, '../src/services/failureRecovery.ts'), 'utf8');
+  const compiledRecovery = ts.transpileModule(recoverySource, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const recoveryExports = {};
+  vm.runInNewContext(compiledRecovery, { exports: recoveryExports, String });
+
+  vm.runInNewContext(compiledExecutor, {
+    exports: executorExports,
+    Date, Math, Array, Number, Error, AbortController, Promise, Set, console,
+    setTimeout: fakeSetTimeout,
+    clearTimeout: fakeClearTimeout,
+    Notification: fakeNotification,
+    require: name => {
+      if (name === './desktopBridge') return { desktopBridge: { executeTool: async () => ({}) } };
+      if (name === './dbService') return { dbService: { addLog: () => {} } };
+      if (name === './taskVerification') return verificationExports;
+      if (name === './failureRecovery') return recoveryExports;
+      throw Error('Unexpected import ' + name);
+    }
+  });
+
+  const executor = new executorExports.TaskExecutor();
+  const pomodoroPlan = {
+    id: 'pom-1',
+    query: 'start a 10 minute focus session',
+    intent: 'utility.pomodoro.start',
+    steps: [{ id: '1', tool: 'utility.pomodoro.start', description: 'Focus', params: { minutes: 10 }, status: 'pending' }],
+    status: 'planning',
+    currentStepIndex: 0,
+    createdAt: Date.now()
+  };
+
+  const res = await executor.executePlan(pomodoroPlan, () => {});
+  assert.equal(requestedPermission, true);
+  assert.equal(res.status, 'completed');
+  assert.equal(scheduledMs, 10 * 60 * 1000);
+  assert.equal(executor.activePomodoroTimers.has(fakeHandle), true);
+
+  for (const h of executor.activePomodoroTimers) fakeClearTimeout(h);
+  executor.activePomodoroTimers.clear();
+  assert.equal(clearedTimer, true);
 });

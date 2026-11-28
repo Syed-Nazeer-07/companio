@@ -1,10 +1,11 @@
 import React from 'react';
-import { CharacterId, CharacterState } from '../../types';
+import { CharacterId, CharacterReactionId, CharacterState } from '../../types';
 import { StudioCharacter } from './StudioCharacter';
 
 interface Props {
   characterId: CharacterId;
   state: CharacterState;
+  reactionId?: CharacterReactionId;
   scale?: number;
   audioLevel?: number;
   customAssetUrl?: string;
@@ -13,6 +14,7 @@ interface Props {
 export const CharacterRenderer: React.FC<Props> = ({
   characterId,
   state,
+  reactionId = 'idle',
   scale = 1,
   audioLevel = 0,
   customAssetUrl
@@ -38,5 +40,5 @@ export const CharacterRenderer: React.FC<Props> = ({
     );
   }
 
-  return <StudioCharacter characterId={characterId} state={state} scale={scale} audioLevel={audioLevel} />;
+  return <StudioCharacter characterId={characterId} state={state} reactionId={reactionId} scale={scale} audioLevel={audioLevel} />;
 };

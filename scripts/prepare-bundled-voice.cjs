@@ -29,8 +29,17 @@ async function main() {
     if (!model.success || !model.filePath) throw Error(model.error || 'Pinned offline English model download failed.');
     fs.rmSync(destination,{recursive:true,force:true});
     fs.mkdirSync(destination,{recursive:true});
-    // Preserve whisper.cpp dependent DLLs from the verified official archive.
-    fs.cpSync(path.dirname(binary.filePath),path.join(destination,'Release'),{recursive:true});
+    const releaseDest = path.join(destination, 'Release');
+    fs.mkdirSync(releaseDest, { recursive: true });
+    // Copy only whisper-cli.exe and runtime DLLs; exclude test/bench/conversion executables to keep base installer lean.
+    const binaryDir = path.dirname(binary.filePath);
+    for (const entry of fs.readdirSync(binaryDir, { withFileTypes: true })) {
+      if (!entry.isFile()) continue;
+      const lower = entry.name.toLowerCase();
+      if (lower === 'whisper-cli.exe' || lower.endsWith('.dll')) {
+        fs.copyFileSync(path.join(binaryDir, entry.name), path.join(releaseDest, entry.name));
+      }
+    }
     const copied=path.join(destination,MANIFEST.file);
     fs.copyFileSync(model.filePath,copied);
     if ((await sha256(copied))!==MANIFEST.sha256) throw Error('Copied offline model checksum mismatch.');
