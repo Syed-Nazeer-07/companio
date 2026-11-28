@@ -6,7 +6,13 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { SecretStore } = require('../electron/automation/secretStore.cjs');
-const { chatCloud, proposeCloudActions, redactSecret } = require('../electron/automation/cloudAiController.cjs');
+const {
+  chatCloud,
+  proposeCloudActions,
+  testCloudConnection,
+  validateCustomHttpsEndpoint,
+  redactSecret
+} = require('../electron/automation/cloudAiController.cjs');
 
 function fakeSafeStorage(available = true) {
   return {
@@ -104,6 +110,53 @@ test('cloudAiController talks only to official endpoints, redacts secrets, and e
     assert.equal(safeProposal.steps[0].tool, 'win.battery.get');
 
     assert.equal(redactSecret('Failed using sk-1234567890abcdef', 'sk-1234567890abcdef'), 'Failed using [redacted]');
+    assert.equal(redactSecret('Bad gsk_1234567890abcdef', ''), 'Bad [redacted]');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('expanded cloud providers (Groq, OpenRouter, custom HTTPS) block SSRF and report diagnostics safely', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'companio-cloud-ext-'));
+  try {
+    const store = new SecretStore({ filePath: path.join(dir, 's.json'), safeStorageImpl: fakeSafeStorage(true) });
+    assert.throws(() => validateCustomHttpsEndpoint('http://127.0.0.1:8080/v1'), /HTTPS/i);
+    assert.throws(() => validateCustomHttpsEndpoint('https://192.168.1.10/v1'), /private network/i);
+    assert.equal(validateCustomHttpsEndpoint('https://api.together.xyz/v1'), 'https://api.together.xyz/v1/chat/completions');
+
+    assert.equal(store.setKey('groq', 'gsk_test_groq_key_123456').configured, true);
+    assert.equal(store.setKey('openrouter', 'sk-or-test-key-123456').configured, true);
+    assert.equal(store.setKey('custom_openai', 'sk-custom-key-1234567').configured, true);
+    const allStatus = store.status();
+    for (const p of ['openai', 'gemini', 'anthropic', 'groq', 'openrouter', 'custom_openai']) {
+      assert.ok(Object.hasOwn(allStatus.providers, p), p);
+    }
+
+    const calls = [];
+    const diag = await testCloudConnection(
+      { provider: 'openrouter', model: 'openai/gpt-4o-mini' },
+      {
+        secretStore: store,
+        fetchImpl: async (url, opts) => {
+          calls.push({ url, headers: opts.headers });
+          return {
+            ok: true,
+            json: async () => ({ choices: [{ message: { content: 'OK' } }] })
+          };
+        }
+      }
+    );
+    assert.equal(diag.success, true);
+    assert.equal(diag.reply, 'OK');
+    assert.equal(calls[0].url, 'https://openrouter.ai/api/v1/chat/completions');
+    assert.equal(calls[0].headers['HTTP-Referer'], 'https://companio7.vercel.app');
+
+    const ssrfAttempt = await chatCloud(
+      { provider: 'custom_openai', customEndpoint: 'https://10.0.0.5/v1', prompt: 'Hi' },
+      { secretStore: store, fetchImpl: async () => { throw new Error('Should not be fetched'); } }
+    );
+    assert.equal(ssrfAttempt.success, false);
+    assert.match(ssrfAttempt.error, /private network/i);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

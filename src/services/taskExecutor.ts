@@ -48,6 +48,7 @@ export class TaskExecutor {
   private activeAbortController: AbortController | null = null;
   private nativeInFlight: Promise<unknown> | null = null;
   private activePomodoroTimers = new Set<ReturnType<typeof setTimeout>>();
+  private activeTimers = new Map<string, { timer: ReturnType<typeof setTimeout>; label: string; minutes: number; endsAt: number }>();
 
   // Emergency Cancel
   cancelActiveTask() {
@@ -213,6 +214,56 @@ export class TaskExecutor {
             verified: cleared.success,
             message: cleared.success ? 'All saved memories cleared.' : 'Could not clear saved memory.',
             error: cleared.error
+          };
+        } else if (step.tool === 'utility.timer.create' || step.tool === 'utility.timer.update') {
+          const mins = Number(step.params?.minutes);
+          if (!Number.isInteger(mins) || mins < 1 || mins > 480) {
+            throw new Error('Choose a reminder duration between 1 and 480 minutes.');
+          }
+          const label = String(step.params?.label || 'Reminder').trim().slice(0, 80) || 'Reminder';
+          const key = label.toLowerCase();
+          if (step.tool === 'utility.timer.update') {
+            for (const [existingKey, existing] of this.activeTimers.entries()) {
+              clearTimeout(existing.timer);
+              this.activeTimers.delete(existingKey);
+            }
+          } else if (this.activeTimers.has(key)) {
+            clearTimeout(this.activeTimers.get(key)!.timer);
+          }
+          const timerHandle = setTimeout(() => {
+            this.activeTimers.delete(key);
+            if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+              new Notification(`Companio Reminder: ${label}`, {
+                body: `Your ${mins}-minute timer has finished.`
+              });
+            }
+          }, mins * 60 * 1000);
+          if (typeof (timerHandle as any).unref === 'function') {
+            (timerHandle as any).unref();
+          }
+          this.activeTimers.set(key, { timer: timerHandle, label, minutes: mins, endsAt: Date.now() + mins * 60 * 1000 });
+          result = {
+            success: true,
+            verified: true,
+            message: step.tool === 'utility.timer.update'
+              ? `Updated reminder timer to ${mins} minutes (${label}).`
+              : `Set a ${mins}-minute reminder timer (${label}).`
+          };
+        } else if (step.tool === 'utility.time.now') {
+          const now = new Date();
+          result = {
+            success: true,
+            verified: true,
+            message: `It is ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} on ${now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}.`
+          };
+        } else if (step.tool === 'utility.companion.sleep' || step.tool === 'utility.companion.wake') {
+          result = {
+            success: true,
+            verified: true,
+            companionState: step.tool === 'utility.companion.sleep' ? 'sleeping' : 'idle',
+            message: step.tool === 'utility.companion.sleep'
+              ? 'Resting quietly now. Press your shortcut whenever you need me.'
+              : 'Awake and ready to help!'
           };
         } else {
           const timeout=actionTimeoutMs(step.tool);

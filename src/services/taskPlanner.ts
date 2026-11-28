@@ -2,7 +2,17 @@ import { TaskPlan, TaskStep, AiConfig } from '../types';
 import { desktopBridge } from './desktopBridge';
 import { isCommandRequest } from './intentSafety';
 import { parseWebCommand } from './webCommandParser';
-import { generateConversationalResponse } from './conversationContext';
+import { generateConversationalResponse, recentConversation } from './conversationContext';
+import { dbService } from './dbService';
+import { selectRelevantMemories, formatMemoryContext } from './memoryRetrieval';
+import {
+  detectBlockedOrInjectedQuery,
+  detectClarificationRequest,
+  detectUnsupportedRequest,
+  generateBuiltInCharacterReply,
+  hasExplicitDesktopActionCue,
+  interpretBuiltInNaturalCommand
+} from './hybridRouter';
 
 export class TaskPlanner {
   protected generateConversationalResponse = generateConversationalResponse;
@@ -14,14 +24,103 @@ export class TaskPlanner {
     const steps: TaskStep[] = [];
     let intent = 'conversation';
 
-    // Safety boundary: questions and incidental app names are conversation,
-    // not permission to operate a computer. Only explicit requests reach
-    // legacy keyword matching or any model-based action planning.
-    if (!isCommandRequest(query)) {
+    // Always block prompt injection, shell execution scripts, mass deletion, or secret exfiltration first.
+    if (detectBlockedOrInjectedQuery(query)) {
       return {
-        id: planId, query, intent: 'conversation', steps: [],
-        currentStepIndex: 0, status: 'completed', createdAt: Date.now(),
-        finalMessage: await this.generateConversationalResponse(query, aiConfig)
+        id: planId,
+        query,
+        intent: 'refusal',
+        steps: [],
+        currentStepIndex: 0,
+        status: 'completed',
+        reactionId: 'concerned',
+        source: 'builtin',
+        createdAt: Date.now(),
+        finalMessage: "I can't run shell scripts, delete files, expose secrets, or bypass safety guardrails."
+      };
+    }
+
+    // Enforce unsupported-capability and under-specified clarification boundaries independently of model behavior.
+    if (detectUnsupportedRequest(query)) {
+      const replyMeta = generateBuiltInCharacterReply(query, { characterId: aiConfig?.personality });
+      return {
+        id: planId,
+        query,
+        intent: 'unsupported',
+        steps: [],
+        currentStepIndex: 0,
+        status: 'completed',
+        reactionId: replyMeta.reactionId,
+        source: 'builtin',
+        createdAt: Date.now(),
+        finalMessage: replyMeta.reply
+      };
+    }
+
+    const clarificationMessage = detectClarificationRequest(query);
+    if (clarificationMessage) {
+      return {
+        id: planId,
+        query,
+        intent: 'clarification',
+        steps: [],
+        currentStepIndex: 0,
+        status: 'completed',
+        reactionId: 'confused',
+        source: 'builtin',
+        createdAt: Date.now(),
+        clarificationNeeded: true,
+        finalMessage: clarificationMessage
+      };
+    }
+
+    const recentMsgs = typeof dbService?.getMessages === 'function' ? dbService.getMessages() : [];
+
+    // Safety boundary: questions and incidental app names are conversation,
+    // unless natural paraphrased/Hinglish/follow-up intent matches cleanly, or
+    // Managed Local AI is ready in 'auto'/'managed_local' mode.
+    if (!isCommandRequest(query)) {
+      const naturalHit = interpretBuiltInNaturalCommand(query, recentMsgs);
+      if (naturalHit && naturalHit.steps.length > 0) {
+        if (naturalHit.requiresConfirmation || naturalHit.steps.length > 1) {
+          return this.buildApprovedActionPlan(
+            query,
+            planId,
+            'builtin_sequence',
+            naturalHit.steps.map((s) => ({ tool: s.tool, params: s.params, description: s.description })),
+            naturalHit.reactionId
+          );
+        }
+        return {
+          id: planId,
+          query,
+          intent: naturalHit.intent,
+          steps: naturalHit.steps,
+          currentStepIndex: 0,
+          status: 'planning',
+          reactionId: naturalHit.reactionId,
+          source: 'builtin',
+          createdAt: Date.now()
+        };
+      }
+      const managedResult = await this.planViaManagedAiWithStatus(query, aiConfig, planId, recentMsgs);
+      if (managedResult.plan) return managedResult.plan;
+
+      const builtInMeta = generateBuiltInCharacterReply(query, { characterId: aiConfig?.personality });
+      const replyText = managedResult.attempted
+        ? builtInMeta.reply
+        : await this.generateConversationalResponse(query, aiConfig);
+      return {
+        id: planId,
+        query,
+        intent: builtInMeta.requestType,
+        steps: [],
+        currentStepIndex: 0,
+        status: 'completed',
+        reactionId: builtInMeta.reactionId,
+        source: 'builtin',
+        createdAt: Date.now(),
+        finalMessage: replyText
       };
     }
 
@@ -93,42 +192,25 @@ export class TaskPlanner {
     if (explicitAction && multiAction) {
       const offline = await desktopBridge.planOfflineSequence({ query: command });
       if (offline.success && offline.steps?.length && offline.requiresConfirmation === true) {
-        return this.buildApprovedActionPlan(query, planId, 'builtin_sequence', offline.steps);
+        return this.buildApprovedActionPlan(query, planId, 'builtin_sequence', offline.steps, 'excited');
       }
+      const naturalMulti = interpretBuiltInNaturalCommand(query, recentMsgs);
+      if (naturalMulti && naturalMulti.steps.length > 0) {
+        return this.buildApprovedActionPlan(
+          query,
+          planId,
+          'builtin_sequence',
+          naturalMulti.steps.map((s) => ({ tool: s.tool, params: s.params, description: s.description })),
+          naturalMulti.reactionId
+        );
+      }
+      const managedMulti = await this.planViaManagedAiIfReady(query, aiConfig, planId, recentMsgs);
+      if (managedMulti) return managedMulti;
       if (aiConfig?.provider === 'local') return this.planSafeLocalActions(query, aiConfig, planId);
-      if (aiConfig?.provider && ['openai', 'gemini', 'anthropic'].includes(aiConfig.provider)) {
+      if (aiConfig?.provider && ['openai', 'gemini', 'anthropic', 'groq', 'openrouter', 'custom_openai'].includes(aiConfig.provider)) {
         return this.planSafeCloudActions(query, aiConfig, planId);
       }
       throw new Error(offline.error || 'This multi-step command is not fully supported. No actions were executed.');
-    }
-
-    // Clarify ambiguous under-specified commands before reaching keyword fallbacks or model inference.
-    const cleanForClarify = command.replace(/[.!?]+$/, '').trim().toLowerCase();
-    const clarificationMessage =
-      /^(?:open|show)\s+(?:my|the|a)\s+folder$/.test(cleanForClarify)
-        ? 'Which folder would you like me to open — Downloads, Documents, Desktop, Pictures, Music, or Videos?'
-      : /^(?:adjust|change|configure|fix|optimize|tweak|update|manage)\s+(?:(?:the|my|this)\s+)?(?:computer|pc|laptop|system|windows|device|settings|preferences|stuff|things|it|that)$/.test(cleanForClarify)
-        ? 'Which specific setting or app would you like me to adjust — for example volume, brightness, battery, or opening an app?'
-      : /^(?:open|launch|start|run)\s+(?:(?:a|an|the|my|some)\s+)?(?:app|application|program|tool|site|website|webpage|page|link|folder|directory|window|something|anything|it|that|this)$/.test(cleanForClarify)
-        ? 'Which specific app, website, or folder should I open?'
-      : /^(?:play|watch|listen(?:\s+to)?)\s+(?:something|anything|a\s+video|some\s+video|video|some\s+music|a\s+song|music|song|it|that)$/.test(cleanForClarify)
-        ? 'What specific video, creator, or song would you like me to play?'
-      : /^(?:search|find|look\s+up)(?:\s+(?:for|about|on|in))?(?:\s+(?:the\s+web|the\s+internet|google|youtube|github|wikipedia|maps|something|anything|it|that))?$/.test(cleanForClarify)
-        ? 'What topic or term would you like me to search for?'
-      : /^(?:close|minimize|mute|unmute|do)\s+(?:it|that|this|something|anything)$/.test(cleanForClarify)
-        ? 'Which app, window, or setting would you like me to act on?'
-      : /^(?:set|change|adjust)\s+(?:(?:the|my)\s+)?(?:system\s+)?(?:audio|sound)$/.test(cleanForClarify)
-        ? 'Would you like to mute/unmute audio or set volume to a specific percentage?'
-      : /^(?:set|change|adjust)\s+(?:the\s+|my\s+)?(?:screen\s+|display\s+)?brightness$/.test(cleanForClarify)
-        ? 'What brightness level (0–100%) would you like? Try "set brightness to 60%".'
-      : null;
-
-    if (clarificationMessage) {
-      return {
-        id: planId, query, intent: 'clarification', steps: [], currentStepIndex: 0,
-        status: 'completed', createdAt: Date.now(), clarificationNeeded: true,
-        finalMessage: clarificationMessage
-      };
     }
 
     // Explicit arithmetic calculations belong to the instant math solver rather
@@ -157,6 +239,34 @@ export class TaskPlanner {
         }],
         currentStepIndex: 0, status: 'planning', createdAt: Date.now()
       };
+    }
+
+    // Check natural compound / timer / follow-up phrases BEFORE single-app keyword matching
+    // (skipping Pomodoro/Focus mode and explicit-chain failures handled above).
+    if (!/\b(?:pomodoro|focus\s+mode)\b/i.test(command) && !/\b(?:and\s+then|and\s+also|after\s+that|followed\s+by)\b/i.test(command)) {
+      const earlyNatural = interpretBuiltInNaturalCommand(query, recentMsgs);
+      if (earlyNatural && earlyNatural.steps.length > 0 && (earlyNatural.steps.length > 1 || earlyNatural.steps.some((s) => s.tool.startsWith('utility.timer')))) {
+        if (earlyNatural.requiresConfirmation || earlyNatural.steps.length > 1) {
+          return this.buildApprovedActionPlan(
+            query,
+            planId,
+            'builtin_sequence',
+            earlyNatural.steps.map((s) => ({ tool: s.tool, params: s.params, description: s.description })),
+            earlyNatural.reactionId
+          );
+        }
+        return {
+          id: planId,
+          query,
+          intent: earlyNatural.intent,
+          steps: earlyNatural.steps,
+          currentStepIndex: 0,
+          status: 'planning',
+          reactionId: earlyNatural.reactionId,
+          source: 'builtin',
+          createdAt: Date.now()
+        };
+      }
     }
 
     // Requests to write, read or modify content must not fall through to a
@@ -719,7 +829,7 @@ export class TaskPlanner {
         params: {},
         status: 'pending'
       });
-    } else if (q.includes('clock') || q.includes('timer') || q.includes('alarm') || q.includes('stopwatch')) {
+    } else if (!q.includes('pomodoro') && !q.includes('focus mode') && (q.includes('clock') || q.includes('timer') || q.includes('alarm') || q.includes('stopwatch'))) {
       intent = 'win.clock.launch';
       steps.push({
         id: 'step_1',
@@ -996,27 +1106,192 @@ export class TaskPlanner {
       });
     }
 
+    if (steps.length === 0) {
+      const naturalHit = interpretBuiltInNaturalCommand(query, recentMsgs);
+      if (naturalHit && naturalHit.steps.length > 0) {
+        if (naturalHit.requiresConfirmation || naturalHit.steps.length > 1) {
+          return this.buildApprovedActionPlan(
+            query,
+            planId,
+            'builtin_sequence',
+            naturalHit.steps.map((s) => ({ tool: s.tool, params: s.params, description: s.description })),
+            naturalHit.reactionId
+          );
+        }
+        return {
+          id: planId,
+          query,
+          intent: naturalHit.intent,
+          steps: naturalHit.steps,
+          currentStepIndex: 0,
+          status: 'planning',
+          reactionId: naturalHit.reactionId,
+          source: 'builtin',
+          createdAt: Date.now()
+        };
+      }
+      const managedPlan = await this.planViaManagedAiIfReady(query, aiConfig, planId, recentMsgs);
+      if (managedPlan) return managedPlan;
+    }
+
     if (aiConfig?.provider === 'local' && explicitAction && steps.length === 0) {
       return this.planSafeLocalActions(query, aiConfig, planId);
     }
-    if (aiConfig?.provider && ['openai', 'gemini', 'anthropic'].includes(aiConfig.provider) && explicitAction && steps.length === 0) {
+    if (aiConfig?.provider && ['openai', 'gemini', 'anthropic', 'groq', 'openrouter', 'custom_openai'].includes(aiConfig.provider) && explicitAction && steps.length === 0) {
       return this.planSafeCloudActions(query, aiConfig, planId);
     }
 
     const conversationalReply = steps.length === 0
       ? await this.generateConversationalResponse(query, aiConfig)
       : undefined;
+    const builtInMeta = steps.length === 0
+      ? generateBuiltInCharacterReply(query, { characterId: aiConfig?.personality })
+      : null;
 
     return {
       id: planId,
       query,
-      intent,
+      intent: steps.length > 0 ? intent : (builtInMeta?.requestType || intent),
       steps,
       currentStepIndex: 0,
       status: steps.length > 0 ? 'planning' : 'completed',
+      reactionId: builtInMeta?.reactionId || 'happy',
+      source: 'builtin',
       createdAt: Date.now(),
       finalMessage: conversationalReply
     };
+  }
+
+  private async planViaManagedAiIfReady(
+    query: string,
+    aiConfig: AiConfig | undefined,
+    planId: string,
+    recentMsgs: any[]
+  ): Promise<TaskPlan | null> {
+    const result = await this.planViaManagedAiWithStatus(query, aiConfig, planId, recentMsgs);
+    return result.plan;
+  }
+
+  private async planViaManagedAiWithStatus(
+    query: string,
+    aiConfig: AiConfig | undefined,
+    planId: string,
+    recentMsgs: any[]
+  ): Promise<{ plan: TaskPlan | null; attempted: boolean }> {
+    const provider = aiConfig?.provider || 'auto';
+    if (provider !== 'auto' && provider !== 'managed_local') {
+      return { plan: null, attempted: false };
+    }
+    if (typeof desktopBridge.getManagedAiStatus !== 'function') {
+      return { plan: null, attempted: false };
+    }
+    try {
+      const status = await desktopBridge.getManagedAiStatus();
+      if (!status?.ready) return { plan: null, attempted: false };
+
+      const cachedMemories = aiConfig?.useLongTermMemory === false || typeof dbService?.getCachedMemories !== 'function'
+        ? []
+        : dbService.getCachedMemories();
+      const relevant = selectRelevantMemories(cachedMemories, query);
+      const memoryBlock = formatMemoryContext(relevant);
+      const history = recentConversation(Array.isArray(recentMsgs) ? recentMsgs : [], query);
+
+      const characterDisplay = aiConfig?.personality
+        ? (aiConfig.personality.charAt(0).toUpperCase() + aiConfig.personality.slice(1))
+        : 'Sparky';
+      const allowActions = isCommandRequest(query) || hasExplicitDesktopActionCue(query);
+
+      // Fast direct chat path for pure conversational queries avoids sending the ~380-token GBNF tool schema.
+      if (!allowActions && typeof desktopBridge.chatManagedAi === 'function') {
+        const personalityHint = aiConfig?.personality === 'boba'
+          ? 'calm, warm, witty desktop companion'
+          : 'helpful, concise, expressive desktop companion';
+        const systemPrompt = [
+          `You are ${characterDisplay}, a ${personalityHint}. Reply naturally in 1-2 short sentences without markdown clutter or tool calls.`,
+          memoryBlock ? `Relevant user context:\n${memoryBlock}` : ''
+        ].filter(Boolean).join('\n\n');
+
+        const chatRes = await desktopBridge.chatManagedAi({
+          prompt: query,
+          history,
+          systemPrompt,
+          temperature: aiConfig?.temperature ?? 0.6,
+          maxTokens: 120,
+          stream: false
+        });
+        const rawReply = chatRes?.success ? String(chatRes.reply || '') : '';
+        const cleanedReply = rawReply.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        if (!cleanedReply) {
+          return { plan: null, attempted: true };
+        }
+        const builtInMeta = generateBuiltInCharacterReply(query, { characterId: aiConfig?.personality });
+        return {
+          attempted: true,
+          plan: {
+            id: planId,
+            query,
+            intent: 'conversation',
+            steps: [],
+            currentStepIndex: 0,
+            status: 'completed',
+            reactionId: builtInMeta.reactionId,
+            source: 'managed_local',
+            createdAt: Date.now(),
+            finalMessage: cleanedReply
+          }
+        };
+      }
+
+      if (typeof desktopBridge.planManagedAiStructured !== 'function') {
+        return { plan: null, attempted: false };
+      }
+      const proposal = await desktopBridge.planManagedAiStructured({
+        prompt: query,
+        history,
+        characterId: aiConfig?.personality,
+        characterName: characterDisplay,
+        memoryBlock
+      });
+      if (!proposal?.success) return { plan: null, attempted: true };
+
+      // Zero-hallucination guard: never allow pure emotional/conversational prompts
+      // lacking an explicit desktop action cue to trigger desktop/browser automation.
+      if (allowActions && Array.isArray(proposal.actions) && proposal.actions.length > 0) {
+        return {
+          attempted: true,
+          plan: this.buildApprovedActionPlan(
+            query,
+            planId,
+            'local_ai_actions',
+            proposal.actions.map((a) => ({ tool: a.tool, params: a.params || {}, description: a.description || a.tool })),
+            (proposal.reactionId as any) || 'excited',
+            'managed_local'
+          )
+        };
+      }
+
+      const rt = (!allowActions && (proposal.requestType === 'action' || proposal.requestType === 'multi_action'))
+        ? 'conversation'
+        : (proposal.requestType || 'conversation');
+      return {
+        attempted: true,
+        plan: {
+          id: planId,
+          query,
+          intent: rt,
+          steps: [],
+          currentStepIndex: 0,
+          status: 'completed',
+          clarificationNeeded: rt === 'clarification',
+          reactionId: (proposal.reactionId as any) || (rt === 'conversation' ? 'concerned' : 'happy'),
+          source: 'managed_local',
+          createdAt: Date.now(),
+          finalMessage: proposal.clarification || proposal.conversationResponse || 'Got it!'
+        }
+      };
+    } catch {
+      return { plan: null, attempted: true };
+    }
   }
 
   // Centralize the proposal-to-plan conversion: the UI always obtains
@@ -1025,7 +1300,9 @@ export class TaskPlanner {
     query: string,
     planId: string,
     intent: 'builtin_sequence' | 'local_ai_actions',
-    actions: Array<{ tool: string; params: Record<string, any>; description: string }>
+    actions: Array<{ tool: string; params: Record<string, any>; description: string }>,
+    reactionId: TaskPlan['reactionId'] = 'happy',
+    source: TaskPlan['source'] = 'builtin'
   ): TaskPlan {
     return {
       id: planId,
@@ -1041,6 +1318,8 @@ export class TaskPlanner {
       })),
       currentStepIndex: 0,
       status: 'planning',
+      reactionId,
+      source,
       createdAt: Date.now()
     };
   }
@@ -1068,8 +1347,9 @@ export class TaskPlanner {
 
   private async planSafeCloudActions(query: string, aiConfig: AiConfig, planId: string): Promise<TaskPlan> {
     const proposal = await desktopBridge.planCloudActions({
-      provider: aiConfig.provider as 'openai' | 'gemini' | 'anthropic',
+      provider: aiConfig.provider as 'openai' | 'gemini' | 'anthropic' | 'groq' | 'openrouter' | 'custom_openai',
       model: aiConfig.model,
+      customEndpoint: aiConfig.cloudCustomEndpoint,
       query
     });
     if (proposal.needsClarification && proposal.clarification) {

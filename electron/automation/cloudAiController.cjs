@@ -6,8 +6,57 @@ const { proposeActions } = require('./localActionPlanner.cjs');
 const DEFAULT_MODELS = Object.freeze({
   openai: 'gpt-4o-mini',
   gemini: 'gemini-2.0-flash',
-  anthropic: 'claude-3-5-haiku-latest'
+  anthropic: 'claude-3-5-haiku-latest',
+  groq: 'llama-3.3-70b-versatile',
+  openrouter: 'openai/gpt-4o-mini',
+  custom_openai: 'gpt-4o-mini'
 });
+
+const OPENAI_COMPAT_ENDPOINTS = Object.freeze({
+  openai: 'https://api.openai.com/v1/chat/completions',
+  groq: 'https://api.groq.com/openai/v1/chat/completions',
+  openrouter: 'https://openrouter.ai/api/v1/chat/completions'
+});
+
+function isPrivateOrLoopbackHost(hostname) {
+  const host = String(hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
+  if (!host) return true;
+  if (host === 'localhost' || host === '::1' || host === '0.0.0.0' || host.endsWith('.local') || host.endsWith('.internal')) {
+    return true;
+  }
+  const m = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (m) {
+    const [a, b] = [Number(m[1]), Number(m[2])];
+    if (a === 127 || a === 10 || a === 0) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+  }
+  if (/^(?:fc|fd|fe80):/i.test(host)) return true;
+  return false;
+}
+
+/** Validates an HTTPS OpenAI-compatible base/endpoint URL and blocks local/private SSRF targets. */
+function validateCustomHttpsEndpoint(raw) {
+  const value = validateText(raw, 'custom endpoint URL', 300);
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error('Custom endpoint must be a valid HTTPS URL.');
+  }
+  if (parsed.protocol !== 'https:' || parsed.username || parsed.password) {
+    throw new Error('Custom endpoint must use HTTPS without embedded credentials.');
+  }
+  if (isPrivateOrLoopbackHost(parsed.hostname)) {
+    throw new Error('Custom cloud endpoint cannot target localhost or private network addresses.');
+  }
+  const cleanPath = parsed.pathname.replace(/\/+$/, '');
+  const fullPath = cleanPath.endsWith('/chat/completions')
+    ? cleanPath
+    : `${cleanPath || '/v1'}/chat/completions`;
+  return `${parsed.origin}${fullPath}`;
+}
 
 function validateText(value, name, maxLength) {
   if (typeof value !== 'string' || !value.trim() || value.length > maxLength ||
@@ -22,7 +71,7 @@ function redactSecret(message, apiKey) {
   if (apiKey && typeof apiKey === 'string') {
     out = out.split(apiKey).join('[redacted]');
   }
-  return out.replace(/\b(?:sk-[A-Za-z0-9_-]{8,}|AIza[A-Za-z0-9_-]{12,})\b/g, '[redacted]');
+  return out.replace(/\b(?:gsk_[A-Za-z0-9_-]{8,}|sk-or-[A-Za-z0-9_-]{8,}|sk-[A-Za-z0-9_-]{8,}|AIza[A-Za-z0-9_-]{12,})\b/g, '[redacted]');
 }
 
 function validateHistory(history) {
@@ -95,12 +144,22 @@ async function chatCloud(options = {}, { secretStore, fetchImpl = globalThis.fet
       throw new Error('Temperature must be between 0 and 2.');
     }
     const maxTokens = options.maxTokens == null ? 320 : options.maxTokens;
-    if (!Number.isInteger(maxTokens) || maxTokens < 32 || maxTokens > 900) {
-      throw new Error('maxTokens must be between 32 and 900.');
+    if (!Number.isInteger(maxTokens) || maxTokens < 16 || maxTokens > 900) {
+      throw new Error('maxTokens must be between 16 and 900.');
     }
 
     let reply = '';
-    if (provider === 'openai') {
+    if (provider === 'openai' || provider === 'groq' || provider === 'openrouter' || provider === 'custom_openai') {
+      const endpoint = provider === 'custom_openai'
+        ? validateCustomHttpsEndpoint(options.customEndpoint || '')
+        : OPENAI_COMPAT_ENDPOINTS[provider];
+      const headers = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        ...(provider === 'openrouter'
+          ? { 'HTTP-Referer': 'https://companio7.vercel.app', 'X-Title': 'Companio' }
+          : {})
+      };
       const body = {
         model,
         messages: [{ role: 'system', content: systemPrompt }, ...turns, { role: 'user', content: prompt }],
@@ -108,9 +167,9 @@ async function chatCloud(options = {}, { secretStore, fetchImpl = globalThis.fet
         max_tokens: maxTokens,
         ...(options.jsonMode === true ? { response_format: { type: 'json_object' } } : {})
       };
-      const data = await fetchCloudJson('https://api.openai.com/v1/chat/completions', {
+      const data = await fetchCloudJson(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        headers,
         body: JSON.stringify(body)
       }, 45000, fetchImpl, apiKey);
       reply = data?.choices?.[0]?.message?.content;
@@ -169,8 +228,41 @@ async function proposeCloudActions(options = {}, { secretStore, fetchImpl = glob
   }
   return proposeActions(
     { ...options, allowRepair: options.allowRepair !== false, jsonMode: options.jsonMode !== false },
-    chatOpts => chatCloud({ ...chatOpts, provider }, { secretStore, fetchImpl })
+    chatOpts => chatCloud({ ...chatOpts, provider, customEndpoint: options.customEndpoint }, { secretStore, fetchImpl })
   );
 }
 
-module.exports = { DEFAULT_MODELS, redactSecret, chatCloud, proposeCloudActions };
+/** Runs a lightweight live connectivity check against the configured cloud provider and measures latency. */
+async function testCloudConnection(options = {}, deps = {}) {
+  const provider = typeof options?.provider === 'string' ? options.provider.trim().toLowerCase() : '';
+  const started = Date.now();
+  const res = await chatCloud(
+    {
+      provider,
+      model: options.model,
+      customEndpoint: options.customEndpoint,
+      prompt: 'Reply with OK.',
+      systemPrompt: 'Respond with OK only.',
+      temperature: 0,
+      maxTokens: 16
+    },
+    deps
+  );
+  return {
+    success: res.success,
+    provider,
+    model: res.model || options.model || DEFAULT_MODELS[provider] || '',
+    latencyMs: Date.now() - started,
+    ...(res.reply ? { reply: res.reply } : {}),
+    ...(res.error ? { error: res.error } : {})
+  };
+}
+
+module.exports = {
+  DEFAULT_MODELS,
+  redactSecret,
+  validateCustomHttpsEndpoint,
+  chatCloud,
+  proposeCloudActions,
+  testCloudConnection
+};

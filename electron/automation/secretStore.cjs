@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const CLOUD_PROVIDERS = Object.freeze(['openai', 'gemini', 'anthropic']);
+const CLOUD_PROVIDERS = Object.freeze(['openai', 'gemini', 'anthropic', 'groq', 'openrouter', 'custom_openai']);
 
 function isRecord(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value) &&
@@ -63,11 +63,7 @@ class SecretStore {
 
   status() {
     const encryptionAvailable = this.encryptionAvailable();
-    const providers = {
-      openai: { configured: false, hint: null },
-      gemini: { configured: false, hint: null },
-      anthropic: { configured: false, hint: null }
-    };
+    const providers = Object.fromEntries(CLOUD_PROVIDERS.map(p => [p, { configured: false, hint: null }]));
     try {
       const store = this.readRaw();
       for (const p of CLOUD_PROVIDERS) {

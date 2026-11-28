@@ -23,11 +23,11 @@ const engineExports={};
 vm.runInNewContext(transpile('src/services/agentEngine.ts'),{
   exports:engineExports,
   require: function load(name) {
-    if (['./taskPlanner','./taskExecutor','./taskVerification','./conversationContext','./memoryRetrieval','./failureRecovery'].includes(name)) {
+    if (['./taskPlanner','./taskExecutor','./taskVerification','./conversationContext','./memoryRetrieval','./failureRecovery','./hybridRouter'].includes(name)) {
       const moduleExports={};
       const moduleSource=fs.readFileSync(path.join(__dirname,'../src/services',name.slice(2)+'.ts'),'utf8');
       const compiled=ts.transpileModule(moduleSource,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
-      vm.runInNewContext(compiled,{exports:moduleExports,require:load,Date,Math,Number,Array,Error,AbortController,Promise,setTimeout,clearTimeout,console});
+      vm.runInNewContext(compiled,{exports:moduleExports,require:load,Date,Math,Number,Array,Error,AbortController,Promise,RegExp,Map,Set,Object,JSON,setTimeout,clearTimeout,console});
       return moduleExports;
     }
     if(name==='./intentSafety') return safe;
@@ -208,6 +208,7 @@ test('context contains complete chat pairs, not commands or tool outcomes',()=>{
   if(name==='./intentSafety')return safe;
   if(name==='./arithmetic')return arithmetic;
   if(name==='./memoryRetrieval'){const m={};vm.runInNewContext(transpile('src/services/memoryRetrieval.ts'),{exports:m});return m;}
+  if(name==='./hybridRouter'){const h={};vm.runInNewContext(transpile('src/services/hybridRouter.ts'),{exports:h,RegExp,Map,Set,Array,Object,Date,Math,Number});return h;}
   if(name==='./desktopBridge')return {desktopBridge:{}};
   if(name==='./dbService')return {dbService:{}};
   throw Error(name);
@@ -232,6 +233,7 @@ test('math calculations stay conversational rather than launching Calculator and
       if (name === './intentSafety') return safe;
       if (name === './arithmetic') return arithmetic;
       if (name === './memoryRetrieval') { const m = {}; vm.runInNewContext(transpile('src/services/memoryRetrieval.ts'), { exports: m }); return m; }
+      if (name === './hybridRouter') { const h = {}; vm.runInNewContext(transpile('src/services/hybridRouter.ts'), { exports: h, RegExp, Map, Set, Array, Object, Date, Math, Number }); return h; }
       if (name === './desktopBridge') return { desktopBridge: {} };
       if (name === './dbService') return { dbService: {} };
       throw Error(name);

@@ -4,6 +4,7 @@ import { dbService } from './dbService';
 import { evaluateArithmetic } from './arithmetic';
 import { isCommandRequest } from './intentSafety';
 import { selectRelevantMemories, formatMemoryContext } from './memoryRetrieval';
+import { generateBuiltInCharacterReply } from './hybridRouter';
 
 // Only recent plain conversation is eligible; never feed action logs or notes into planning.
 export function recentConversation(messages: ChatMessage[], currentQuery: string) {
@@ -134,10 +135,11 @@ export async function generateConversationalResponse(query: string, aiConfig?: A
       return result.reply;
     }
 
-    if (aiConfig?.provider && ['openai', 'gemini', 'anthropic'].includes(aiConfig.provider)) {
+    if (aiConfig?.provider && ['openai', 'gemini', 'anthropic', 'groq', 'openrouter', 'custom_openai'].includes(aiConfig.provider)) {
       const result = await desktopBridge.chatCloudAi({
-        provider: aiConfig.provider as 'openai' | 'gemini' | 'anthropic',
+        provider: aiConfig.provider as 'openai' | 'gemini' | 'anthropic' | 'groq' | 'openrouter' | 'custom_openai',
         model: aiConfig.model,
+        customEndpoint: aiConfig.cloudCustomEndpoint,
         prompt: query,
         history: aiConfig.useConversationContext === true ? recentConversation(dbService.getMessages(), query) : undefined,
         systemPrompt: systemWithMemory,
@@ -147,6 +149,23 @@ export async function generateConversationalResponse(query: string, aiConfig?: A
         throw new Error((result.error || 'The cloud AI provider did not reply.') + ' Check your encrypted API key in AI Intelligence or switch to Built-in mode.');
       }
       return result.reply;
+    }
+
+    if (aiConfig?.provider === 'auto' || aiConfig?.provider === 'managed_local') {
+      const managedStatus = typeof desktopBridge.getManagedAiStatus === 'function'
+        ? await desktopBridge.getManagedAiStatus().catch(() => null)
+        : null;
+      if (managedStatus?.ready && typeof desktopBridge.chatManagedAi === 'function') {
+        const res = await desktopBridge.chatManagedAi({
+          prompt: query,
+          history: recentConversation(typeof dbService?.getMessages === 'function' ? dbService.getMessages() : [], query),
+          systemPrompt: systemWithMemory,
+          temperature: aiConfig.temperature
+        }).catch(() => null);
+        if (res?.success && res.reply) {
+          return res.reply;
+        }
+      }
     }
 
     if (/^what\s+do\s+you\s+remember(?:\s+about\b|\s*$)/i.test(q)) {
@@ -159,45 +178,12 @@ export async function generateConversationalResponse(query: string, aiConfig?: A
       return 'I do not have any relevant saved memory matching that yet. You can add memories in History & Logs or say "save to memory: ...".';
     }
 
-    if (/^(?:give me |tell me |share )?(?:a )?(?:motivational|inspirational) quote[.!?]?$/i.test(q)) {
-      return 'Small, consistent improvements matter more than perfect starts.';
-    }
-
-    // Built-in delightful companion personality
-    if (q.includes('how are you') || q.includes('how r u') || q.includes('how are you doing')) {
-      return "I'm feeling wonderful and super energetic today! Ready to help you with anything on your PC ✨ How are you doing?";
-    }
-    if (q.includes('who are you') || q.includes('what are you')) {
-      return "I'm Companio, your personal AI desktop companion! I live on your Windows desktop to automate tasks, open apps, control sound, and keep you company 💖";
-    }
-    if (q.includes('joke') || q.includes('make me laugh')) {
-      const jokes = [
-        "Why do programmers prefer dark mode? Because light attracts bugs! 😄",
-        "Why was the computer cold? It left its Windows open! ❄️",
-        "There are 10 types of people in the world: those who understand binary, and those who don't! 🤖"
-      ];
-      return jokes[Math.floor(Math.random() * jokes.length)];
-    }
-    if (q.includes('good morning')) {
-      return "Good morning! ☀️ Wishing you an inspiring, productive, and happy day ahead! What shall we tackle first?";
-    }
-    if (q.includes('good night') || q.includes('sleep well')) {
-      return "Good night! 🌙 Sweet dreams! I'll be right here resting whenever you need me.";
-    }
-    if (q.includes('thank you') || q.includes('thanks')) {
-      return "You're so very welcome! Always happy to help you 🥰";
-    }
-    if (/\b(?:hello|hi|hey)\b/.test(q)) {
-      return "Hello there! ✨ What can I do for you on your computer today?";
-    }
-    if (q.includes('bored')) {
-      return "Want me to play CarryMinati or some good music on Spotify, or maybe open ChatGPT to brainstorm cool projects? Just say the word! 🚀";
-    }
-    if (q.includes('help') || q.includes('what can you do')) {
-      return "I can open ChatGPT, YouTube, Spotify, Chrome, VS Code, and Camera; control system volume; take screenshots; empty recycle bin; show desktop; check battery; and automate computer workflows!";
-    }
-
-    return 'The built-in engine cannot answer that yet. Try a supported desktop command, or enable a local language model in AI Intelligence for conversation.';
+    // Built-in Level 1 character conversation & truthful fallback (zero Ollama/LM Studio errors).
+    const builtIn = generateBuiltInCharacterReply(query, {
+      characterId: aiConfig?.personality,
+      managedAiAvailable: false
+    });
+    return builtIn.reply;
   }
 
 
