@@ -1,10 +1,27 @@
+# Dependencies and build outputs
 node_modules/
 dist/
 release/
 target/
+coverage/
+.electron-builder-cache/
+.vite/
+*.tsbuildinfo
+
+# Local environment and logs
 .env
+.env.*
+!.env.example
 *.log
 *.download
+*.tmp
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local AI artifacts — never commit downloaded weights
+*.gguf
+*.ggml
 
 # Verified offline voice assets are downloaded during CI, never committed.
 build/bundled-voice/arm64/

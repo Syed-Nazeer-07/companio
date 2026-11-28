@@ -1,120 +1,77 @@
 <div align="center">
+  <img src="website/assets/mark.svg" width="84" alt="Companio logo" />
 
 # Companio
 
-### A little personality. A lot more possibility.
+**A personal desktop companion for Windows.**
 
-**An animated desktop companion for Windows that turns voice and text into useful, controlled actions.**
+Animated characters, voice and text interaction, and permission-aware desktop automation.
 
-Summon a character, ask for help, and get back to what you were doing—without opening another assistant dashboard.
+[![CI](https://github.com/Syed-Nazeer-07/companio/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Syed-Nazeer-07/companio/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Windows](https://img.shields.io/badge/Windows%2011-x64%20%7C%20ARM64-0078D4)
+![Status](https://img.shields.io/badge/status-preview-orange)
 
-[![CI](https://github.com/Syed-Nazeer-07/companio/actions/workflows/ci.yml/badge.svg)](https://github.com/Syed-Nazeer-07/companio/actions/workflows/ci.yml)
-![Platform](https://img.shields.io/badge/Windows-11%20%7C%20x64%20%7C%20ARM64-0078D4?logo=windows11&logoColor=white)
-![Electron](https://img.shields.io/badge/Electron-Desktop-47848F?logo=electron&logoColor=white)
-![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
-
-[**Features**](#features) · [**Get started**](#getting-started) · [**How it works**](#how-it-works) · [**Development**](#development) · [**Roadmap**](#roadmap)
-
-[**Visit official website**](https://companio7.vercel.app) · [Website source](website/) · [Releases](https://github.com/Syed-Nazeer-07/companio/releases) · [Latest ARM64/x64 preview](https://github.com/Syed-Nazeer-07/companio/releases/tag/v1.1.0-rc.27) · [Report an issue](https://github.com/Syed-Nazeer-07/companio/issues)
+[Website](https://companio7.vercel.app) · [Download](#download) · [Documentation](#documentation) · [Report an issue](https://github.com/Syed-Nazeer-07/companio/issues/new/choose)
 
 </div>
 
----
-
-> [!IMPORTANT]
-> **Status: active preview.** Companio is a working Electron desktop project with Windows automation, character interactions, optional local AI integration, tests, and installer workflows. It is **not yet a signed, production-validated Windows release**. Releases may lag behind newer source changes; see the [preview-build workflow](https://github.com/Syed-Nazeer-07/companio/actions/workflows/release.yml) for newer build artifacts when available.
-
-## Marketing website
-
-The repository now includes a **separate, responsive public landing page** in [`website/`](website/). It introduces Companio with a custom logo and favicon, illustrated companion characters, an interactive example-command preview, feature explanations, and official GitHub download links. The demo is illustrative only—it **does not control your computer**.
-
-**Preview the website locally** (from the repository root):
-
-```powershell
-cd website
-python -m http.server 4173
-```
-
-Visit **http://localhost:4173**. The website is plain HTML, CSS, JavaScript, and SVG—there is no npm install or build step for it.
-
-**Live landing page:** [https://companio7.vercel.app](https://companio7.vercel.app) — hosted on Vercel, connected to the `main` branch, with the Vercel root directory set to `website`. This public marketing site is separate from the Electron app and automatically deploys site changes pushed to `main`. Download buttons link directly to the published, architecture-specific [ARM64](https://github.com/Syed-Nazeer-07/companio/releases/download/v1.1.0-rc.27/Companio-Setup-1.1.0-rc.27-arm64.exe) and [x64](https://github.com/Syed-Nazeer-07/companio/releases/download/v1.1.0-rc.27/Companio-Setup-1.1.0-rc.27-x64.exe) rc.27 preview installers; release notes include SHA-256 checksums. No GitHub login or ZIP extraction is necessary.
-
-> The marketing site is intentionally independent of the Electron/Vite desktop UI. Existing desktop commands (`npm run build`, `npm start`) and installer packaging continue to use the root app; this change does not replace its floating overlay or Control Center.
-
 ## Overview
 
-Companio brings an expressive, customizable assistant directly to the Windows desktop. A lightweight, always-on-top character can help launch applications, open websites, perform supported system tasks, and respond to typed or spoken requests.
+Companio brings a customizable, animated assistant to the Windows desktop. Summon a character with a keyboard shortcut, speak or type a request, and let it handle supported everyday tasks without opening another dashboard.
 
-Its core philosophy is simple: **an assistant should feel present when you need it—and disappear when you do not.**
-
-- **Character-first:** six companion styles with expressive states, subtle motion, and a movable desktop overlay.
-- **Action-oriented:** a curated command system for Windows, web searches, browser navigation, and system controls.
-- **Local-first:** everyday predefined commands work without a paid AI API key.
-- **Approval-aware:** supported multi-step plans require review, and uncertain outcomes are reported as such.
+> **Active preview:** published installers are unsigned. The current release is not a production-certified application. Experimental features and future work are identified separately below.
 
 ## Features
 
-| Experience | What is implemented |
+| Capability | Current implementation |
 | --- | --- |
-| **Floating companion** | Transparent, always-on-top Electron overlay; drag-to-move handle, position persistence, and smooth show/hide interactions |
-| **Six characters** | Sparky, Pixel, Mochi, Cloudie, Kiko, and Boba; animated idle, listening, thinking, speaking, success, and sleep states |
-| **Global access** | Default **Ctrl + Shift + Space** shortcut, Windows system tray, and configurable activation shortcut |
-| **Windows integration** | Supported application and folder launches, audio controls, screenshots, and selected device utilities |
-| **Browser actions** | Website opening and searches in the **default Windows browser**; a separate Edge automation profile for supported interactive tasks |
-| **Voice and text** | Built-in text commands, automatic offline-first one-shot recognition in packaged builds, distinct companion speech profiles, and review for unfamiliar or sensitive actions |
-| **Optional local AI** | Ollama or LM Studio connection for conversations and bounded, reviewed action proposals |
-| **Personal settings** | Character customization, voice settings, native startup toggle, automation preferences, and Control Center |
-| **History and recovery** | Local activity/conversation history, native JSON snapshots, export, and validated restore |
+| Desktop companion | Movable, transparent overlay; character animations, sleep/wake, tray access |
+| Voice and text | Push-to-talk, offline English transcription in packaged previews, adjustable speech profiles |
+| Windows automation | Supported app and folder launches, volume controls, screenshots and more |
+| Web actions | Default-browser searches and bounded managed Edge automation |
+| Local intelligence | Built-in command engine; optional Ollama or LM Studio connection |
+| Safety | Validated tools, approval for higher-risk or multi-step actions, outcome reporting |
+| Personalization | Character Studio, voice settings, history export/restore and optional startup |
 
-### A companion that feels alive
+### Meet the companions
 
-Choose from **Sparky** (robot), **Pixel** (pixel fox), **Mochi** (soft mascot), **Cloudie** (pastel cloud), **Kiko** (kitten), or **Boba** (bear). Characters respond to interaction states instead of looping through distracting effects.
+<div align="center">
 
-The companion can be moved around the desktop, sent to sleep, awakened, and dismissed with a transition while the tray application remains available. Motion is reduced when Windows requests reduced-motion behavior.
+<img src="public/characters/sparky.svg" width="68" alt="Sparky" /> <img src="public/characters/pixel.svg" width="68" alt="Pixel" /> <img src="public/characters/mochi.svg" width="68" alt="Mochi" /> <img src="public/characters/cloudie.svg" width="68" alt="Cloudie" /> <img src="public/characters/kiko.svg" width="68" alt="Kiko" /> <img src="public/characters/boba.svg" width="68" alt="Boba" />
 
-### Designed for the desktop
+Sparky · Pixel · Mochi · Cloudie · Kiko · Boba
 
-Press **Ctrl + Shift + Space** to summon Companio, or click the character to open its compact command bar. The **Control Center** provides Character Studio, Automation & Tools, AI Configuration, Voice Settings, History, Settings, and Help.
+</div>
 
-**Launch at sign-in is optional and off by default.** In an installed build, enable it under **Control Center → Settings → Windows Startup**. Development and browser-preview sessions cannot install a Windows startup entry.
+Character illustrations are representative artwork, not screenshots of the running application.
 
-## What can I ask it to do?
+## Download
 
-| Example request | Expected behavior |
+**Current Windows preview: v1.1.0-rc.27**
+
+| Device | Installer |
 | --- | --- |
-| `Open Calculator` | Launch Windows Calculator |
-| `Open my Downloads folder` | Open the Downloads directory |
-| `Open YouTube` | Open YouTube in the default browser |
-| `Search YouTube for Python DSA` | Open a YouTube search |
-| `Open VS Code` | Launch Visual Studio Code when installed |
-| `Set the volume to 60%` | Change the Windows master volume and attempt readback |
-| `Take a screenshot` | Capture a screenshot using the supported native tool |
-| `Move Companio a little right` | Reposition the character within screen bounds |
-| `Go to sleep` | Put the companion into a resting state |
-| `Open Notepad and set volume to 45%` | Show a review dialog for a supported two-step workflow |
+| Snapdragon / Windows on ARM | [ARM64 installer](https://github.com/Syed-Nazeer-07/companio/releases/download/v1.1.0-rc.27/Companio-Setup-1.1.0-rc.27-arm64.exe) |
+| Intel / AMD Windows PC | [x64 installer](https://github.com/Syed-Nazeer-07/companio/releases/download/v1.1.0-rc.27/Companio-Setup-1.1.0-rc.27-x64.exe) |
 
-Requests are handled through **recognized intents and allowlisted tools**, not unrestricted access to Windows. Browser and application behavior can vary with installed software, Windows configuration, and external websites. Some operations can be dispatched successfully without proof of their final visible state; Companio distinguishes these outcomes where supported.
+Verify the SHA-256 checksum in the [release notes](https://github.com/Syed-Nazeer-07/companio/releases/tag/v1.1.0-rc.27). Windows may warn about the unsigned publisher. Keep system security protections enabled. See [installation and troubleshooting](docs/user-guide.md) or [all releases](https://github.com/Syed-Nazeer-07/companio/releases).
 
-## Getting started
+After installing, press **Ctrl + Shift + Space** to summon Companio. Select a character and use the command bar or microphone.
 
-### Install a Windows preview
+### Example requests
 
-Download [Companio ARM64](https://github.com/Syed-Nazeer-07/companio/releases/download/v1.1.0-rc.27/Companio-Setup-1.1.0-rc.27-arm64.exe) for Snapdragon/Windows on ARM or [Companio x64](https://github.com/Syed-Nazeer-07/companio/releases/download/v1.1.0-rc.27/Companio-Setup-1.1.0-rc.27-x64.exe) for Intel/AMD Windows. Both are direct GitHub Release installer files. For integrity, check the SHA-256 values on the [rc.27 release page](https://github.com/Syed-Nazeer-07/companio/releases/tag/v1.1.0-rc.27). These are **unsigned preview builds** and Windows may show a publisher-reputation warning.
+- Open Calculator.
+- Search YouTube for Python DSA.
+- Set the volume to 60%.
+- Take a screenshot.
+- Open Notepad and set volume to 45% (review required).
 
-Choose the setup executable for your processor:
+Basic supported commands do not require an API key or LLM. Generative conversations currently require an optional separately running local model provider; offline speech recognition is a separate capability.
 
-- **x64:** standard Windows Intel/AMD systems.
-- **ARM64:** supported Windows-on-ARM systems, including Snapdragon-based laptops.
+## Build from source
 
-Preview installers are **unsigned**, and Windows SmartScreen may show an unrecognized-app warning. Do not disable Windows security protections to install Companio. Source builds are also available below.
-
-> [!NOTE]
-> The browser-only Vite preview displays the interface but **cannot perform native Windows actions**. Use the Electron desktop app when testing automation.
-
-### Build from source
-
-**Prerequisites:** Windows 11, Git, Node.js 22 with npm (the version used in CI). Microsoft Edge is needed for managed-browser automation. A microphone and local AI runtime are optional.
+Requirements: Windows 11, Git, Node.js 22 and npm.
 
 ```powershell
 git clone https://github.com/Syed-Nazeer-07/companio.git
@@ -124,179 +81,46 @@ npm run build
 npm start
 ```
 
-The first launch opens the Electron experience; configure your character and preferences in Control Center.
+`npm run dev` opens a browser-only interface preview without native Windows actions. Run `npm run test:unit` for automated regression checks.
 
-## Voice and local AI
-
-**v1.1.0-rc.27 Windows preview:** The Windows ARM64 and x64 installer builds bundle an English offline Whisper speech engine and quantized model. Official archive and model SHA-256 hashes are checked before packaging. On first launch, choose a character and activate the microphone; **no Ollama, LM Studio, API key, or manual speech-model download** is needed for supported desktop commands. For source-only `npm start` runs without packaged assets, Automatic voice falls back to installed Windows dictation. Existing installations using the old default Windows recognizer migrate to Automatic unless the user explicitly selected a newer preference.
-
-- **Push to talk:** activate Companio, tap the microphone, and speak. New packaged builds use offline Whisper by default when its bundled engine is present. Audio is processed locally; it is not recorded in the background.
-- **Low-risk hands-free commands:** supported, exact one-step commands such as **Open YouTube**, **Open Calculator** and **Take a screenshot** can be sent directly after recognition. Unknown websites, searches, multi-step actions, and sensitive operations still show an editable transcript and may require approval.
-- **Accurate feedback:** screenshot success requires a verified saved PNG, while opening a website only verifies that Windows received the browser request.
-- **Voice settings:** Control Center → Voice Settings includes a microphone test, recognition-language setting, a Windows dictation override, optional manual Whisper file selection, and individually tuned character voices.
-- **Advanced AI remains optional:** the Built-in Engine handles supported commands without third-party servers. Choose local AI only when Ollama or LM Studio is already running.
-
-**Earlier rc.22 installers** used the prior Windows dictation default and optional Whisper download. The rc.26 release introduced the bundled offline recognizer and one-screen first launch. rc.27 adds safer voice recognition handling and screenshot capture fallback. Microphone permission from Windows and on-device performance testing remain applicable. No continuous always-on wake-word recording is enabled.
-
-### Use a local language model (optional)
-
-Companio's **Built-in Instant Engine** handles its supported commands without a paid API key. To enable a separate, experimental conversational model:
-
-1. Install and run [Ollama](https://ollama.com/) or [LM Studio](https://lmstudio.ai/) with a loaded model.
-2. In **Control Center → AI Configuration → Local Offline LLM**, use **Find Local AI** or provide a loopback endpoint.
-3. Run **Check Connection** and **Test** to verify the service and model response.
-
-Example Ollama setup:
-
-```powershell
-ollama run llama3.2
-```
-
-Typical local endpoints are `http://127.0.0.1:11434/v1` (Ollama) and `http://127.0.0.1:1234/v1` (LM Studio).
-
-Local AI is **not a bundled model runtime** and does **not** provide free-form autonomous computer control. Model-proposed actions are limited to a small validated tool set (up to three actions), require explicit approval, and stop on failure. An in-app GGUF download alone does not make a model executable. Unfinished cloud-provider integrations are disabled.
-
-## How it works
+## Architecture
 
 ```text
-                User
-             Voice / text
-                  |
-                  v
-        Companion overlay (React)
-                  |
-                  v
-       Intent + safety validation
-                  |
-                  v
-          Electron IPC bridge
-                  |
-        +---------+---------+
-        |         |         |
-        v         v         v
-   Windows tools  Browser   Local AI*
-        |         |         |
-        +---------+---------+
-                  |
-                  v
-         Outcome + local history
-
-* Optional: separately running Ollama / LM Studio
+Voice / text → React companion overlay
+                    ↓
+            Intent & safety checks
+                    ↓
+              Electron IPC
+                    ↓
+    Windows tools / Browser / Optional local AI
+                    ↓
+             Outcome & local history
 ```
 
-**Native execution lives in Electron.** Standard links and searches are handed to the Windows default browser. Interactive managed-browser tasks use a **separate Microsoft Edge profile**, not arbitrary tabs in the user's daily browser.
+Built with Electron, React 19, TypeScript, Vite, Tailwind CSS, Framer Motion and Playwright Core. Windows installers use Electron Builder and NSIS; the standalone marketing website is plain HTML, CSS and JavaScript.
 
-### Tech stack
+## Documentation
 
-| Layer | Technologies |
+| Guide | Contents |
 | --- | --- |
-| Desktop shell | Electron, Node.js, Windows APIs, PowerShell |
-| Interface | React 19, TypeScript, Vite |
-| Styling and motion | Tailwind CSS, Framer Motion, SVG |
-| Browser automation | Playwright Core, Microsoft Edge |
-| Speech | Windows System.Speech, Web Speech APIs, optional whisper.cpp |
-| Data | Electron user-data JSON, browser localStorage, experimental in-memory sql.js |
-| Packaging | Electron Builder, NSIS, GitHub Actions |
-
-## Development
-
-Start the UI preview:
-
-```powershell
-npm run dev
-```
-
-For an Electron development session, run `npm run dev` in one PowerShell terminal and the following in another:
-
-```powershell
-$env:NODE_ENV = "development"
-npm start
-```
-
-Useful scripts:
-
-| Command | Purpose |
-| --- | --- |
-| `npm run build` | TypeScript validation and production UI build |
-| `npm run test:unit` | Unit and regression suite |
-| `npm run test:desktop-smoke` | Electron startup/IPC smoke tests (Windows) |
-| `npm run test:tools` | Interactive native automation tests; **can affect Windows state** |
-| `npm run dist:x64` | Package an x64 Windows installer |
-| `npm run dist:arm64` | Package an ARM64 Windows installer |
-| `npm run dist:portable` | Build an optional portable package |
-
-Windows installer output is written under `release/`. The GitHub Actions [CI workflow](.github/workflows/ci.yml) runs the automated build/security checks; the [release workflow](.github/workflows/release.yml) prepares architecture-specific installers. Passing CI does not guarantee that voice recognition, browser automation, or startup has been verified on every physical device.
-
-### Project structure
-
-```text
-companio/
-├── website/                 # Static product website, logo, favicon and illustrations
-├── electron/
-│   ├── main.cjs            # Desktop lifecycle, tray, windows, IPC
-│   ├── preload.cjs         # Restricted renderer-to-native bridge
-│   └── automation/         # Windows, browser, speech, and AI handlers
-├── src/
-│   ├── components/
-│   │   ├── characters/     # Companion designs and animations
-│   │   ├── dashboard/      # Control Center pages
-│   │   ├── onboarding/     # First-run experience
-│   │   └── overlay/        # Floating companion
-│   └── services/           # Planning, safety, speech, state
-├── test/                   # Automated and interactive checks
-├── .github/workflows/      # CI and Windows release pipelines
-└── package.json
-```
-
-## Privacy, security, and limitations
-
-Companio can interact with apps, web pages, audio settings, and local information. **Use it on a computer you own or are authorized to control.**
-
-- **Local history is not encrypted.** Desktop history is persisted in a JSON file under Electron's user-data directory; exported backups may contain sensitive text. Keep backups private. `sql.js` is currently an in-memory prototype, not a persistent encrypted database.
-- **Supported commands only.** Electron IPC validates tools and inputs; higher-risk or multi-step proposals are reviewed before execution. This is not an unrestricted desktop agent.
-- **Verification has limits.** Launching a process, pressing a media key, or handing off a URL is not always proof that the requested visual result occurred.
-- **Voice and browser integrations are environment-dependent.** Recognition, controlled Edge sessions, and third-party website interfaces may fail or change.
-- **Local AI must be installed separately.** CPU and ARM64 model performance are not guaranteed; downloaded GGUF files are not automatically runnable.
-- **Production readiness is pending.** Signed installers, automatic updates, extensive real-device testing, and additional security hardening remain to be completed.
-
-For voice or desktop problems, include your Windows version, processor architecture, the exact action attempted, and any visible error when [opening an issue](https://github.com/Syed-Nazeer-07/companio/issues). Avoid publishing personal history exports or logs containing private information.
-
-## Installation and troubleshooting
-
-This repository contains development improvements that may not yet be present in the downloadable preview. Check the release tag and its checksums before testing a specific build.
-
-- **Installer uses too much CPU or appears frozen:** the source includes an experimental ZIP-based NSIS packaging option and disables launching Companio at the installer finish screen. This changes extraction behavior but still needs before/after ARM64 measurement; it does not guarantee that Windows Defender scanning or disk contention will be faster. Keep Windows protections enabled and check Task Manager for the process consuming CPU or disk.
-- **Windows says “protected your PC”:** the publicly distributed Windows preview is unsigned. SmartScreen is based on publisher and file reputation, not a missing checkbox in Electron. Verify the SHA-256 listed on the official release before choosing whether to trust the download. Signing with a verified publisher or distributing through the Microsoft Store requires separate publisher setup; never disable security checks to make an installer appear trusted.
-- **Voice recognition is inaccurate or hears nothing:** in **Control Center → Voice Settings**, use the microphone test and check Windows microphone access. New packaged installers select bundled offline Whisper automatically; source-only runs fall back to Windows dictation. On ARM64, transcription speed and accuracy still depend on the microphone and CPU. Use the editable transcript before sending unfamiliar actions.
-- **Local model server unavailable:** Ollama and LM Studio are optional. If you selected local AI but it is not running, start the chosen server or change **AI Settings** to Built-in. Local commands like opening approved websites do not require an LLM.
-- **Screenshots:** say or type **Take a screenshot** and check **Pictures/Companio_Captures**. The app reports the saved file path only after verifying a PNG was created. In browser-only previews, native Windows screenshots are unavailable.
-- **“Website not verified” messages:** opening a site in the Windows default browser confirms only the handoff to the OS, not that the external page finished loading or was independently security-scanned. Confirm in your browser; this is not a security verdict on that website.
-
-### Pre-release verification
-
-Before publishing updated installers, CI runs unit tests, a TypeScript build, packaged UI smoke checks, native ARM64 smoke checks, and bounded silent-install tests with setup timing on Windows runners. Real-world microphone accuracy, Defender scanning overhead, and laptop thermals still require real-device validation. Production code signing remains outstanding; a green CI run is not evidence that every Windows machine is supported.
+| [User guide](docs/user-guide.md) | Voice, local AI, installation and troubleshooting |
+| [Development](docs/development.md) | Architecture, scripts, project structure and release verification |
+| [Contributing](CONTRIBUTING.md) | Development workflow, tests and reporting |
+| [Security](SECURITY.md) | Security reporting, privacy and supported releases |
+| [Website](website/README.md) | Static site development and deployment |
 
 ## Roadmap
 
-- [x] Interactive character overlay, Control Center, tray, and global shortcut
-- [x] Basic local commands, Windows tools, and default-browser searches
-- [x] Bounded, approval-first workflows and optional local-model connection
-- [x] Native history export/restore and optional Windows startup
-- [ ] Broader real-device testing on Windows x64 and ARM64
-- [ ] Better speech accuracy, responsiveness, and accessibility
-- [ ] More reliable verified web interactions without expanding unsafe permissions
-- [ ] Code signing, update delivery, and a production-quality installer experience
+Planned improvements, not current release features:
 
-## Maintainer
+- Automatic local LLM setup through the installer or settings, without manual server configuration.
+- Optional cloud AI with user-provided credentials.
+- Improved native click-through, voice recognition and distinct character voices/reactions.
+- Refined settings, installer clarity and Windows ARM64 performance.
+- Trusted signing and broader real-device validation.
 
-Built by **[Syed Nazeer S](https://github.com/Syed-Nazeer-07)**.
+## License
 
-Feedback, reproducible bug reports, and thoughtful contributions are welcome through [GitHub Issues](https://github.com/Syed-Nazeer-07/companio/issues).
+[MIT](LICENSE) · Maintained by [Syed Nazeer S](https://github.com/Syed-Nazeer-07).
 
----
-
-<div align="center">
-
-**Companio** — a desktop assistant with a little character.
-
-</div>
+Bundled voice components carry their own [third-party notices](build/bundled-voice/NOTICE.md).
