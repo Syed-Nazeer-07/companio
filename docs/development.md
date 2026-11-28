@@ -71,7 +71,7 @@ Useful scripts:
 | `npm run dist:arm64` | Package an ARM64 Windows installer |
 | `npm run dist:portable` | Build an optional portable package |
 
-Windows installer output is written under `release/`. The GitHub Actions [CI workflow](.github/workflows/ci.yml) runs the automated build/security checks; the [release workflow](.github/workflows/release.yml) prepares architecture-specific installers. Passing CI does not guarantee that voice recognition, browser automation, or startup has been verified on every physical device.
+Windows installer output is written under `release/`. The GitHub Actions [CI workflow](../.github/workflows/ci.yml) runs the automated build/security checks; the [release workflow](../.github/workflows/release.yml) prepares architecture-specific installers. Passing CI does not guarantee that voice recognition, browser automation, or startup has been verified on every physical device.
 
 ### Project structure
 
